@@ -2723,6 +2723,173 @@ const healthLabel = h => h === 'healthy' ? 'On Plan' : h === 'attention' ? 'Unde
 
 </script>
 <script>
+/* ============ PROMO SIMULATOR — additive estimation over loaded data ============ */
+/* ===========================
+   PROMO SIMULATOR (ADDITIVE ESTIMATION LAYER)
+   Evaluates a Promotion-Builder configuration against the invoice data
+   already loaded in the platform (all campaign bundles, deduplicated by
+   invoice number). This is a what-if estimate for planning: it reads the
+   frozen data and NEVER touches or alters the settlement engines, their
+   formulas, or any published settlement figure.
+   =========================== */
+const PromoSimulator = (() => {
+  /** All invoices across every loaded campaign, deduplicated by invoice no. */
+  function invoicePool() {
+    const seen = new Set(), pool = [];
+    engine.promotions.forEach(p => (p.data.invoices || []).forEach(inv => {
+      if (seen.has(inv.inv)) return;
+      seen.add(inv.inv);
+      pool.push(inv);
+    }));
+    return pool;
+  }
+  /** Coverage window of the loaded data (for honest "no data in period" hints). */
+  function coverage(pool) {
+    let min = Infinity, max = -Infinity;
+    pool.forEach(i => { const d = FilterEngine.parseDate(i.date); if (d != null) { if (d < min) min = d; if (d > max) max = d; } });
+    const f = ms => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return isFinite(min) ? { from: min, to: max, label: f(min) + ' – ' + f(max) } : null;
+  }
+  const isoMs = s => { if (!s) return null; const d = new Date(s + 'T00:00:00'); return isNaN(d) ? null : d.getTime(); };
+
+  /** Average list price per case of a SKU across the loaded invoices. */
+  function avgCasePrice(code, pool) {
+    let val = 0, cases = 0;
+    pool.forEach(i => (i.lines || []).forEach(l => {
+      if (l.code === code && Calc.num(l.cases) > 0) { val += Calc.num(l.gross); cases += Calc.num(l.cases); }
+    }));
+    return cases > 0 ? val / cases : null;
+  }
+
+  /**
+   * Simulate a builder promotion against the loaded invoices.
+   * Rules (stated in the UI): paid lines only (net > 0); the buy condition
+   * counts cases of the selected products per customer — combined across
+   * products or per product, per the promo's qtyMode; one reward per
+   * completed buy condition.
+   */
+  function analyze(promo) {
+    const pool = invoicePool();
+    const cov = coverage(pool);
+    const from = isoMs(promo.startDate);
+    const to = promo.endDate ? isoMs(promo.endDate) + 86399999 : null;
+    const prodSet = new Set(promo.productCodes);
+    const custSet = promo.customerScope === 'selected' ? new Set(promo.customerCodes) : null;
+    const byCust = new Map();
+    let invScanned = 0;
+    pool.forEach(inv => {
+      const d = FilterEngine.parseDate(inv.date);
+      if (from != null && d != null && d < from) return;
+      if (to != null && d != null && d > to) return;
+      if (custSet && !custSet.has(inv.code)) return;
+      let touched = false;
+      (inv.lines || []).forEach(l => {
+        if (!prodSet.has(l.code)) return;
+        if (Calc.num(l.net) <= 0) return; // paid volume only — free goods and returns never qualify
+        let o = byCust.get(inv.cust);
+        if (!o) { o = { cust: inv.cust, code: inv.code, city: inv.city, rep: inv.sales, bought: 0, paidValue: 0, perProd: new Map() }; byCust.set(inv.cust, o); }
+        o.bought += Calc.num(l.cases);
+        o.paidValue += Calc.num(l.net);
+        o.perProd.set(l.code, Calc.num(o.perProd.get(l.code)) + Calc.num(l.cases));
+        touched = true;
+      });
+      if (touched) invScanned++;
+    });
+
+    const buy = Calc.num(promo.buyQty);
+    const rows = [];
+    byCust.forEach(o => {
+      let ach = 0;
+      if (buy > 0) {
+        if (promo.qtyMode === 'each') o.perProd.forEach(c => { ach += Math.floor(Calc.num(c) / buy); });
+        else ach = Math.floor(o.bought / buy);
+      }
+      rows.push({ cust: o.cust, code: o.code, city: o.city, rep: o.rep, bought: o.bought, paidValue: o.paidValue, achievements: ach });
+    });
+    rows.sort((a, b) => b.achievements - a.achievements || b.bought - a.bought);
+    const qualifying = rows.filter(r => r.achievements > 0);
+    const totalAch = Calc.sum(qualifying, 'achievements');
+
+    const out = {
+      rows, buyers: rows.length, qualifying: qualifying.length, achievements: totalAch,
+      invoices: invScanned, poolSize: pool.length, coverage: cov,
+      rewardType: promo.rewardType, rewardLabel: '', rewardQty: null, freeCases: null,
+      unitPrice: null, cost: null, note: '',
+    };
+    if (promo.rewardType === 'free_product') {
+      const qty = Calc.num(promo.reward.rewardQty);
+      out.rewardQty = qty;
+      out.freeCases = totalAch * qty;
+      out.unitPrice = avgCasePrice(promo.reward.rewardProduct, pool);
+      out.cost = out.unitPrice != null ? out.freeCases * out.unitPrice : null;
+      out.rewardLabel = 'Free cases owed';
+      out.note = out.unitPrice == null
+        ? 'The reward product has no price history in the loaded invoices, so only the case count is shown.'
+        : 'Valued at the average list price of the reward product in the loaded invoices (SAR ' + Fmt.n2(out.unitPrice) + '/case).';
+    } else if (promo.rewardType === 'discount_pct') {
+      const pct = Calc.num(promo.reward.discountPct) / 100;
+      out.cost = Calc.sum(qualifying, 'paidValue') * pct;
+      out.rewardLabel = 'Discount cost';
+      out.note = 'Discount applied to the qualifying customers’ paid value (ex-VAT) of the selected products.';
+    } else {
+      const amt = Calc.num(promo.reward.rewardAmount);
+      out.cost = totalAch * amt;
+      out.rewardLabel = promo.rewardType === 'salesman_reward' ? 'Salesman payout' : 'Cash payout';
+      out.note = 'One reward of SAR ' + Fmt.n0(amt) + ' per completed buy condition.';
+    }
+    return out;
+  }
+  return { analyze, invoicePool, coverage };
+})();
+
+/* ---------- shared UI fragments for the simulator ---------- */
+function simStrip(sim) {
+  const compAtRate = sim.rewardType === 'free_product' && sim.cost != null ? sim.cost * engine.active.rate : null;
+  return `<div class="pb-preview" style="margin-top:0">
+    <div class="pbp"><span>Buyers of selected SKUs</span><b>${Fmt.n0(sim.buyers)}</b></div>
+    <div class="pbp"><span>Qualifying customers</span><b>${Fmt.n0(sim.qualifying)}</b></div>
+    <div class="pbp"><span>Conditions completed</span><b>${Fmt.n0(sim.achievements)}</b></div>
+    <div class="pbp"><span>${sim.rewardType === 'free_product' ? 'Free cases owed' : sim.rewardLabel}</span><b>${sim.rewardType === 'free_product' ? Fmt.n2(sim.freeCases) : (sim.cost != null ? Fmt.money0(sim.cost) : '—')}</b></div>
+    <div class="pbp"><span>Est. cost (list price)</span><b class="hl">${sim.cost != null ? Fmt.money0(sim.cost) : '—'}</b></div>
+    <div class="pbp"><span>If reimbursed @ ${(engine.active.rate * 100).toFixed(0)}%</span><b>${compAtRate != null ? Fmt.money0(compAtRate) : '—'}</b></div>
+  </div>`;
+}
+function simHint(sim, promo) {
+  const period = (promo.startDate || promo.endDate)
+    ? `${promo.startDate || '…'} → ${promo.endDate || '…'}` : 'all loaded data';
+  const zero = sim.invoices === 0
+    ? `<div class="up-status warn" style="margin-top:10px">No loaded invoice falls inside the promotion period with the selected products. The loaded data covers <b>${sim.coverage ? sim.coverage.label : '—'}</b> — adjust the dates or the product list to simulate against it.</div>`
+    : '';
+  return `<div class="risk-note" style="margin-top:10px"><b>Estimate, not a settlement.</b> Simulated against the ${Fmt.n0(sim.poolSize)} invoices already loaded in the platform
+    (deduplicated across campaigns; data coverage ${sim.coverage ? sim.coverage.label : '—'}), period ${Util.esc(period)}, paid volume only.
+    ${sim.note} Settlement figures for the audited campaigns are unaffected.</div>${zero}`;
+}
+function openSimModal(promo) {
+  const sim = PromoSimulator.analyze(promo);
+  const shown = 80;
+  const rows = sim.rows.slice(0, shown).map((r, i) => `<tr>
+    <td data-l="#" class="tnum">${i + 1}</td>
+    <td data-l="Customer"><b>${Util.esc(r.cust)}</b><div class="code">${Util.esc(r.code)}${r.city ? ' · ' + Util.esc(r.city) : ''}</div></td>
+    <td class="num tnum" data-l="Bought (cs)">${Fmt.n2(r.bought)}</td>
+    <td class="num tnum" data-l="Conditions met">${Fmt.n0(r.achievements)}</td>
+    <td class="num tnum" data-l="Reward">${
+      promo.rewardType === 'free_product' ? Fmt.n2(r.achievements * Calc.num(promo.reward.rewardQty)) + ' cs'
+      : promo.rewardType === 'discount_pct' ? (r.achievements > 0 ? Fmt.money0(r.paidValue * Calc.num(promo.reward.discountPct) / 100) : '—')
+      : (r.achievements > 0 ? Fmt.money0(r.achievements * Calc.num(promo.reward.rewardAmount)) : '—')
+    }</td></tr>`).join('');
+  Modal.open({
+    title: 'Calculation — ' + (promo.name || 'Untitled promotion'), size: 'lg',
+    body: `${simStrip(sim)}${simHint(sim, promo)}
+      <div class="twrap" style="max-height:340px;margin-top:12px"><table class="dt cardable"><thead><tr>
+        <th>#</th><th>Customer</th><th class="num">Bought (cs)</th><th class="num">Conditions met</th><th class="num">Reward</th>
+      </tr></thead><tbody>${rows || `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--faint)">No purchases of the selected products in this period.</td></tr>`}</tbody></table></div>
+      ${sim.rows.length > shown ? `<div class="code" style="margin-top:8px">Showing top ${shown} of ${sim.rows.length} buyers.</div>` : ''}`,
+    foot: `<div class="spacer"></div><button class="btn" data-close>Close</button>`,
+  });
+}
+
+</script>
+<script>
 /* ============ VIEWS — dashboard · settlement · explorer · analytics ============ */
 /* ===========================
    VIEWS — one renderer per route.
@@ -3659,8 +3826,18 @@ const Wizard = (() => {
       <div class="risk-note">Steps with issues are marked red in the step list. Invalid configurations cannot be activated — the Activate button stays disabled until every check passes.</div></div></div>`;
   }
   function bodyPreview() {
+    let simHtml = '';
+    if (draft.productCodes.length && Calc.num(draft.buyQty) > 0) {
+      const sim = PromoSimulator.analyze(draft);
+      simHtml = `<div class="card"><div class="card-h"><h2>Calculated from loaded data</h2>
+        <button class="btn sm" data-wz="simDetail">Per-customer breakdown</button></div>
+        <div class="card-b">${simStrip(sim)}${simHint(sim, draft)}</div></div>`;
+    } else {
+      simHtml = `<div class="card"><div class="card-h"><h2>Calculated from loaded data</h2></div>
+        <div class="card-b"><div class="risk-note">Choose at least one product and a buy quantity to simulate this promotion against the invoices already loaded in the platform.</div></div></div>`;
+    }
     return `<div class="card"><div class="card-h"><h2>Preview</h2><span class="sub">this is what will be saved</span></div>
-      <div class="card-b">${summaryCard(true)}</div></div>`;
+      <div class="card-b">${summaryCard(true)}</div></div>${simHtml}`;
   }
   function bodyActivate() {
     const { errs } = errorsByStep();
@@ -3754,6 +3931,7 @@ const Wizard = (() => {
         if (errs.length) { step = 'validation'; rerender(); Toast.warn('Please complete the highlighted fields.'); return; }
         draft.status = 'active'; PBModel.upsert(draft); rerender(); Toast.ok('Promotion activated ✓');
       }
+      else if (a === 'simDetail') openSimModal(draft);
       else if (a === 'moreProd') { prodShown += CAP; rerender(); }
       else if (a === 'moreCust') { custShown += CAP; rerender(); }
       else if (a === 'clearCust') { draft.customerCodes = []; rerender(); }
@@ -3865,6 +4043,16 @@ Views.promotions = (() => {
       p.productCodes.forEach(c => { if (PBData.resolveProduct(c).inactive) inactiveCount++; });
       if (p.rewardType === 'free_product' && p.reward.rewardProduct && PBData.resolveProduct(p.reward.rewardProduct).inactive) inactiveCount++;
       const inactiveFlag = inactiveCount ? `<span class="pill orange" title="Some products are no longer in the master data">${inactiveCount} inactive</span>` : '';
+      // additive estimate from the loaded invoice pool (never touches settlement figures)
+      let est = '<span class="pcm-v">—</span>';
+      if (p.productCodes.length && Calc.num(p.buyQty) > 0) {
+        try {
+          const sim = PromoSimulator.analyze(p);
+          est = sim.invoices === 0
+            ? '<span class="pcm-v" style="color:var(--warn)">no data in period</span>'
+            : `<span class="pcm-v tnum">${Fmt.n0(sim.qualifying)} qualify · ${sim.cost != null ? Fmt.money0(sim.cost) : Fmt.n2(sim.freeCases) + ' cs'}</span>`;
+        } catch (e) { /* estimate is optional decoration */ }
+      }
       return `<div class="pb-card" data-id="${p.id}">
         <div class="pb-card-top"><span class="pb-card-ic">${R.icon}</span>
           <div class="pb-card-title"><div class="pb-card-name">${Util.esc(p.name) || 'Untitled'}</div><div class="pb-card-type">${R.label}</div></div>
@@ -3873,8 +4061,10 @@ Views.promotions = (() => {
           <div><span class="pcm-l">Period</span><span class="pcm-v">${fmtD(p.startDate)} – ${fmtD(p.endDate)}</span></div>
           <div><span class="pcm-l">Reward</span><span class="pcm-v">${rw}</span></div>
           <div><span class="pcm-l">Buy</span><span class="pcm-v">${p.buyQty || '—'} cases · ${p.productCodes.length} product(s)</span></div>
+          <div><span class="pcm-l">Est. from data</span>${est}</div>
         </div>
         <div class="pb-card-actions">
+          <button class="btn sm" data-pb="calc" data-id="${p.id}">Calculation</button>
           <button class="btn sm" data-pb="edit" data-id="${p.id}">Edit</button>
           <button class="btn sm" data-pb="dup" data-id="${p.id}">Duplicate</button>
           <button class="btn sm danger" data-pb="del" data-id="${p.id}">Delete</button>
@@ -3928,7 +4118,8 @@ Views.promotions = (() => {
       const b = e.target.closest('[data-pb]');
       if (!b) return;
       const act = b.dataset.pb, id = b.dataset.id;
-      if (act === 'edit') { const p = PBModel.get(id); if (p) { Wizard.setDraft(JSON.parse(JSON.stringify(p))); App.go('promotions/builder'); Toast.show('Editing "' + (p.name || 'promotion') + '".'); } }
+      if (act === 'calc') { const p = PBModel.get(id); if (p) openSimModal(p); }
+      else if (act === 'edit') { const p = PBModel.get(id); if (p) { Wizard.setDraft(JSON.parse(JSON.stringify(p))); App.go('promotions/builder'); Toast.show('Editing "' + (p.name || 'promotion') + '".'); } }
       else if (act === 'dup') { const c = PBModel.duplicate(id); if (c) { App.refresh(); Toast.ok('Duplicated.'); } }
       else if (act === 'del') { if (await Modal.confirm('Delete promotion', 'Delete this promotion? This cannot be undone.', 'Delete')) { PBModel.remove(id); App.refresh(); Toast.ok('Deleted.'); } }
     });
