@@ -3367,14 +3367,15 @@ const SEED_PROMOS = [
     createdAt: 1780300800000, updatedAt: 1780300800000,
   },
   /* July salesman incentive — 7 candy SKUs; a customer qualifies at 20 PIECES
-     of a single selected SKU; a salesman achieves at 20 qualifying customers
-     and earns SAR 200. Condition counted in pieces (buyUnit 'pcs'). */
+     mixed across the selected SKUs (business confirmed: assortment allowed);
+     a salesman achieves at 20 qualifying customers and earns SAR 200.
+     Condition counted in pieces (buyUnit 'pcs'). */
   {
-    id: 'seed_july_rep_candy', status: 'active', rewardType: 'salesman_reward',
+    id: 'seed_july_rep_candy', rev: 2, status: 'active', rewardType: 'salesman_reward',
     name: 'July Rep Incentive — Candies',
     startDate: '2026-07-01', endDate: '2026-07-31',
     customerScope: 'all', customerCodes: [],
-    buyQty: 20, buyUnit: 'pcs', qtyMode: 'each', // 20 pcs per customer, single SKU (no mixing)
+    buyQty: 20, buyUnit: 'pcs', qtyMode: 'combined', // 20 pcs per customer, mix across SKUs allowed
     productCodes: ['ROS23714', 'ROS23684', 'ROS08711', 'ROS12732', 'ROS02863', 'ROS50291', 'ROS50406'],
     reward: { rewardProduct: '', rewardQty: null, rewardAmount: 200, discountPct: null },
     repIncentive: { minCustomers: 20, supervisorAmount: 0 },
@@ -3395,9 +3396,13 @@ const SEED_PROMOS = [
 const Seeds = (() => {
   function merge() {
     const dismissed = Store.get('seedDismissed', []);
-    const existing = new Set(PBModel.load().map(p => p.id));
+    const byId = new Map(PBModel.load().map(p => [p.id, p]));
     SEED_PROMOS.forEach(s => {
-      if (dismissed.includes(s.id) || existing.has(s.id)) return;
+      if (dismissed.includes(s.id)) return;
+      const cur = byId.get(s.id);
+      // rev bump = a business correction to an already-shipped seed; replace
+      // the stored copy so every browser picks up the corrected definition
+      if (cur && (Number(s.rev) || 1) <= (Number(cur.rev) || 1)) return;
       PBModel.upsert(JSON.parse(JSON.stringify(s)));
     });
   }
