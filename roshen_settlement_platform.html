@@ -2733,6 +2733,12 @@ const healthLabel = h => h === 'healthy' ? 'On Plan' : h === 'attention' ? 'Unde
    moment the matching period's sales file is added. Read-only alongside
    the frozen settlement engines — audited campaign figures are untouched.
    =========================== */
+/* Snapshot of the bootstrap (audited) campaign bundles taken before any
+   runtime registration or hiding. The simulation data pool reads from this
+   snapshot so hiding a campaign from the UI never removes its invoices
+   from the calculations that other promotions depend on. */
+const AUDITED_SOURCES = engine.promotions.slice();
+
 const DataStore = (() => {
   const DB_NAME = 'roshen_platform_datapool_v1', STORE = 'batches';
   const LS_KEY = Store.NS + 'datapool';
@@ -2862,9 +2868,13 @@ const PromoSimulator = (() => {
     if (_pool && key === _poolKey) return _pool;
     const seen = new Set(), pool = [];
     const take = inv => { if (!seen.has(inv.inv)) { seen.add(inv.inv); pool.push(inv); } };
-    // source data only: skip bundles published FROM the builder (they derive from this pool)
+    // audited bundles come from the boot snapshot (visibility-independent);
+    // then runtime-registered campaigns; never builder-published bundles
+    // (they derive from this pool)
+    AUDITED_SOURCES.forEach(p => (p.data.invoices || []).forEach(take));
     engine.promotions.forEach(p => {
       if (String(p.id).startsWith('pbpub_')) return;
+      if (AUDITED_SOURCES.includes(p)) return;
       (p.data.invoices || []).forEach(take);
     });
     if (typeof DataStore !== 'undefined') DataStore.batches().forEach(b => (b.invoices || []).forEach(take));
@@ -2945,6 +2955,33 @@ const PromoSimulator = (() => {
       rewardType: promo.rewardType, rewardLabel: '', rewardQty: null, freeCases: null,
       unitPrice: null, cost: null, note: '',
     };
+    if (promo.repIncentive && Calc.num(promo.repIncentive.minCustomers) > 0) {
+      // REP INCENTIVE mode: the buy condition qualifies CUSTOMERS; salesmen
+      // are paid per achieving the minimum number of qualifying customers.
+      const minC = Calc.num(promo.repIncentive.minCustomers);
+      const sal = Calc.num(promo.reward.rewardAmount);
+      const sup = Calc.num(promo.repIncentive.supervisorAmount);
+      const byRep = new Map();
+      qualifying.forEach(r => {
+        const k = r.rep || '—';
+        const o = byRep.get(k) || { rep: k, customers: 0 };
+        o.customers++;
+        byRep.set(k, o);
+      });
+      out.repRows = [...byRep.values()]
+        .map(o => ({ ...o, achieved: o.customers >= minC, payout: o.customers >= minC ? sal + sup : 0 }))
+        .sort((a, b) => b.customers - a.customers);
+      out.repMode = true;
+      out.repMin = minC;
+      out.repsTotal = out.repRows.length;
+      out.repsAchieved = out.repRows.filter(r => r.achieved).length;
+      out.cost = out.repsAchieved * (sal + sup);
+      out.rewardLabel = 'Incentive payout';
+      out.note = 'Rep incentive: a customer counts when they buy ≥ ' + Calc.num(promo.buyQty) + ' case(s) '
+        + (promo.qtyMode === 'combined' ? 'across the selected products (mix allowed)' : 'of a single selected product (no mixing)')
+        + '; a salesman achieves at ≥ ' + minC + ' qualifying customers — SAR ' + Fmt.n0(sal) + ' salesman + SAR ' + Fmt.n0(sup) + ' supervisor per achieving rep. Staff payout, not a customer settlement.';
+      return out;
+    }
     if (promo.rewardType === 'free_product' && promo.reward.rewardProduct === '__SAME__') {
       // reward is the same SKU the customer bought — value each achievement
       // at its own product's average list price in the loaded invoices
@@ -2995,6 +3032,16 @@ const PromoSimulator = (() => {
 
 /* ---------- shared UI fragments for the simulator ---------- */
 function simStrip(sim) {
+  if (sim.repMode) {
+    return `<div class="pb-preview" style="margin-top:0">
+      <div class="pbp"><span>Buyers of selected SKUs</span><b>${Fmt.n0(sim.buyers)}</b></div>
+      <div class="pbp"><span>Qualifying customers</span><b>${Fmt.n0(sim.qualifying)}</b></div>
+      <div class="pbp"><span>Salesmen in scope</span><b>${Fmt.n0(sim.repsTotal)}</b></div>
+      <div class="pbp"><span>Achieved (≥${Fmt.n0(sim.repMin)} customers)</span><b>${Fmt.n0(sim.repsAchieved)}</b></div>
+      <div class="pbp"><span>Incentive payout</span><b class="hl">${Fmt.money0(sim.cost)}</b></div>
+      <div class="pbp"><span>Per achieving rep</span><b>${sim.repsAchieved ? Fmt.money0(sim.cost / sim.repsAchieved) : '—'}</b></div>
+    </div>`;
+  }
   const compAtRate = sim.rewardType === 'free_product' && sim.cost != null ? sim.cost * engine.active.rate : null;
   return `<div class="pb-preview" style="margin-top:0">
     <div class="pbp"><span>Buyers of selected SKUs</span><b>${Fmt.n0(sim.buyers)}</b></div>
@@ -3017,6 +3064,23 @@ function simHint(sim, promo) {
 }
 function openSimModal(promo) {
   const sim = PromoSimulator.analyze(promo);
+  if (sim.repMode) {
+    const repRows = sim.repRows.map((r, i) => `<tr>
+      <td data-l="#" class="tnum">${i + 1}</td>
+      <td data-l="Salesman"><b>${Util.esc(r.rep)}</b></td>
+      <td class="num tnum" data-l="Qualifying customers">${Fmt.n0(r.customers)} / ${Fmt.n0(sim.repMin)}</td>
+      <td class="num" data-l="Status">${r.achieved ? '<span class="pill ok">Achieved</span>' : '<span class="pill neutral">Not yet</span>'}</td>
+      <td class="num tnum" data-l="Payout">${r.payout ? Fmt.money0(r.payout) : '—'}</td></tr>`).join('');
+    Modal.open({
+      title: 'Calculation — ' + (promo.name || 'Untitled promotion'), size: 'lg',
+      body: `${simStrip(sim)}${simHint(sim, promo)}
+        <div class="twrap" style="max-height:340px;margin-top:12px"><table class="dt cardable"><thead><tr>
+          <th>#</th><th>Salesman</th><th class="num">Qualifying customers</th><th class="num">Status</th><th class="num">Payout</th>
+        </tr></thead><tbody>${repRows || `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--faint)">No sales of the selected products in this period.</td></tr>`}</tbody></table></div>`,
+      foot: `<div class="spacer"></div><button class="btn" data-close>Close</button>`,
+    });
+    return;
+  }
   const shown = 80;
   const rows = sim.rows.slice(0, shown).map((r, i) => `<tr>
     <td data-l="#" class="tnum">${i + 1}</td>
@@ -3142,7 +3206,9 @@ const PromoPublisher = (() => {
       const p = engine.promotions[i];
       if (isPublished(p.id)) { prevRates.set(p.id, p.rate); engine.promotions.splice(i, 1); }
     }
-    PBModel.load().filter(p => p.status === 'active' && p.productCodes.length && Calc.num(p.buyQty) > 0).forEach(p => {
+    PBModel.load().filter(p => p.status === 'active' && p.productCodes.length && Calc.num(p.buyQty) > 0
+      // rep-incentive programs are staff payouts, not customer settlements — never published as campaigns
+      && !(p.repIncentive && Calc.num(p.repIncentive.minCustomers) > 0)).forEach(p => {
       try {
         const cfg = cfgFor(p);
         const data = enrichBundle(RawParser.buildPromoData(poolAsParsedLines(p), cfg)); // frozen calc path + display enrichment
@@ -3237,6 +3303,31 @@ const SEED_PROMOS = [
     buyQty: 4, qtyMode: 'each',
     productCodes: ['ROS44061', 'ROS44092'],
     reward: { rewardProduct: '__SAME__', rewardQty: 1, rewardAmount: null, discountPct: null },
+    createdAt: 1780300800000, updatedAt: 1780300800000,
+  },
+  /* June salesman incentive — staff payout programs (never published as
+     settlement campaigns). A customer qualifies via the buy condition; a
+     salesman achieves at the minimum number of qualifying customers. */
+  {
+    id: 'seed_june_rep_choc', status: 'active', rewardType: 'salesman_reward',
+    name: 'June Rep Incentive — Chocolate Bars',
+    startDate: '2026-06-01', endDate: '2026-06-30',
+    customerScope: 'all', customerCodes: [],
+    buyQty: 2, qtyMode: 'each', // 2 outers per customer, single SKU (no mixing)
+    productCodes: ['ROS44061', 'ROS44092'],
+    reward: { rewardProduct: '', rewardQty: null, rewardAmount: 8, discountPct: null },
+    repIncentive: { minCustomers: 10, supervisorAmount: 2 },
+    createdAt: 1780300800000, updatedAt: 1780300800000,
+  },
+  {
+    id: 'seed_june_rep_bisc', status: 'active', rewardType: 'salesman_reward',
+    name: 'June Rep Incentive — Tea Biscuits',
+    startDate: '2026-06-01', endDate: '2026-06-30',
+    customerScope: 'all', customerCodes: [],
+    buyQty: 1, qtyMode: 'combined', // 1 box per customer, mix allowed
+    productCodes: ['ROS14699', 'ROS14675'],
+    reward: { rewardProduct: '', rewardQty: null, rewardAmount: 8, discountPct: null },
+    repIncentive: { minCustomers: 15, supervisorAmount: 2 },
     createdAt: 1780300800000, updatedAt: 1780300800000,
   },
 ];
@@ -4179,6 +4270,13 @@ const Wizard = (() => {
       <div class="card-b" style="display:flex;flex-direction:column;gap:16px">
         <label class="field" style="max-width:320px"><span>Customer must buy</span>
           <div class="qty-wrap"><input id="wzBuyQty" type="number" min="1" class="input" placeholder="10" value="${draft.buyQty != null ? draft.buyQty : ''}"><span class="unit">Cases</span></div></label>
+        ${draft.rewardType === 'salesman_reward' ? `
+        <div class="field"><span>Rep incentive program (optional)</span>
+          <span class="hint">Fill these to grade SALESMEN instead of paying per condition: a customer qualifies via the buy quantity above; a salesman achieves at the minimum number of qualifying customers.</span>
+          <div class="two-col" style="margin:6px 0 0">
+            <label class="field"><span>Minimum qualifying customers per salesman</span><input id="wzMinCust" type="number" min="0" class="input" placeholder="e.g. 10" value="${draft.repIncentive && draft.repIncentive.minCustomers != null ? draft.repIncentive.minCustomers : ''}"></label>
+            <label class="field"><span>Supervisor amount (added per achieving rep)</span><div class="qty-wrap"><input id="wzSupAmt" type="number" min="0" class="input" placeholder="0" value="${draft.repIncentive && draft.repIncentive.supervisorAmount != null ? draft.repIncentive.supervisorAmount : ''}"><span class="unit">SAR</span></div></label>
+          </div></div>` : ''}
         <div class="field"><span>How should quantity be counted?</span>
           <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
             <label class="radio-card ${draft.qtyMode === 'combined' ? 'on' : ''}"><input type="radio" name="wzQtyMode" value="combined" ${draft.qtyMode === 'combined' ? 'checked' : ''}>
@@ -4215,12 +4313,16 @@ const Wizard = (() => {
     const { errs } = errorsByStep();
     const ok = !errs.length;
     if (draft.status === 'active' && ok) {
+      const isRep = !!(draft.repIncentive && Calc.num(draft.repIncentive.minCustomers) > 0);
       const campIdx = engine.promotions.findIndex(p => p.id === PromoPublisher.TAG + draft.id);
       const savedOk = !!PBModel.get(draft.id);
       const pubErr = PromoPublisher.lastError(PromoPublisher.TAG + draft.id);
+      const publishLine = isRep
+        ? '✓ tracked as a <b>rep incentive program</b> — staff payout, so it is not published as a settlement campaign; see its Calculation on the promotions list'
+        : (campIdx >= 0 ? `✓ yes — <b>${Util.esc(engine.promotions[campIdx].displayName)}</b> (${Fmt.money0(engine.promotions[campIdx].compensation)} @ ${(engine.promotions[campIdx].rate * 100).toFixed(0)}%)` : `✗ <b>NO</b>${pubErr ? ' — ' + Util.esc(pubErr) : ''}`);
       const statusLines = `<div class="risk-note" style="margin-top:10px">
         <div>Saved in this browser: ${savedOk ? '✓ yes' : '✗ <b>NO — storage is blocked; it lives in memory for this session only</b>'}</div>
-        <div>Published as a campaign: ${campIdx >= 0 ? `✓ yes — <b>${Util.esc(engine.promotions[campIdx].displayName)}</b> (${Fmt.money0(engine.promotions[campIdx].compensation)} @ ${(engine.promotions[campIdx].rate * 100).toFixed(0)}%)` : `✗ <b>NO</b>${pubErr ? ' — ' + Util.esc(pubErr) : ''}`}</div>
+        <div>Published as a campaign: ${publishLine}</div>
       </div>`;
       return `<div class="card"><div class="card-h"><h2>Activate</h2><span class="pill ok">Active</span></div><div class="card-b">
         <div class="validation-ok">✓ This promotion is <b>ACTIVE</b>. It recalculates automatically whenever new sales data is added to the pool.</div>
@@ -4259,7 +4361,12 @@ const Wizard = (() => {
         rewardLine = `${r.rewardQty || '—'} Case(s)<br><b class="${rp.inactive ? 'inactive' : ''}">${r.rewardProduct ? Util.esc(Util.trunc(rp.name, 30)) : '—'}</b>`;
       }
     } else if (draft.rewardType === 'discount_pct') rewardLine = `<b>${r.discountPct || '—'}%</b> discount`;
-    else rewardLine = `<b>SAR ${Math.round(Number(r.rewardAmount) || 0).toLocaleString('en-US')}</b>${draft.rewardType === 'salesman_reward' ? ' to salesman' : ''}`;
+    else {
+      rewardLine = `<b>SAR ${Math.round(Number(r.rewardAmount) || 0).toLocaleString('en-US')}</b>${draft.rewardType === 'salesman_reward' ? ' to salesman' : ''}`;
+      if (draft.rewardType === 'salesman_reward' && draft.repIncentive && Calc.num(draft.repIncentive.minCustomers) > 0) {
+        rewardLine += `<br><span style="font-size:12px;opacity:.8">+ SAR ${Math.round(Number(draft.repIncentive.supervisorAmount) || 0)} supervisor · per rep reaching ≥ ${Calc.num(draft.repIncentive.minCustomers)} qualifying customers</span>`;
+      }
+    }
     const fmtD = d => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
     return `<div class="sum-card" style="${wide ? 'position:static;max-width:520px;margin:0 auto' : ''}">
       <div class="ps-head"><span style="font-size:21px">${R.icon}</span><span class="ps-type">${R.label} · ${draft.status}</span></div>
@@ -4320,6 +4427,14 @@ const Wizard = (() => {
       } else if (draft.rewardType === 'discount_pct') {
         if (v('wzDisc') != null) draft.reward.discountPct = v('wzDisc') ? Number(v('wzDisc')) : null;
       } else if (v('wzRewAmt') != null) draft.reward.rewardAmount = v('wzRewAmt') ? Number(v('wzRewAmt')) : null;
+      if (v('wzMinCust') != null || v('wzSupAmt') != null) {
+        draft.repIncentive = {
+          minCustomers: v('wzMinCust') ? Number(v('wzMinCust')) : ((draft.repIncentive || {}).minCustomers || 0),
+          supervisorAmount: v('wzSupAmt') ? Number(v('wzSupAmt')) : ((draft.repIncentive || {}).supervisorAmount || 0),
+        };
+        if (v('wzMinCust') === '') draft.repIncentive.minCustomers = 0;
+        if (v('wzSupAmt') === '') draft.repIncentive.supervisorAmount = 0;
+      }
       refreshSummary(main);
     };
     main.querySelector('.wiz').addEventListener('click', async e => {
@@ -4347,11 +4462,13 @@ const Wizard = (() => {
         PromoPublisher.sync();
         App.announceChange();
         // Verify end-to-end before declaring success: saved in the store AND
-        // registered as a live campaign. Never fail silently.
+        // registered as a live campaign (rep incentives are intentionally
+        // not published — they are staff payouts). Never fail silently.
         const savedOk = !!PBModel.get(draft.id);
+        const isRep = !!(draft.repIncentive && Calc.num(draft.repIncentive.minCustomers) > 0);
         const campIdx = engine.promotions.findIndex(p => p.id === PromoPublisher.TAG + draft.id);
-        if (savedOk && campIdx >= 0) {
-          Toast.ok('Promotion activated ✓ — here it is in the list.');
+        if (savedOk && (isRep || campIdx >= 0)) {
+          Toast.ok(isRep ? 'Rep incentive activated ✓ — see its Calculation in the list.' : 'Promotion activated ✓ — here it is in the list.');
           App.go('promotions');           // take the user straight to where it appears
         } else {
           rerender();
@@ -4471,6 +4588,8 @@ Views.promotions = (() => {
           const sim = PromoSimulator.analyze(p);
           est = sim.invoices === 0
             ? '<span class="pcm-v" style="color:var(--warn)">no data in period</span>'
+            : sim.repMode
+            ? `<span class="pcm-v tnum">${Fmt.n0(sim.repsAchieved)}/${Fmt.n0(sim.repsTotal)} reps achieved · ${Fmt.money0(sim.cost)}</span>`
             : `<span class="pcm-v tnum">${Fmt.n0(sim.qualifying)} qualify · ${sim.cost != null ? Fmt.money0(sim.cost) : Fmt.n2(sim.freeCases) + ' cs'}</span>`;
         } catch (e) { /* estimate is optional decoration */ }
       }
@@ -4507,7 +4626,9 @@ Views.promotions = (() => {
         <button class="btn sm" data-camp="${i}" data-view="settlement/explorer">Invoices</button>
         ${PromoPublisher.isPublished(pr.id) ? `
         <button class="btn sm" data-pbcamp="edit" data-pbid="${Util.esc(String(pr.id).slice(PromoPublisher.TAG.length))}">✎ Edit</button>
-        <button class="btn sm danger" data-pbcamp="del" data-pbid="${Util.esc(String(pr.id).slice(PromoPublisher.TAG.length))}">Delete</button>` : ''}
+        <button class="btn sm danger" data-pbcamp="del" data-pbid="${Util.esc(String(pr.id).slice(PromoPublisher.TAG.length))}">Delete</button>` : `
+        <button class="btn sm" data-audcamp="edit" data-eng="${i}">✎ Edit</button>
+        <button class="btn sm danger" data-audcamp="hide" data-eng="${i}">Hide</button>`}
       </div></div>`).join('');
 
     main.innerHTML = `
@@ -4537,6 +4658,38 @@ Views.promotions = (() => {
     main.querySelector('#pbStatus').addEventListener('change', e => { status = e.target.value; App.refresh(); });
     main.querySelector('#pbSort').addEventListener('change', e => { sortBy = e.target.value; App.refresh(); });
     main.addEventListener('click', async e => {
+      const aud = e.target.closest('[data-audcamp]');
+      if (aud) {
+        const pr = engine.promotions[+aud.dataset.eng];
+        if (!pr) return;
+        if (aud.dataset.audcamp === 'edit') {
+          // audited figures are frozen — editing opens an editable COPY in the wizard
+          const d = PBModel.blank();
+          d.name = pr.displayName + ' (Editable Copy)';
+          const parts = String(pr.data.meta.period || '').split('–').map(s => s.trim());
+          if (parts.length === 2) {
+            let [a, b] = parts;
+            const yr = (b.match(/(\d{4})/) || [])[1];
+            if (yr && !/\d{4}/.test(a)) a += ' ' + yr;
+            const iso = s => { const ms = FilterEngine.parseDate(s); if (ms == null) return ''; const dt = new Date(ms); return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); };
+            d.startDate = iso(a); d.endDate = iso(b);
+          }
+          d.productCodes = pr.data.sku.map(s => s.code);
+          const m = ComplianceEngine.parseMechanic(pr.mechanic);
+          if (m) { d.buyQty = m.buy; d.reward.rewardQty = m.free; }
+          d.reward.rewardProduct = '__SAME__';
+          d.qtyMode = 'each';
+          Wizard.setDraft(d);
+          App.go('promotions/builder');
+          Toast.show('Editing a copy of "' + pr.displayName + '" — activating publishes YOUR version as a new campaign; the audited one stays unchanged (you can hide it from its card).');
+        } else if (aud.dataset.audcamp === 'hide') {
+          if (await Modal.confirm('Hide audited campaign',
+            'This hides "' + Util.esc(pr.displayName) + '" from the switcher, portfolio totals and lists. Its audited figures and invoice data are untouched — other promotions keep calculating from that data, and you can restore it any time from Administration → Preferences.', 'Hide')) {
+            App.hideCampaign(pr.id, pr.displayName);
+          }
+        }
+        return;
+      }
       const pbcamp = e.target.closest('[data-pbcamp]');
       if (pbcamp) {
         const id = pbcamp.dataset.pbid;
@@ -4784,6 +4937,10 @@ Views.preferences = function (main) {
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:7px">
         ${shortcuts.map(([k, d]) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:5px 0"><span>${d}</span><kbd>${k}</kbd></div>`).join('')}
       </div></div></div>
+    ${App.hiddenCampaigns().length ? `<div class="card"><div class="card-h"><h2>Hidden Campaigns</h2><span class="sub">hidden from the switcher and totals — data and audited figures untouched</span></div>
+      <div class="list-lite">${App.hiddenCampaigns().map(h => `<div class="li"><span style="flex:none">🏁</span>
+        <span class="main"><b>${Util.esc(h.name)}</b></span>
+        <button class="btn sm" data-restore="${Util.esc(h.id)}">Restore</button></div>`).join('')}</div></div>` : ''}
     <div class="card"><div class="card-h"><h2>Storage Diagnostics</h2><span class="sub">for troubleshooting "my promotion didn't appear"</span></div><div class="card-b">
       <div class="risk-note" id="prefDiag">${(() => {
         let ls = '✓ working';
@@ -4803,6 +4960,10 @@ Views.preferences = function (main) {
     </div></div>`;
   main.addEventListener('change', e => {
     if (e.target.name === 'prefTheme') { AppState.setTheme(e.target.value); App.refresh(); }
+  });
+  main.addEventListener('click', e => {
+    const r = e.target.closest('[data-restore]');
+    if (r) App.restoreCampaign(r.dataset.restore);
   });
   main.querySelector('#prefClearActivity').addEventListener('click', () => { AppState.clearActivity(); Toast.ok('Favorites and recents cleared.'); App.refresh(); });
   main.querySelector('#prefClearViews').addEventListener('click', () => { const v = FilterEngine.views(); v.splice(0, v.length); SavedViews.persist(); Toast.ok('Saved filter views cleared.'); });
@@ -5040,6 +5201,40 @@ const App = (() => {
     updateBadges();
     paintCtxbar();
   }
+
+  /* ---------- audited campaign visibility (reversible; data pool unaffected) ---------- */
+  function hiddenCampaigns() { return Store.get('hiddenCampaigns', []); }
+  function applyHiddenCampaigns() {
+    const hidden = hiddenCampaigns().map(h => h.id);
+    if (!hidden.length) return;
+    const activeId = engine.active && engine.active.id;
+    for (let i = engine.promotions.length - 1; i >= 0; i--) {
+      if (hidden.includes(engine.promotions[i].id)) engine.promotions.splice(i, 1);
+    }
+    let idx = engine.promotions.findIndex(p => p.id === activeId);
+    engine.setActive(idx < 0 ? 0 : idx);
+  }
+  function hideCampaign(id, name) {
+    const list = hiddenCampaigns();
+    if (!list.some(h => h.id === id)) { list.push({ id, name }); Store.set('hiddenCampaigns', list); }
+    applyHiddenCampaigns();
+    Palette.invalidate(); updateBadges(); announceChange();
+    refresh();
+    Toast.ok('"' + name + '" hidden — restore it any time from Preferences.');
+  }
+  function restoreCampaign(id) {
+    Store.set('hiddenCampaigns', hiddenCampaigns().filter(h => h.id !== id));
+    const src = AUDITED_SOURCES.find(p => p.id === id);
+    if (src && !engine.promotions.includes(src)) {
+      // restore at its original position among the audited campaigns
+      const srcIdx = AUDITED_SOURCES.indexOf(src);
+      const pos = engine.promotions.filter(p => AUDITED_SOURCES.includes(p) && AUDITED_SOURCES.indexOf(p) < srcIdx).length;
+      engine.promotions.splice(pos, 0, src);
+    }
+    Palette.invalidate(); updateBadges(); announceChange();
+    refresh();
+    Toast.ok('Campaign restored.');
+  }
   function openRef(r) {
     if (r.type === 'route') go(r.id);
     else if (r.route) go(r.route, r.params || {});
@@ -5125,6 +5320,7 @@ const App = (() => {
     try { lastPbRaw = localStorage.getItem('roshen_pb_promotions_v1'); } catch (e) {}
     const crossTabSync = Util.debounce(() => {
       try { PromoPublisher.sync(); } catch (e) {}
+      try { applyHiddenCampaigns(); } catch (e) {}
       updateBadges(); paintCtxbar(); paintSidebar();
       // don't yank the DOM out from under in-progress editing screens
       if (current.path !== 'promotions/builder' && current.path !== 'admin/upload') renderView();
@@ -5230,6 +5426,7 @@ const App = (() => {
     try { await DataStore.init(); } catch (e) { console.warn('data pool init failed', e); }
     try { Seeds.merge(); } catch (e) { console.warn('seed merge failed', e); }
     try { PromoPublisher.sync(); } catch (e) { console.warn('promo publish failed', e); }
+    try { applyHiddenCampaigns(); } catch (e) { console.warn('hidden campaigns failed', e); }
     initEvents();
     if (window.__storageBlocked) {
       const warn = Util.h('div', { id: 'storageWarn', role: 'alert' },
@@ -5242,7 +5439,8 @@ const App = (() => {
     updateBadges();
     onRoute();
   }
-  return { boot, go, refresh, routesFlat, setActivePromo, onPromoRegistered, openRef, toggleTheme, announceChange, get route() { return current; } };
+  return { boot, go, refresh, routesFlat, setActivePromo, onPromoRegistered, openRef, toggleTheme, announceChange,
+    hideCampaign, restoreCampaign, hiddenCampaigns, get route() { return current; } };
 })();
 
 App.boot();
