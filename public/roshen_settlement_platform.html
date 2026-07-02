@@ -3073,6 +3073,44 @@ const PromoPublisher = (() => {
   const isPublished = id => String(id).startsWith(TAG);
   const lastErrors = new Map(); // campaign id -> last publish failure message
 
+  /**
+   * Display enrichment: the frozen buildPromoData fills settlement values
+   * (val / fval → compensation) but not the cases-based display aggregates
+   * the audited bundles carry (cust.invs/paid/free, sku.paid/free, kpi
+   * cases). Fill them here with the audited bundles' exact definitions
+   * (verified against the Eid data): paid/free = promo-line cases split by
+   * net>0 / net==0; invs = the customer's invoice count in the bundle.
+   * Settlement values are NOT touched — compensation is unchanged.
+   */
+  function enrichBundle(data) {
+    const skuIx = new Map(data.sku.map(s => [s.code, s]));
+    const custIx = new Map(data.cust.map(c => [c.cust, c]));
+    data.sku.forEach(s => { s.paid = 0; s.free = 0; s.kg = s.kg || 0; });
+    data.cust.forEach(c => { c.paid = 0; c.free = 0; c.invs = 0; });
+    data.invoices.forEach(inv => {
+      const c = custIx.get(inv.cust);
+      let touches = false;
+      (inv.lines || []).forEach(l => {
+        if (!l.inPromo) return;
+        touches = true;
+        const cases = Calc.num(l.cases);
+        const isFree = Calc.num(l.net) === 0;
+        const s = skuIx.get(l.code);
+        if (s) { if (isFree) s.free += cases; else s.paid += cases; }
+        if (c) { if (isFree) c.free += cases; else c.paid += cases; }
+      });
+      if (c && touches) c.invs += 1;
+    });
+    data.sku.forEach(s => { s.paid = Calc.round(s.paid); s.free = Calc.round(s.free); s.ratio = Calc.round(Calc.pct(s.free, s.paid) || 0, 1); });
+    data.cust.forEach(c => { c.paid = Calc.round(c.paid); c.free = Calc.round(c.free); c.ratio = Calc.round(Calc.pct(c.free, c.paid) || 0, 1); });
+    // KPI cases (display): fval / ninv / ncust / plan_ratio stay from the frozen path
+    const tp = Calc.sum(data.sku, 'paid'), tf = Calc.sum(data.sku, 'free');
+    data.kpi.paid = Calc.round(tp);
+    data.kpi.free = Calc.round(tf);
+    data.kpi.ratio = Calc.pct(tf, tp);
+    return data;
+  }
+
   /** Rebuild every ACTIVE builder promotion's campaign entry from the current pool. */
   function sync() {
     const activeId = engine.active && engine.active.id;
@@ -3084,7 +3122,7 @@ const PromoPublisher = (() => {
     PBModel.load().filter(p => p.status === 'active' && p.productCodes.length && Calc.num(p.buyQty) > 0).forEach(p => {
       try {
         const cfg = cfgFor(p);
-        const data = RawParser.buildPromoData(poolAsParsedLines(p), cfg); // frozen calculation path
+        const data = enrichBundle(RawParser.buildPromoData(poolAsParsedLines(p), cfg)); // frozen calc path + display enrichment
         data.invoices.forEach(inv => { inv._src = cfg.id; });
         engine.register({
           id: cfg.id, displayName: cfg.name, startDate: cfg.dateFrom || '—', endDate: cfg.dateTo,
