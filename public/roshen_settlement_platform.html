@@ -4565,6 +4565,9 @@ Views.promotions = (() => {
     if (sortBy === 'recent') items.sort((a, b) => b.updatedAt - a.updatedAt);
     else if (sortBy === 'name') items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     else if (sortBy === 'status') items.sort((a, b) => (a.status || '').localeCompare(b.status || ''));
+    const isRepPromo = p => !!(p.repIncentive && Calc.num(p.repIncentive.minCustomers) > 0);
+    const repItems = items.filter(isRepPromo);
+    items = items.filter(p => !isRepPromo(p));
 
     const fmtD = d => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
     const cardHtml = p => {
@@ -4636,6 +4639,9 @@ Views.promotions = (() => {
         `<button class="btn" data-go="admin/upload">⬆ Build from raw data</button><button class="btn primary" data-go="promotions/builder" data-new="1">＋ New Promotion</button>`)}
       <div class="card"><div class="card-h"><h2>Settlement Campaigns</h2><span class="sub">audited campaigns loaded in the settlement engine</span></div>
         <div class="pb-cards">${campaigns}</div></div>
+      ${repItems.length ? `<div class="card"><div class="card-h"><h2>Rep Incentive Programs</h2>
+        <span class="sub">salesman payouts — graded per rep, not part of the customer settlement</span></div>
+        <div class="pb-cards">${repItems.map(cardHtml).join('')}</div></div>` : ''}
       <div class="card"><div class="card-h"><h2>Configured Promotions</h2><span class="sub">${items.length} of ${total}</span></div>
         <div class="dt-tools">
           <div class="searchbox"><input type="search" id="pbQ" placeholder="Search promotions…" value="${Util.esc(q)}"></div>
