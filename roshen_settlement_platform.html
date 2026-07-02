@@ -3366,6 +3366,20 @@ const SEED_PROMOS = [
     repIncentive: { minCustomers: 10, supervisorAmount: 2 },
     createdAt: 1780300800000, updatedAt: 1780300800000,
   },
+  /* Johnny Krocker 2+1 — ran in June alongside Lovita 2+1 but was never in
+     the audited tool. The June data already carries its free JK goods
+     (net = 0 lines), so publishing this promo compensates them through the
+     frozen engine exactly like the Lovita campaign model. */
+  {
+    id: 'seed_jk_2p1', status: 'active', rewardType: 'free_product',
+    name: 'Johnny Krocker 2+1',
+    startDate: '2026-06-01', endDate: '2026-06-30',
+    customerScope: 'all', customerCodes: [],
+    buyQty: 2, qtyMode: 'each',
+    productCodes: ['ROS35588', 'ROS35625', 'ROS48038', 'ROS38831', 'ROS38848'],
+    reward: { rewardProduct: '__SAME__', rewardQty: 1, rewardAmount: null, discountPct: null },
+    createdAt: 1780300800000, updatedAt: 1780300800000,
+  },
   /* July salesman incentive — 7 candy SKUs; a customer qualifies at 20 PIECES
      mixed across the selected SKUs (business confirmed: assortment allowed);
      a salesman achieves at 20 qualifying customers and earns SAR 200.
