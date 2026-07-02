@@ -3305,6 +3305,20 @@ const SEED_PROMOS = [
     reward: { rewardProduct: '__SAME__', rewardQty: 1, rewardAmount: null, discountPct: null },
     createdAt: 1780300800000, updatedAt: 1780300800000,
   },
+  /* July promo — 15 candy SKUs, buy 10 get 1 of the same SKU. Starts at
+     zero until July sales are uploaded to the data pool, then calculates
+     automatically. */
+  {
+    id: 'seed_july_10p1', status: 'active', rewardType: 'free_product',
+    name: 'July Promo 10+1',
+    startDate: '2026-07-01', endDate: '2026-07-31',
+    customerScope: 'all', customerCodes: [],
+    buyQty: 10, qtyMode: 'each',
+    productCodes: ['ROS04591', 'ROS05376', 'ROS28054', 'ROS31085', 'ROS15009', 'ROS41855', 'ROS04294',
+      'ROS32327', 'ROS23714', 'ROS23684', 'ROS08711', 'ROS12732', 'ROS02863', 'ROS50291', 'ROS50406'],
+    reward: { rewardProduct: '__SAME__', rewardQty: 1, rewardAmount: null, discountPct: null },
+    createdAt: 1780300800000, updatedAt: 1780300800000,
+  },
   /* June salesman incentive — staff payout programs (never published as
      settlement campaigns). A customer qualifies via the buy condition; a
      salesman achieves at the minimum number of qualifying customers. */
