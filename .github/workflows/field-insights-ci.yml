@@ -1,0 +1,43 @@
+name: Field Insights CI
+
+# Dedicated, path-scoped pipeline for the standalone Field Insights app.
+# It ONLY runs when files under field-insights/** change, and it ONLY builds
+# that project (its own package.json / lockfile). It never touches VANTORA's
+# root build, schema, or the existing CI / deploy-functions workflows.
+
+on:
+  pull_request:
+    paths:
+      - 'field-insights/**'
+      - '.github/workflows/field-insights-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'field-insights/**'
+      - '.github/workflows/field-insights-ci.yml'
+
+defaults:
+  run:
+    working-directory: field-insights
+
+jobs:
+  verify:
+    name: Typecheck & build (field-insights)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: field-insights/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
