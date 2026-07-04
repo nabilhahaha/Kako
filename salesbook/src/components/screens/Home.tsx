@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Bell, Search, MapPin, Users, ClipboardCheck, UserPlus, ClipboardPlus,
-  MessageCircle, CheckCircle2, Circle, ChevronLeft, ChevronRight,
+  MessageCircle, CheckCircle2, Circle, ChevronLeft, ChevronRight, Sparkles,
+  TrendingUp, ShieldAlert, Clock3,
 } from 'lucide-react';
 import { useApp } from '@/state/app';
 import { useI18n } from '@/state/i18n';
@@ -119,6 +120,36 @@ export function Home() {
         <QuickAction icon={<Search size={20} strokeWidth={1.9} aria-hidden />} label={tt('بحث', 'Search')} onClick={() => set({ screen: 'search', stack: ['home'], query: '' })} />
         <QuickAction icon={<Users size={20} strokeWidth={1.9} aria-hidden />} label={tt('العملاء', 'Customers')} onClick={() => set({ screen: 'customers', stack: [] })} />
         <QuickAction icon={<MessageCircle size={20} strokeWidth={1.9} aria-hidden />} label={tt('الرسائل', 'Messages')} onClick={() => set({ screen: 'messages', stack: ['home'] })} />
+      </div>
+
+      {/* AI insights */}
+      <SectionHead title={tt('رؤى ذكية', 'AI insights')} />
+      <div style={{ margin: '0 20px', borderRadius: 20, padding: 1.5, background: 'linear-gradient(135deg, var(--pri), var(--acc))' }}>
+        <div style={{ background: 'var(--card)', borderRadius: 18.5, overflow: 'hidden' }}>
+          {[
+            {
+              icon: <ShieldAlert size={16} aria-hidden />, c: 'var(--amb)', b: 'var(--ambT)',
+              t: tt(`${data.customers.filter((x) => x.score < 65).length} عملاء بدرجة ثقة منخفضة — بياناتهم تحتاج تحققًا ميدانيًا`, `${data.customers.filter((x) => x.score < 65).length} customers have low trust scores — their data needs field verification`),
+              go: () => set({ screen: 'customers', stack: [] }),
+            },
+            {
+              icon: <Clock3 size={16} aria-hidden />, c: 'var(--pri)', b: 'var(--priT)',
+              t: tt('أفضل نافذة لزيارات اليوم 9–11 صباحًا بحسب سجل استجابة عملائك', 'Best visit window today is 9–11 AM based on your customers’ response history'),
+              go: () => set({ screen: 'customers', stack: [] }),
+            },
+            {
+              icon: <TrendingUp size={16} aria-hidden />, c: 'var(--grn)', b: 'var(--grnT)',
+              t: tt(`اعتماد ${pendingReviews} تحديثات معلقة سيرفع دقة درجات عملائك هذا الأسبوع`, `Approving ${pendingReviews} pending updates will sharpen your customer scores this week`),
+              go: () => set({ screen: 'review', stack: ['home'] }),
+            },
+          ].map((ins, i) => (
+            <button key={i} onClick={ins.go} style={{ width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: i === 0 ? 'none' : '1px solid var(--dv)', textAlign: 'start' }}>
+              <span style={{ width: 32, height: 32, flex: 'none', borderRadius: 10, background: ins.b, color: ins.c, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{ins.icon}</span>
+              <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.6 }}>{ins.t}</span>
+              {i === 0 && <Sparkles size={14} color="var(--pri)" style={{ flex: 'none' }} aria-hidden />}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* today's route */}

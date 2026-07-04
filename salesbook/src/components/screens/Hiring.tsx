@@ -67,7 +67,7 @@ function CandidateCard({ c, idx, match, i }: { c: Talent; idx: number; match: nu
         <div style={{ width: 48, height: 48, flex: 'none', borderRadius: '50%', background: 'var(--priT)', color: 'var(--pri)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700 }}>{c.ini}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <button onClick={() => nav('member')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, fontSize: 13.5, fontWeight: 700, color: 'var(--tx)' }}>{t(c.n)}</button>
+            <button onClick={() => nav('portfolio')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, fontSize: 13.5, fontWeight: 700, color: 'var(--tx)' }}>{t(c.n)}</button>
             <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--grnTx)', background: 'var(--grnT)', borderRadius: 5, padding: '2px 6px' }}>{tt('متاح', 'Available')}</span>
           </div>
           <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>{t(c.exp)} · {t(c.city)}</div>

@@ -1,9 +1,11 @@
 'use client';
+import { useState } from 'react';
+import { ImagePlus, Store, X, Send } from 'lucide-react';
 import { useApp } from '@/state/app';
 import { useI18n } from '@/state/i18n';
 import { Icon, Avatar } from '@/components/ui';
 import { tone } from '@/lib/tokens';
-import type { Post, Suggest } from '@/lib/types';
+import type { L, Post, PostType, Suggest } from '@/lib/types';
 
 function SuggestRow({ list }: { list: Suggest[] }) {
   const { s, update, nav, toast } = useApp();
@@ -72,16 +74,108 @@ function PostCard({ p, i }: { p: Post; i: number }) {
   );
 }
 
+/* Bottom-sheet post composer: text + type + optional photos + customer tag. */
+function Composer({ onClose }: { onClose: () => void }) {
+  const { data, update, toast } = useApp();
+  const { t, tt } = useI18n();
+  const [text, setText] = useState('');
+  const [kind, setKind] = useState<PostType>('note');
+  const [photos, setPhotos] = useState(0);
+  const [custId, setCustId] = useState<string>('');
+
+  const kinds: { k: PostType; t: string; label: L; tone: Post['tone'] }[] = [
+    { k: 'note', t: tt('تحديث ميداني', 'Field update'), label: { ar: 'تحديث ميداني', en: 'Field update' }, tone: 'b' },
+    { k: 'pay', t: tt('نصيحة مبيعات', 'Sales tip'), label: { ar: 'نصيحة مبيعات', en: 'Sales tip' }, tone: 'g' },
+    { k: 'media', t: tt('إنجاز', 'Achievement'), label: { ar: 'إنجاز', en: 'Achievement' }, tone: 'a' },
+  ];
+
+  const publish = () => {
+    const body = text.trim();
+    if (!body) { toast({ ar: 'اكتب شيئًا أولًا', en: 'Write something first' }); return; }
+    const cust = data.customers.find((c) => c.id === custId);
+    const sel = kinds.find((x) => x.k === kind) || kinds[0];
+    const post: Post = {
+      id: `my${Date.now()}`, type: kind,
+      by: { ar: 'أحمد الشمري', en: 'Ahmed Al-Shammari' }, ini: 'أش', av: 'var(--pri)',
+      act: cust ? { ar: 'شارك تحديثًا عن', en: 'shared an update about' } : { ar: 'شارك مع المجتمع', en: 'shared with the community' },
+      cid: cust?.id || 'n1', cust: cust ? cust.name : { ar: '', en: '' },
+      when: { ar: 'الآن', en: 'now' }, txt: { ar: body, en: body },
+      kind: sel.label, tone: sel.tone, img: photos > 0, voice: false, likes: 0, comments: 0,
+    };
+    update((p) => ({ myPosts: [post, ...p.myPosts] }));
+    toast({ ar: 'نُشر تحديثك على المنصة 🎉', en: 'Your update is live on the feed 🎉' });
+    onClose();
+  };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--ov)', zIndex: 70, animation: 'fadeIn .2s both' }} />
+      <div role="dialog" aria-modal="true" aria-label={tt('منشور جديد', 'New post')} style={{ position: 'fixed', bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 71, maxWidth: 640, margin: '0 auto', background: 'var(--card)', borderRadius: '24px 24px 0 0', padding: '10px 20px calc(22px + var(--safe-bottom))', animation: 'slideUp .3s cubic-bezier(.22,1,.36,1) both', boxShadow: 'var(--shadow-lg)' }}>
+        <div style={{ width: 38, height: 4.5, borderRadius: 3, background: 'var(--dv)', margin: '4px auto 14px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 15.5, fontWeight: 700 }}>{tt('منشور جديد', 'New post')}</span>
+          <button onClick={onClose} aria-label={tt('إغلاق', 'Close')} style={{ border: 'none', background: 'var(--chip)', cursor: 'pointer', width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--sub)' }}><X size={15} aria-hidden /></button>
+        </div>
+        <div style={{ display: 'flex', gap: 7, marginTop: 12 }}>
+          {kinds.map((x) => {
+            const on = kind === x.k;
+            return <button key={x.k} onClick={() => setKind(x.k)} style={{ border: `1px solid ${on ? 'var(--pri)' : 'var(--bd)'}`, cursor: 'pointer', fontSize: 11.5, fontWeight: on ? 700 : 500, padding: '8px 13px', borderRadius: 99, background: on ? 'var(--priT)' : 'var(--card)', color: on ? 'var(--pri)' : 'var(--sub)', transition: 'all .18s' }}>{x.t}</button>;
+          })}
+        </div>
+        <textarea
+          value={text} onChange={(e) => setText(e.target.value)} rows={4} autoFocus
+          placeholder={tt('شارك خبرة، نصيحة، أو تحديثًا من الميدان…', 'Share an insight, a tip, or an update from the field…')}
+          aria-label={tt('نص المنشور', 'Post text')}
+          style={{ width: '100%', marginTop: 12, border: '1.5px solid var(--bd)', borderRadius: 16, background: 'var(--bg)', color: 'var(--tx)', fontSize: 13.5, lineHeight: 1.7, padding: '12px 14px', outline: 'none', resize: 'none' }}
+        />
+        {custId && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 11.5, fontWeight: 700, color: 'var(--pri)', background: 'var(--priT)', borderRadius: 99, padding: '6px 12px' }}>
+            <Store size={13} aria-hidden />{t(data.customers.find((c) => c.id === custId)?.name || { ar: '', en: '' })}
+            <button onClick={() => setCustId('')} aria-label={tt('إزالة العميل', 'Remove customer')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--pri)', display: 'flex', padding: 0 }}><X size={12} aria-hidden /></button>
+          </div>
+        )}
+        {photos > 0 && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+            {Array.from({ length: photos }).map((_, n) => (
+              <div key={n} style={{ flex: 1, maxWidth: 110, height: 74, borderRadius: 12, background: 'repeating-linear-gradient(45deg,var(--dv) 0 9px,var(--chip) 9px 18px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ font: "500 8px 'IBM Plex Mono',monospace", color: 'var(--fnt)' }}>photo {n + 1}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+          <button onClick={() => { if (photos < 3) { setPhotos(photos + 1); toast({ ar: 'أُرفقت صورة من المعرض', en: 'Photo attached from gallery' }); } }} aria-label={tt('إرفاق صورة', 'Attach photo')} style={{ border: '1px solid var(--bd)', cursor: 'pointer', width: 42, height: 42, borderRadius: 13, background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--sub)' }}>
+            <ImagePlus size={18} strokeWidth={1.9} aria-hidden />
+          </button>
+          <div style={{ position: 'relative', width: 42, height: 42, flex: 'none' }}>
+            <select value={custId} onChange={(e) => setCustId(e.target.value)} aria-label={tt('ربط بعميل', 'Tag a customer')} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}>
+              <option value="">{tt('بدون عميل', 'No customer')}</option>
+              {data.customers.map((c) => <option key={c.id} value={c.id}>{t(c.name)}</option>)}
+            </select>
+            <span style={{ pointerEvents: 'none', position: 'absolute', inset: 0, border: '1px solid var(--bd)', borderRadius: 13, background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: custId ? 'var(--pri)' : 'var(--sub)' }}>
+              <Store size={18} strokeWidth={1.9} aria-hidden />
+            </span>
+          </div>
+          <button onClick={publish} style={{ flex: 1, border: 'none', cursor: 'pointer', height: 46, borderRadius: 14, background: 'var(--pri)', color: 'var(--onPri)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13.5, fontWeight: 700, boxShadow: 'var(--shadow-md)' }}>
+            <Send size={15} aria-hidden />{tt('نشر', 'Publish')}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* Team activity feed — live customer updates from the field. */
 export function Feed() {
   const { s, data, set, nav } = useApp();
   const { tt } = useI18n();
+  const [composing, setComposing] = useState(false);
 
   const feedChips = [
     { k: 'all', t: tt('الكل', 'All') }, { k: 'pay', t: tt('الدفع', 'Payment') },
     { k: 'note', t: tt('ملاحظات', 'Notes') }, { k: 'media', t: tt('صور وصوت', 'Media') },
   ];
-  const posts = data.posts.filter((p) => (s.feedFilter === 'all' ? true : p.type === s.feedFilter));
+  const posts = [...s.myPosts, ...data.posts].filter((p) => (s.feedFilter === 'all' ? true : p.type === s.feedFilter));
 
   return (
     <div data-scroll="true" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
@@ -94,6 +188,17 @@ export function Feed() {
           <Icon name="search" size={17} stroke="currentColor" />
         </button>
       </div>
+      {/* composer trigger */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 11, margin: '14px 20px 0', background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 18, padding: '12px 14px', boxShadow: 'var(--shadow-sm)' }}>
+        <Avatar ini="أش" bg="var(--pri)" size={38} fontSize={12} />
+        <button onClick={() => setComposing(true)} style={{ flex: 1, border: 'none', cursor: 'pointer', textAlign: 'start', background: 'var(--bg)', borderRadius: 99, padding: '11px 16px', fontSize: 12.5, color: 'var(--fnt)' }}>
+          {tt('شارك تحديثًا مع مجتمع المبيعات…', 'Share an update with the sales community…')}
+        </button>
+        <button onClick={() => setComposing(true)} aria-label={tt('إرفاق صورة', 'Attach photo')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--pri)', display: 'flex', padding: 4 }}>
+          <ImagePlus size={20} strokeWidth={1.9} aria-hidden />
+        </button>
+      </div>
+
       <div data-scroll="true" style={{ display: 'flex', gap: 8, padding: '14px 20px 2px', overflowX: 'auto' }}>
         {feedChips.map((f) => {
           const on = s.feedFilter === f.k;
@@ -107,6 +212,7 @@ export function Feed() {
         </div>
         {posts.map((p, i) => <PostCard key={p.id} p={p} i={i} />)}
       </div>
+      {composing && <Composer onClose={() => setComposing(false)} />}
     </div>
   );
 }

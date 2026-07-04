@@ -53,7 +53,18 @@ export function Me() {
           <span style={{ fontSize: 11, color: 'var(--sub)' }}><span style={{ fontWeight: 700, color: 'var(--tx)' }}>96</span> {tt('متابعًا', 'followers')}</span>
           <span style={{ fontSize: 11, color: 'var(--sub)' }}>{tt('عضو منذ 2024', 'Member since 2024')}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12, background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 16, padding: '12px 14px' }}>
+        {/* portfolio — the CV-replacing verified profile */}
+        <div onClick={() => nav('portfolio')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, marginTop: 12, background: 'linear-gradient(135deg, var(--pri) 0%, var(--acc) 100%)', borderRadius: 18, padding: '13px 16px', boxShadow: 'var(--shadow-md)' }}>
+          <span style={{ width: 40, height: 40, flex: 'none', borderRadius: 13, background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 15a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM8.5 14 7 21l5-3 5 3-1.5-7" /></svg>
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{tt('ملفي التقديمي الموثق', 'My verified portfolio')}</div>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.85)', marginTop: 2 }}>{tt('يغني عن السيرة الذاتية — إنجازات، تحليلات، توصيات', 'Replaces a CV — achievements, analytics, recommendations')}</div>
+          </div>
+          <span style={{ flex: 'none', fontSize: 11, fontWeight: 700, color: 'var(--pri)', background: '#fff', borderRadius: 10, padding: '8px 13px' }}>{tt('عرض', 'View')}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 16, padding: '12px 14px' }}>
           <div style={{ flex: 'none', width: 50, height: 50, borderRadius: '50%', background: 'conic-gradient(var(--grn) 0 86%,var(--dv) 86% 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: 39, height: 39, borderRadius: '50%', background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontSize: 11, fontWeight: 700, color: 'var(--grnTx)' }}>1,240</span></div>
           </div>
