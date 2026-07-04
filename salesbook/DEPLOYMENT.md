@@ -4,11 +4,15 @@ This app is a standard Next.js 15 project and deploys to Vercel (or any Node hos
 special configuration. It runs out-of-the-box on the dependency-free file store; set the
 Supabase env vars to switch to a managed database.
 
-> **Note on this environment.** The build/QA sandbox has **no Vercel token and no configured git
-> remote**, and the Vercel/Supabase integrations are disconnected. So the branch, commit, push,
-> PR, and Vercel deploy that require your accounts **could not be executed from here**. Everything
-> below is verified-ready; run the commands with your own credentials to finish. No URLs are
-> fabricated in this report.
+> **Current state (updated 2026-07-04).** The app now lives at `salesbook/` inside the
+> `nabilhahaha/Kako` repo. Done: pushed on branch `claude/project-deploy-1a8x0c`, draft PR
+> [#432](https://github.com/nabilhahaha/Kako/pull/432) open, and Supabase is provisioned — the
+> `salesbook_state` table (RLS enabled, service-role only) exists in the existing `kako-fmcg`
+> project (`https://nrvydmkxjnctdlaxdhur.supabase.co`). The repo's Vercel git integration builds
+> the `kako` and `roshen-ksa-platform` projects only, so the one remaining manual step is
+> creating the SalesBook Vercel project (§3, Option A) with **Root Directory = `salesbook`**,
+> then setting the env vars in §4 (`DATA_BACKEND=supabase`, the Supabase URL above, and the
+> service-role key from the Supabase dashboard).
 
 ---
 
