@@ -1,140 +1,171 @@
 'use client';
+import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  Bell, Search, MapPin, Users, ClipboardCheck, UserPlus, ClipboardPlus,
+  MessageCircle, CheckCircle2, Circle, ChevronLeft, ChevronRight,
+} from 'lucide-react';
 import { useApp } from '@/state/app';
 import { useI18n } from '@/state/i18n';
-import { Icon, Avatar } from '@/components/ui';
-import { tone, scoreRing, scoreCol } from '@/lib/tokens';
-import type { Post, Suggest } from '@/lib/types';
+import { Avatar, ScoreRing } from '@/components/ui';
 
-function SuggestRow({ list }: { list: Suggest[] }) {
-  const { s, update, nav, toast } = useApp();
-  const { t, tt } = useI18n();
+const card: React.CSSProperties = {
+  background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 20,
+  boxShadow: 'var(--shadow-sm)',
+};
+
+function SectionHead({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 11 }}>
-      {list.map((sg, i) => {
-        const on = !!s.conns[sg.n.ar];
-        const openM = () => { if (sg.member) nav('member'); };
-        const connect = () => { if (!on) { update((p) => ({ conns: { ...p.conns, [sg.n.ar]: true } })); toast({ ar: `أُرسل طلب الاتصال إلى ${sg.n.ar}`, en: `Connection request sent to ${sg.n.en}` }); } };
-        return (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Avatar ini={sg.ini} bg={sg.av} size={38} fontSize={12} onClick={openM} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div onClick={openM} style={{ cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>{t(sg.n)}</div>
-              <div style={{ fontSize: 10, color: 'var(--sub)', marginTop: 1 }}>{t(sg.sub)} · {t(sg.mut)}</div>
-            </div>
-            <span onClick={connect} style={{ cursor: 'pointer', flex: 'none', fontSize: 10.5, fontWeight: 700, color: on ? 'var(--grnTx)' : 'var(--lnk)', background: on ? 'var(--grnT)' : 'var(--priT)', borderRadius: 9, padding: '7px 12px', transition: 'all .18s' }}>{on ? tt('✓ أُرسل', '✓ Sent') : tt('+ اتصال', '+ Connect')}</span>
-          </div>
-        );
-      })}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 10px' }}>
+      <span style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.2px' }}>{title}</span>
+      {action && <button onClick={onAction} style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 11.5, fontWeight: 700, color: 'var(--lnk)', padding: 4 }}>{action}</button>}
     </div>
   );
 }
 
-function PostCard({ p, i }: { p: Post; i: number }) {
-  const { s, update, openC, toast } = useApp();
-  const { t, tt } = useI18n();
-  const tn = tone(p.tone);
-  const liked = !!s.likes[p.id];
-  const likeC = liked ? 'var(--red)' : 'var(--sub)';
+function Kpi({ icon, value, label, tint, tintBg, onClick, i }: {
+  icon: React.ReactNode; value: string | number; label: string; tint: string; tintBg: string; onClick?: () => void; i: number;
+}) {
   return (
-    <div style={{ background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 18, padding: '14px 16px', boxShadow: '0 1px 2px var(--sh)', animation: 'fadeUp .32s cubic-bezier(.22,1,.36,1) both', animationDelay: `${i * 50}ms` }}>
-      <div style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
-        <Avatar ini={p.ini} bg={p.av} size={40} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, lineHeight: 1.5 }}><span style={{ fontWeight: 700 }}>{t(p.by)}</span> <span style={{ color: 'var(--sub)' }}>{t(p.act)}</span> {p.cust.ar && <span onClick={() => openC(p.cid)} style={{ fontWeight: 700, color: 'var(--lnk)', cursor: 'pointer' }}>{t(p.cust)}</span>}</div>
-          <div style={{ fontSize: 10.5, color: 'var(--fnt)', marginTop: 2 }}>{t(p.when)}</div>
-        </div>
-        <span style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, color: tn.c, background: tn.bg, borderRadius: 7, padding: '4px 8px' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: tn.d }} />{t(p.kind)}</span>
-      </div>
-      {p.txt.ar && <div style={{ fontSize: 13, color: 'var(--tx)', lineHeight: 1.7, marginTop: 10 }}>{t(p.txt)}</div>}
-      {p.tags && p.tags.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
-          {p.tags.map((tg, k) => <span key={k} style={{ cursor: 'pointer', fontSize: 11.5, fontWeight: 700, color: tg.charAt(0) === '#' ? 'var(--lnk)' : 'var(--grnTx)' }}>{tg}</span>)}
-        </div>
-      )}
-      {p.img && (
-        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-          {[1, 2, 3].map((n) => <div key={n} style={{ flex: 1, height: 92, borderRadius: 12, background: 'repeating-linear-gradient(45deg,var(--dv) 0 9px,var(--chip) 9px 18px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ font: "500 8px 'IBM Plex Mono',monospace", color: 'var(--fnt)' }}>photo {n}</span></div>)}
-        </div>
-      )}
-      {p.voice && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, background: 'var(--bg)', borderRadius: 12, padding: '9px 12px' }}>
-          <span style={{ width: 32, height: 32, flex: 'none', borderRadius: '50%', background: 'var(--pri)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><path d="M7 5v14l11-7z" /></svg></span>
-          <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2.5 }}>{[8, 14, 10, 17, 7, 13, 9, 15, 6, 11].map((h, k) => <span key={k} style={{ width: 3, height: h, borderRadius: 2, background: k % 2 ? 'var(--sub)' : 'var(--fnt)' }} />)}</span>
-          <span style={{ font: "500 9px 'IBM Plex Mono',monospace", color: 'var(--fnt)' }}>0:42</span>
-        </div>
-      )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 12, borderTop: '1px solid var(--dv)', paddingTop: 10 }}>
-        <span onClick={() => update((q) => ({ likes: { ...q.likes, [p.id]: !q.likes[p.id] } }))} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: liked ? 700 : 500, color: likeC, padding: '6px 10px', borderRadius: 9 }}><svg width="14" height="14" viewBox="0 0 24 24" fill={liked ? 'var(--red)' : 'none'} stroke={likeC} strokeWidth="1.9"><path d="M12 20s-7-4.5-9-9a4.8 4.8 0 0 1 9-2.5A4.8 4.8 0 0 1 21 11c-2 4.5-9 9-9 9z" /></svg>{p.likes + (liked ? 1 : 0)}</span>
-        <span onClick={() => toast({ ar: `فتح التعليقات — ${p.comments} تعليق`, en: `Open comments — ${p.comments}` })} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--sub)', padding: '6px 10px', borderRadius: 9 }}><Icon name="chat" size={14} stroke="var(--sub)" sw={1.9} />{p.comments}</span>
-        <span onClick={() => openC(p.cid)} style={{ cursor: 'pointer', marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 700, color: 'var(--pri)', background: 'var(--priT)', borderRadius: 9, padding: '7px 13px' }}>{tt('عرض العميل', 'View customer')}</span>
-      </div>
-    </div>
+    <motion.button
+      onClick={onClick}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.05 + i * 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      whileTap={{ scale: 0.97 }}
+      style={{ ...card, cursor: onClick ? 'pointer' : 'default', textAlign: 'start', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+      <span style={{ width: 36, height: 36, borderRadius: 12, background: tintBg, color: tint, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</span>
+      <span>
+        <span style={{ display: 'block', fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', color: 'var(--tx)', lineHeight: 1.1 }}>{value}</span>
+        <span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--sub)', marginTop: 3 }}>{label}</span>
+      </span>
+    </motion.button>
   );
 }
 
+function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{ border: 'none', background: 'transparent', cursor: 'pointer', flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: 0 }}>
+      <span style={{ width: 52, height: 52, borderRadius: 18, background: 'var(--card)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', color: 'var(--pri)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform .15s' }}>{icon}</span>
+      <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--sub)' }}>{label}</span>
+    </button>
+  );
+}
+
+/* Post-login landing: the rep's business dashboard. */
 export function Home() {
-  const { s, data, set, nav, openC } = useApp();
-  const { t, tt } = useI18n();
+  const { s, data, set, nav, openC, startReport } = useApp();
+  const { t, tt, lang, dir } = useI18n();
   const unread = s.notifRead ? 0 : 4;
 
-  const feedChips = [
-    { k: 'all', t: tt('الكل', 'All') }, { k: 'pay', t: tt('الدفع', 'Payment') },
-    { k: 'note', t: tt('ملاحظات', 'Notes') }, { k: 'media', t: tt('صور وصوت', 'Media') },
-  ];
-  const posts = data.posts.filter((p) => (s.feedFilter === 'all' ? true : p.type === s.feedFilter));
+  // greeting + date resolve on the client to avoid SSR/client clock mismatch
+  const [greet, setGreet] = useState(tt('مرحبًا', 'Welcome'));
+  const [dateLine, setDateLine] = useState('');
+  useEffect(() => {
+    const h = new Date().getHours();
+    setGreet(h < 12 ? tt('صباح الخير، أحمد', 'Good morning, Ahmed') : h < 17 ? tt('نهارك سعيد، أحمد', 'Good afternoon, Ahmed') : tt('مساء الخير، أحمد', 'Good evening, Ahmed'));
+    try {
+      setDateLine(new Intl.DateTimeFormat(lang === 'ar' ? 'ar' : 'en', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()));
+    } catch { /* ignore */ }
+    // tt is stable per language; re-run when the language switches
+  }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pendingReviews = useMemo(() => Object.values(s.reviews).filter((v) => v === 'pending').length, [s.reviews]);
+  const pendingRequests = useMemo(() => Object.values(s.requests).filter((v) => v === 'pending').length, [s.requests]);
+  const route = data.customers.slice(0, 3);
+
+  const tasks = useMemo(() => ([
+    { id: 'v1', t: tt(`زيارة ${data.customers[0]?.name.ar ?? ''}`, `Visit ${data.customers[0]?.name.en ?? ''}`) },
+    { id: 'v2', t: tt(`تحديث بيانات ${data.customers[1]?.name.ar ?? ''}`, `Update ${data.customers[1]?.name.en ?? ''}`) },
+    { id: 'v3', t: tt('اعتماد تحديثات الفريق المعلقة', 'Approve pending team updates') },
+  ]), [data.customers, tt]);
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const toggleTask = (id: string) => setChecked((p) => ({ ...p, [id]: !p[id] }));
+
+  const Chevron = dir === 'rtl' ? ChevronLeft : ChevronRight;
 
   return (
-    <div data-scroll="true" style={{ flex: 1, minHeight: 0, overflowY: 'auto', animation: 'fadeUp .26s cubic-bezier(.22,1,.36,1) both' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px 0' }}>
-        <Avatar ini="أش" bg="var(--pri)" size={42} fontSize={14} onClick={() => set({ screen: 'me', stack: ['home'] })} />
+    <div data-scroll="true" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+      {/* header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px 0' }}>
+        <Avatar ini="أش" bg="var(--pri)" size={44} fontSize={14} onClick={() => set({ screen: 'me', stack: ['home'] })} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 16.5, fontWeight: 700 }}>{tt('مساء الخير، أحمد', 'Good evening, Ahmed')}</div>
-          <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 1 }}>{tt('الجمعة 4 يوليو · 5 زيارات مجدولة اليوم', 'Friday 4 Jul · 5 visits scheduled today')}</div>
+          <div style={{ fontSize: 17.5, fontWeight: 700, letterSpacing: '-0.3px' }}>{greet}</div>
+          <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 2 }}>{dateLine}{dateLine ? ' · ' : ''}{tt('٥ زيارات مجدولة اليوم', '5 visits scheduled today')}</div>
         </div>
-        <div onClick={() => nav('messages')} style={{ cursor: 'pointer', position: 'relative', width: 40, height: 40, flex: 'none', borderRadius: '50%', background: 'var(--card)', border: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="chatLines" size={17} stroke="var(--tx)" />
-          <span style={{ position: 'absolute', top: 6, insetInlineStart: 7, minWidth: 15, height: 15, background: 'var(--pri)', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--bg)', padding: '0 2px' }}>2</span>
-        </div>
-        <div onClick={() => nav('notif')} style={{ cursor: 'pointer', position: 'relative', width: 40, height: 40, flex: 'none', borderRadius: '50%', background: 'var(--card)', border: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="bell" size={17} stroke="var(--tx)" />
-          {unread > 0 && <span style={{ position: 'absolute', top: 6, insetInlineStart: 7, minWidth: 15, height: 15, background: 'var(--org)', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--bg)', padding: '0 2px' }}>{unread}</span>}
-        </div>
+        <button onClick={() => nav('notif')} aria-label={tt('التنبيهات', 'Notifications')} style={{ position: 'relative', width: 42, height: 42, flex: 'none', borderRadius: '50%', background: 'var(--card)', border: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--tx)' }}>
+          <Bell size={18} strokeWidth={1.9} aria-hidden />
+          {unread > 0 && <span style={{ position: 'absolute', top: 7, insetInlineStart: 8, minWidth: 15, height: 15, background: 'var(--org)', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--card)', padding: '0 2px' }}>{unread}</span>}
+        </button>
       </div>
-      <div onClick={() => set({ screen: 'search', stack: ['home'], query: '' })} style={{ cursor: 'pointer', margin: '14px 20px 0', display: 'flex', alignItems: 'center', gap: 9, background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 13, padding: '12px 14px' }}>
-        <Icon name="search" size={16} stroke="var(--fnt)" />
-        <span style={{ fontSize: 13, color: 'var(--fnt)' }}>{tt('ابحث في كل شيء — عملاء، جهات، أرقام، وظائف…', 'Search everything — customers, contacts, numbers, jobs…')}</span>
+
+      {/* search */}
+      <button onClick={() => set({ screen: 'search', stack: ['home'], query: '' })} style={{ margin: '16px 20px 0', width: 'calc(100% - 40px)', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 16, padding: '13px 16px', cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}>
+        <Search size={16} color="var(--fnt)" strokeWidth={2} aria-hidden />
+        <span style={{ fontSize: 13, color: 'var(--fnt)' }}>{tt('ابحث — عملاء، جهات، أرقام، وظائف…', 'Search — customers, contacts, numbers, jobs…')}</span>
+      </button>
+
+      {/* KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px 20px 0' }}>
+        <Kpi i={0} icon={<MapPin size={18} strokeWidth={2} aria-hidden />} value={5} label={tt('زيارات اليوم', "Today's visits")} tint="var(--pri)" tintBg="var(--priT)" />
+        <Kpi i={1} icon={<Users size={18} strokeWidth={2} aria-hidden />} value={data.customers.length} label={tt('عملاء نشطون', 'Active customers')} tint="var(--acc)" tintBg="var(--accT)" onClick={() => set({ screen: 'customers', stack: [] })} />
+        <Kpi i={2} icon={<ClipboardCheck size={18} strokeWidth={2} aria-hidden />} value={pendingReviews} label={tt('مراجعات معلقة', 'Pending reviews')} tint="var(--amb)" tintBg="var(--ambT)" onClick={() => set({ screen: 'review', stack: ['home'] })} />
+        <Kpi i={3} icon={<UserPlus size={18} strokeWidth={2} aria-hidden />} value={pendingRequests} label={tt('طلبات عضوية', 'Membership requests')} tint="var(--grn)" tintBg="var(--grnT)" onClick={() => set({ screen: 'admin', stack: ['home'] })} />
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 0' }}>
-        <span style={{ fontSize: 13.5, fontWeight: 700 }}>{tt('محدث مؤخرًا', 'Recently updated')}</span>
-        <span onClick={() => set({ screen: 'customers', stack: [] })} style={{ cursor: 'pointer', fontSize: 11, fontWeight: 700, color: 'var(--lnk)' }}>{tt('كل العملاء', 'All customers')}</span>
+
+      {/* quick actions */}
+      <div style={{ display: 'flex', gap: 10, padding: '18px 20px 0' }}>
+        <QuickAction icon={<ClipboardPlus size={20} strokeWidth={1.9} aria-hidden />} label={tt('تقرير جديد', 'New report')} onClick={() => startReport(null)} />
+        <QuickAction icon={<Search size={20} strokeWidth={1.9} aria-hidden />} label={tt('بحث', 'Search')} onClick={() => set({ screen: 'search', stack: ['home'], query: '' })} />
+        <QuickAction icon={<Users size={20} strokeWidth={1.9} aria-hidden />} label={tt('العملاء', 'Customers')} onClick={() => set({ screen: 'customers', stack: [] })} />
+        <QuickAction icon={<MessageCircle size={20} strokeWidth={1.9} aria-hidden />} label={tt('الرسائل', 'Messages')} onClick={() => set({ screen: 'messages', stack: ['home'] })} />
       </div>
-      <div data-scroll="true" style={{ display: 'flex', gap: 9, padding: '10px 20px 4px', overflowX: 'auto' }}>
-        {data.customers.map((x) => {
-          const name = t(x.name);
-          const short = name.length > 16 ? name.slice(0, 15) + '…' : name;
+
+      {/* today's route */}
+      <SectionHead title={tt('خط سير اليوم', "Today's route")} action={tt('كل العملاء', 'All customers')} onAction={() => set({ screen: 'customers', stack: [] })} />
+      <div style={{ ...card, margin: '0 20px', overflow: 'hidden' }}>
+        {route.map((x, i) => (
+          <button key={x.id} onClick={() => openC(x.id)} style={{ width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderTop: i === 0 ? 'none' : '1px solid var(--dv)', textAlign: 'start' }}>
+            <ScoreRing score={x.score} size={42} inner={33} fontSize={12} pop={false} />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--tx)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t(x.name)}</span>
+              <span style={{ display: 'block', fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>{t(x.updWhen)}</span>
+            </span>
+            <Chevron size={17} color="var(--fnt)" strokeWidth={2} aria-hidden />
+          </button>
+        ))}
+      </div>
+
+      {/* tasks */}
+      <SectionHead title={tt('مهام اليوم', "Today's tasks")} />
+      <div style={{ ...card, margin: '0 20px', overflow: 'hidden' }}>
+        {tasks.map((task, i) => {
+          const on = !!checked[task.id];
           return (
-            <div key={x.id} onClick={() => openC(x.id)} style={{ cursor: 'pointer', flex: 'none', width: 118, background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 15, padding: '11px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
-              <div style={{ width: 44, height: 44, borderRadius: '50%', background: scoreRing(x.score), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontSize: 12, fontWeight: 700, color: scoreCol(x.score) }}>{x.score}</span></div>
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', lineHeight: 1.4, color: 'var(--tx)' }}>{short}</span>
-              <span style={{ fontSize: 9, color: 'var(--fnt)' }}>{t(x.updWhen)}</span>
-            </div>
+            <button key={task.id} onClick={() => toggleTask(task.id)} role="checkbox" aria-checked={on} style={{ width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderTop: i === 0 ? 'none' : '1px solid var(--dv)', textAlign: 'start' }}>
+              {on
+                ? <CheckCircle2 size={20} color="var(--grn)" strokeWidth={2} aria-hidden />
+                : <Circle size={20} color="var(--fnt)" strokeWidth={1.8} aria-hidden />}
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: on ? 'var(--fnt)' : 'var(--tx)', textDecoration: on ? 'line-through' : 'none', transition: 'color .2s' }}>{task.t}</span>
+            </button>
           );
         })}
       </div>
-      <div data-scroll="true" style={{ display: 'flex', gap: 8, padding: '12px 20px 2px', overflowX: 'auto' }}>
-        {feedChips.map((f) => {
-          const on = s.feedFilter === f.k;
-          return <span key={f.k} onClick={() => set({ feedFilter: f.k })} style={{ cursor: 'pointer', flex: 'none', fontSize: 12, fontWeight: on ? 700 : 500, padding: '7px 14px', borderRadius: 99, background: on ? 'var(--pri)' : 'var(--card)', color: on ? 'var(--onPri)' : 'var(--sub)', border: `1px solid ${on ? 'var(--pri)' : 'var(--bd)'}`, transition: 'all .18s', userSelect: 'none' }}>{f.t}</span>;
-        })}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 20px 96px' }}>
-        <div style={{ background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 18, padding: '13px 16px', boxShadow: '0 1px 2px var(--sh)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><span style={{ fontSize: 12.5, fontWeight: 700 }}>{tt('أشخاص قد تعرفهم', 'People you may know')}</span><span onClick={() => nav('network')} style={{ cursor: 'pointer', fontSize: 10.5, fontWeight: 700, color: 'var(--lnk)' }}>{tt('شبكتي', 'My network')}</span></div>
-          <SuggestRow list={data.suggest.slice(0, 2)} />
-        </div>
-        {posts.map((p, i) => <PostCard key={p.id} p={p} i={i} />)}
+
+      {/* recent activity */}
+      <SectionHead title={tt('آخر النشاط', 'Recent activity')} action={tt('المنصة', 'Open feed')} onAction={() => set({ screen: 'feed', stack: [] })} />
+      <div style={{ ...card, margin: '0 20px 24px', overflow: 'hidden' }}>
+        {data.posts.slice(0, 3).map((p, i) => (
+          <button key={p.id} onClick={() => openC(p.cid)} style={{ width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: i === 0 ? 'none' : '1px solid var(--dv)', textAlign: 'start' }}>
+            <Avatar ini={p.ini} bg={p.av} size={36} fontSize={12} />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 12.5, lineHeight: 1.5, color: 'var(--tx)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontWeight: 700 }}>{t(p.by)}</span> <span style={{ color: 'var(--sub)' }}>{t(p.act)}</span> <span style={{ fontWeight: 700, color: 'var(--lnk)' }}>{t(p.cust)}</span>
+              </span>
+              <span style={{ display: 'block', fontSize: 10.5, color: 'var(--fnt)', marginTop: 2 }}>{t(p.when)}</span>
+            </span>
+          </button>
+        ))}
       </div>
     </div>
   );

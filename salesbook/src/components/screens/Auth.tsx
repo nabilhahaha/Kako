@@ -1,48 +1,176 @@
 'use client';
+import { useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Eye, EyeOff, ScanFace, Fingerprint, Loader2, BookOpenCheck, AlertCircle } from 'lucide-react';
 import { useApp } from '@/state/app';
 import { useI18n } from '@/state/i18n';
-import { Icon } from '@/components/ui';
+import { Icon, Toggle } from '@/components/ui';
 
 const scrollBase = {
   flex: 1, minHeight: 0, overflowY: 'auto' as const,
   animation: 'fadeUp .26s cubic-bezier(.22,1,.36,1) both',
 };
 
-export function Login() {
-  const { login, nav } = useApp();
-  const { tt } = useI18n();
+const COUNTRIES = [
+  { code: '+966', ar: 'السعودية', en: 'Saudi Arabia' },
+  { code: '+971', ar: 'الإمارات', en: 'UAE' },
+  { code: '+965', ar: 'الكويت', en: 'Kuwait' },
+  { code: '+974', ar: 'قطر', en: 'Qatar' },
+  { code: '+973', ar: 'البحرين', en: 'Bahrain' },
+  { code: '+968', ar: 'عُمان', en: 'Oman' },
+  { code: '+20', ar: 'مصر', en: 'Egypt' },
+  { code: '+962', ar: 'الأردن', en: 'Jordan' },
+];
+
+/* Animated form field: focus glow, error state, optional trailing control. */
+function LoginField({ label, error, focused, children }: {
+  label: string; error?: boolean; focused: boolean; children: React.ReactNode;
+}) {
   return (
-    <div data-scroll="true" style={{ ...scrollBase, display: 'flex', flexDirection: 'column', padding: '0 26px' }}>
-      <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', paddingTop: 64 }}>
-        <div style={{ width: 78, height: 78, borderRadius: 24, background: 'var(--pri)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, letterSpacing: '-1px', boxShadow: '0 12px 30px var(--sh)' }}>SB</div>
-        <div style={{ fontSize: 23, fontWeight: 700, marginTop: 18 }}>SalesBook</div>
-        <div style={{ fontSize: 13, color: 'var(--sub)', marginTop: 5 }}>{tt('الشبكة المهنية لفرق المبيعات — اعرف عميلك قبل الزيارة', 'The professional network for sales teams — know your customer before you visit')}</div>
+    <div>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: error ? 'var(--red)' : focused ? 'var(--pri)' : 'var(--sub)', marginBottom: 6, transition: 'color .2s' }}>{label}</div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, background: 'var(--card)',
+        border: `1.5px solid ${error ? 'var(--red)' : focused ? 'var(--pri)' : 'var(--bd)'}`,
+        borderRadius: 16, padding: '0 14px', height: 54,
+        boxShadow: focused ? '0 0 0 4px var(--priT)' : 'var(--shadow-sm)',
+        transition: 'border-color .2s, box-shadow .2s',
+      }}>
+        {children}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 36 }}>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sub)', marginBottom: 6 }}>{tt('رقم الجوال', 'Mobile number')}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 13, padding: '0 14px', height: 50, transition: 'border-color .2s' }}>
-            <input placeholder="5X XXX XXXX" style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 14, color: 'var(--tx)', direction: 'ltr', textAlign: 'right' }} />
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fnt)', borderInlineStart: '1px solid var(--dv)', paddingInlineStart: 10 }}>+966</span>
+    </div>
+  );
+}
+
+export function Login() {
+  const { login, nav, toast } = useApp();
+  const { tt, lang } = useI18n();
+  const [country, setCountry] = useState('+966');
+  const [phone, setPhone] = useState('');
+  const [pass, setPass] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [focus, setFocus] = useState<'phone' | 'pass' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const submit = () => {
+    if (busy) return;
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 7) { setError(tt('أدخل رقم جوال صحيحًا', 'Enter a valid mobile number')); return; }
+    if (!pass) { setError(tt('أدخل كلمة المرور', 'Enter your password')); return; }
+    setError(null);
+    setBusy(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => login(), 900);
+  };
+  const biometric = (kind: 'face' | 'touch') => {
+    if (busy) return;
+    setBusy(true);
+    toast(kind === 'face' ? { ar: 'تم التحقق ببصمة الوجه', en: 'Verified with Face ID' } : { ar: 'تم التحقق بالبصمة', en: 'Verified with fingerprint' });
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => login(), 700);
+  };
+
+  return (
+    <div data-scroll="true" style={{ ...scrollBase, display: 'flex', flexDirection: 'column', padding: '0 24px' }}>
+      {/* brand */}
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', paddingTop: 'max(48px, 9vh)' }}>
+        <div style={{ width: 84, height: 84, borderRadius: 26, background: 'linear-gradient(135deg, var(--pri) 0%, var(--acc) 100%)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-lg)' }}>
+          <BookOpenCheck size={38} strokeWidth={1.8} aria-hidden />
+        </div>
+        <div style={{ fontSize: 25, fontWeight: 700, marginTop: 18, letterSpacing: '-0.5px' }}>{tt('أهلًا بك في SalesBook', 'Welcome to SalesBook')}</div>
+        <div style={{ fontSize: 13, color: 'var(--sub)', marginTop: 6, lineHeight: 1.7, maxWidth: 320 }}>{tt('منصة ذكاء العملاء لفرق المبيعات — اعرف عميلك قبل الزيارة', 'Customer intelligence for sales teams — know your customer before you visit')}</div>
+      </motion.div>
+
+      {/* form */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 32, animation: error ? 'shake .4s' : undefined }}
+        key={error ? `err-${error}` : 'ok'}>
+        <LoginField label={tt('رقم الجوال', 'Mobile number')} focused={focus === 'phone'} error={!!error && phone.replace(/\D/g, '').length < 7}>
+          <input
+            inputMode="tel" autoComplete="tel" placeholder="5X XXX XXXX" value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            onFocus={() => setFocus('phone')} onBlur={() => setFocus(null)}
+            aria-label={tt('رقم الجوال', 'Mobile number')}
+            style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent', fontSize: 15, color: 'var(--tx)', direction: 'ltr', textAlign: lang === 'ar' ? 'right' : 'left' }}
+          />
+          <select
+            value={country} onChange={(e) => setCountry(e.target.value)}
+            aria-label={tt('الدولة', 'Country')}
+            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, fontWeight: 600, color: 'var(--sub)', cursor: 'pointer', borderInlineStart: '1px solid var(--dv)', paddingInlineStart: 10, direction: 'ltr' }}>
+            {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.code} {lang === 'ar' ? c.ar : c.en}</option>)}
+          </select>
+        </LoginField>
+
+        <LoginField label={tt('كلمة المرور', 'Password')} focused={focus === 'pass'} error={!!error && !pass}>
+          <input
+            type={showPass ? 'text' : 'password'} autoComplete="current-password" placeholder="••••••••" value={pass}
+            onChange={(e) => setPass(e.target.value)}
+            onFocus={() => setFocus('pass')} onBlur={() => setFocus(null)}
+            onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+            aria-label={tt('كلمة المرور', 'Password')}
+            style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent', fontSize: 15, color: 'var(--tx)' }}
+          />
+          <button onClick={() => setShowPass((v) => !v)} aria-label={showPass ? tt('إخفاء كلمة المرور', 'Hide password') : tt('إظهار كلمة المرور', 'Show password')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--fnt)', display: 'flex', padding: 4 }}>
+            {showPass ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
+          </button>
+        </LoginField>
+
+        {error && (
+          <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 600, color: 'var(--red)', animation: 'fadeUp .2s both' }}>
+            <AlertCircle size={14} aria-hidden /> {error}
           </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--sub)' }}>
+            <Toggle on={remember} onToggle={() => setRemember((v) => !v)} label={tt('تذكرني', 'Remember me')} />
+            {tt('تذكرني', 'Remember me')}
+          </label>
+          <button onClick={() => toast({ ar: 'أُرسل رابط الاستعادة إلى جوالك', en: 'A reset link was sent to your phone' })} style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--lnk)', padding: 4 }}>{tt('نسيت كلمة المرور؟', 'Forgot password?')}</button>
         </div>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sub)', marginBottom: 6 }}>{tt('كلمة المرور', 'Password')}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 13, padding: '0 14px', height: 50 }}>
-            <input type="password" placeholder="••••••••" style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 14, color: 'var(--tx)' }} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--lnk)', cursor: 'pointer' }}>{tt('إظهار', 'Show')}</span>
-          </div>
+
+        <motion.button
+          onClick={submit}
+          whileTap={{ scale: 0.98 }}
+          disabled={busy}
+          style={{ border: 'none', cursor: 'pointer', height: 54, borderRadius: 16, background: 'var(--pri)', color: 'var(--onPri)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, fontSize: 15, fontWeight: 700, marginTop: 4, boxShadow: '0 10px 26px var(--priT), var(--shadow-md)', opacity: busy ? 0.85 : 1, transition: 'opacity .2s' }}>
+          {busy && <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} aria-hidden />}
+          {busy ? tt('جارٍ تسجيل الدخول…', 'Signing in…') : tt('تسجيل الدخول', 'Sign in')}
+        </motion.button>
+
+        {/* divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
+          <span style={{ flex: 1, height: 1, background: 'var(--dv)' }} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--fnt)' }}>{tt('أو', 'or')}</span>
+          <span style={{ flex: 1, height: 1, background: 'var(--dv)' }} />
         </div>
-        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--lnk)', cursor: 'pointer', alignSelf: 'flex-start' }}>{tt('نسيت كلمة المرور؟', 'Forgot password?')}</span>
-        <div onClick={login} style={{ cursor: 'pointer', height: 52, borderRadius: 14, background: 'var(--pri)', color: 'var(--onPri)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14.5, fontWeight: 700, marginTop: 6, boxShadow: '0 8px 22px var(--sh)', transition: 'transform .15s,background .2s' }}>{tt('تسجيل الدخول', 'Sign in')}</div>
-        <div onClick={login} style={{ cursor: 'pointer', height: 52, borderRadius: 14, background: 'var(--card)', border: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, fontSize: 13, fontWeight: 600, color: 'var(--tx)', transition: 'transform .15s' }}>
-          <Icon name="face" size={18} stroke="var(--lnk)" />
-          {tt('الدخول ببصمة الوجه', 'Sign in with Face ID')}
+
+        {/* biometric sign-in */}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => biometric('face')} style={{ flex: 1, border: '1px solid var(--bd)', cursor: 'pointer', height: 52, borderRadius: 16, background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, fontSize: 13, fontWeight: 600, color: 'var(--tx)', boxShadow: 'var(--shadow-sm)' }}>
+            <ScanFace size={19} color="var(--pri)" strokeWidth={1.9} aria-hidden />
+            {tt('بصمة الوجه', 'Face ID')}
+          </motion.button>
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => biometric('touch')} style={{ flex: 1, border: '1px solid var(--bd)', cursor: 'pointer', height: 52, borderRadius: 16, background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, fontSize: 13, fontWeight: 600, color: 'var(--tx)', boxShadow: 'var(--shadow-sm)' }}>
+            <Fingerprint size={19} color="var(--pri)" strokeWidth={1.9} aria-hidden />
+            {tt('البصمة', 'Fingerprint')}
+          </motion.button>
         </div>
-      </div>
-      <div style={{ marginTop: 'auto', padding: '26px 0 30px', textAlign: 'center' }}>
+      </motion.div>
+
+      <div style={{ marginTop: 'auto', padding: '26px 0 28px', textAlign: 'center' }}>
         <div style={{ fontSize: 12.5, color: 'var(--sub)' }}>{tt('ليس لديك حساب؟ ', 'Don’t have an account? ')}<span onClick={() => nav('register')} style={{ color: 'var(--lnk)', fontWeight: 700, cursor: 'pointer' }}>{tt('قدّم طلب عضوية', 'Request membership')}</span></div>
-        <div style={{ fontSize: 10, color: 'var(--fnt)', marginTop: 10 }}>{tt('بالمتابعة أنت توافق على شروط الاستخدام وسياسة الخصوصية', 'By continuing you agree to the Terms of Use and Privacy Policy')}</div>
+        <div style={{ fontSize: 10.5, color: 'var(--fnt)', marginTop: 10 }}>{tt('بالمتابعة أنت توافق على شروط الاستخدام وسياسة الخصوصية', 'By continuing you agree to the Terms of Use and Privacy Policy')}</div>
       </div>
     </div>
   );
