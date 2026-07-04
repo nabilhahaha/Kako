@@ -39,6 +39,13 @@ export interface AppState {
   rsvp: Record<string, boolean>;
   joined: Record<string, boolean>;
   notifRead: boolean;
+  savedCands: Record<string, boolean>;
+  interviews: Record<string, 'sched' | 'done' | 'offer'>;
+  hTab: 'search' | 'saved' | 'meet';
+  hCity: string;
+  hExp: string;
+  hCat: string;
+  hQuery: string;
   requests: Record<string, ApprovalStatus>;
   rejectFor: string | null;
   rejReason: string | null;
@@ -59,7 +66,9 @@ function initialState(data: Bootstrap, theme: Theme): AppState {
     reportStep: 0, repCust: null, repOverall: 0, repPay: null, repMove: null, repVoice: false, repPhotos: 0,
     feedFilter: 'all', likes: {}, availOn: false, applied: {}, careersTab: 'jobs',
     connReqs: { q1: 'pending', q2: 'pending' }, conns: {}, chatId: 't1', chatInput: '', typing: false, chatMsgs: null,
-    rsvp: {}, joined: {}, notifRead: false, requests, rejectFor: null, rejReason: null, reviews,
+    rsvp: {}, joined: {}, notifRead: false,
+    savedCands: {}, interviews: {}, hTab: 'search', hCity: 'all', hExp: 'all', hCat: 'all', hQuery: '',
+    requests, rejectFor: null, rejReason: null, reviews,
     toast: null, ntf1: true, ntf2: false,
   };
 }
