@@ -6,6 +6,7 @@ import { ScreenSkeleton } from '@/components/ui';
 import { Login, Register, Pending } from './Auth';
 import { Customers } from './Customers';
 import { Home } from './Home';
+import { Feed } from './Feed';
 import { Notifications } from './Notifications';
 import { Me } from './Me';
 import { Settings } from './Settings';
@@ -34,6 +35,7 @@ export const SCREENS: Record<string, ComponentType> = {
   pending: Pending,
   customers: Customers,
   home: Home,
+  feed: Feed,
   notif: Notifications,
   me: Me,
   settings: Settings,
