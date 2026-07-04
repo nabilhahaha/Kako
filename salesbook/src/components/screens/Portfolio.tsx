@@ -76,6 +76,72 @@ const P = {
   ],
 };
 
+/* AI Sales Reputation Score — animated ring + component breakdown. */
+const REP = {
+  score: 87,
+  grade: l('ممتاز — A', 'Excellent — A'),
+  parts: [
+    { t: l('دقة البيانات الميدانية', 'Field data accuracy'), v: 92 },
+    { t: l('التوثيق من الزملاء', 'Peer verification'), v: 84 },
+    { t: l('الالتزام بخط السير', 'Route discipline'), v: 90 },
+    { t: l('استجابة العملاء', 'Customer responsiveness'), v: 81 },
+  ],
+  note: l('محسوبة من 84 تقريرًا معتمدًا و46 توثيقًا من الزملاء خلال آخر 12 شهرًا', 'Computed from 84 approved reports and 46 peer verifications over the last 12 months'),
+};
+
+function ReputationScore() {
+  const { toast } = useApp();
+  const { t, tt } = useI18n();
+  const R = 34, C = 2 * Math.PI * R;
+  return (
+    <div style={{ margin: '0 20px', borderRadius: 20, padding: 1.5, background: 'linear-gradient(135deg, var(--pri), var(--acc))' }}>
+      <div style={{ background: 'var(--card)', borderRadius: 18.5, padding: '15px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ position: 'relative', width: 84, height: 84, flex: 'none' }}>
+            <svg width="84" height="84" viewBox="0 0 84 84" aria-hidden>
+              <circle cx="42" cy="42" r={R} fill="none" stroke="var(--dv)" strokeWidth="8" />
+              <motion.circle
+                cx="42" cy="42" r={R} fill="none" stroke="var(--pri)" strokeWidth="8" strokeLinecap="round"
+                strokeDasharray={C} transform="rotate(-90 42 42)"
+                initial={{ strokeDashoffset: C }}
+                animate={{ strokeDashoffset: C * (1 - REP.score / 100) }}
+                transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
+              />
+            </svg>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1 }}>{REP.score}</span>
+              <span style={{ fontSize: 8, fontWeight: 600, color: 'var(--fnt)', marginTop: 2 }}>/100</span>
+            </div>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 14.5, fontWeight: 700 }}>{t(REP.grade)}</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--grnTx)', background: 'var(--grnT)', borderRadius: 99, padding: '3px 9px' }}>{tt('أعلى من 94% من المناديب', 'Top 6% of reps')}</span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--sub)', lineHeight: 1.6, marginTop: 5 }}>{t(REP.note)}</div>
+            <button onClick={() => toast({ ar: 'الدرجة تجمع دقة البيانات، توثيق الزملاء، الالتزام، ورضا العملاء بأوزان ذكية', en: 'The score blends data accuracy, peer verification, discipline, and customer satisfaction with smart weights' })} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, marginTop: 6, fontSize: 11, fontWeight: 700, color: 'var(--lnk)' }}>{tt('كيف تُحسب؟', 'How is it computed?')}</button>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 14, borderTop: '1px solid var(--dv)', paddingTop: 13 }}>
+          {REP.parts.map((p, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ flex: 'none', width: 132, fontSize: 11, fontWeight: 600, color: 'var(--sub)' }}>{t(p.t)}</span>
+              <span style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--dv)', overflow: 'hidden' }}>
+                <motion.span
+                  initial={{ width: 0 }} animate={{ width: `${p.v}%` }}
+                  transition={{ delay: 0.15 + i * 0.08, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ display: 'block', height: '100%', borderRadius: 3, background: 'var(--pri)' }}
+                />
+              </span>
+              <span style={{ flex: 'none', width: 26, textAlign: 'end', fontSize: 11, fontWeight: 700 }}>{p.v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Section({ icon, title, children, first }: { icon?: React.ReactNode; title: string; children: React.ReactNode; first?: boolean }) {
   return (
     <>
@@ -116,7 +182,7 @@ function TargetChart() {
       <div style={{ position: 'relative', marginTop: 14, height: H }}>
         {/* 100% reference line */}
         <div style={{ position: 'absolute', insetInline: 0, bottom: (100 / max) * H, borderTop: '2px dashed var(--dv)' }} />
-        <span style={{ position: 'absolute', insetInlineEnd: 0, bottom: (100 / max) * H + 3, fontSize: 8.5, fontWeight: 600, color: 'var(--fnt)' }}>100%</span>
+        <span style={{ position: 'absolute', insetInlineStart: 0, bottom: (100 / max) * H + 3, fontSize: 8.5, fontWeight: 600, color: 'var(--fnt)' }}>100%</span>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: '100%' }}>
           {P.months.map((mo, i) => {
             const on = sel === i;
@@ -226,8 +292,13 @@ export function Portfolio() {
         </div>
       </div>
 
+      {/* AI Sales Reputation Score */}
+      <Section first icon={<BadgeCheck size={16} aria-hidden />} title={tt('درجة السمعة الذكية', 'AI Sales Reputation Score')}>
+        <ReputationScore />
+      </Section>
+
       {/* AI strengths */}
-      <Section first icon={<Sparkles size={16} aria-hidden />} title={tt('ملخص القوة — مولد بالذكاء الاصطناعي', 'AI-generated strengths')}>
+      <Section icon={<Sparkles size={16} aria-hidden />} title={tt('ملخص القوة — مولد بالذكاء الاصطناعي', 'AI-generated strengths')}>
         <div style={{ margin: '0 20px', borderRadius: 20, padding: 1.5, background: 'linear-gradient(135deg, var(--pri), var(--acc))' }}>
           <div style={{ background: 'var(--card)', borderRadius: 18.5, padding: '13px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {P.strengths.map((x, i) => (
