@@ -74,7 +74,7 @@ export interface Job {
   id: string; t: L; co: L; ini: string; city: L; sal: L; tags: L[]; when: L; hot: boolean;
 }
 
-export interface Talent { n: L; ini: string; exp: L; city: L; pts: string; tags: L[] }
+export interface Talent { n: L; ini: string; exp: L; city: L; pts: string; tags: L[]; yrs?: number; cat?: L; skills?: L[] }
 
 export interface Leader { r: string; n: L; ini: string; sub: L; pts: string; me: boolean }
 

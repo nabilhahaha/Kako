@@ -199,9 +199,11 @@ export const JOBS: Job[] = [
 ];
 
 export const TALENTS: Talent[] = [
-  { n: l('يوسف الحربي', 'Youssef Al-Harbi'), ini: 'يح', exp: l('خبرة 5 سنوات · قنوات التجزئة والجملة', '5 years · retail & wholesale channels'), city: l('الرياض', 'Riyadh'), pts: '1,580', tags: [l('سيارة خاصة', 'Own car'), l('رخصة سارية', 'Valid license'), l('متاح فورًا', 'Available now')] },
-  { n: l('ريم القحطاني', 'Reem Al-Qahtani'), ini: 'رق', exp: l('خبرة 3 سنوات · هايبر ماركت', '3 years · hypermarket'), city: l('جدة', 'Jeddah'), pts: '1,210', tags: [l('رخصة سارية', 'Valid license'), l('متاحة خلال شهر', 'Available within a month')] },
-  { n: l('تركي العتيبي', 'Turki Al-Otaibi'), ini: 'تع', exp: l('خبرة 7 سنوات · مشرف سابق', '7 years · former supervisor'), city: l('الدمام', 'Dammam'), pts: '1,975', tags: [l('سيارة خاصة', 'Own car'), l('قيادة فريق', 'Team leadership')] },
+  { n: l('يوسف الحربي', 'Youssef Al-Harbi'), ini: 'يح', exp: l('خبرة 5 سنوات · قنوات التجزئة والجملة', '5 years · retail & wholesale channels'), city: l('الرياض', 'Riyadh'), pts: '1,580', tags: [l('سيارة خاصة', 'Own car'), l('رخصة سارية', 'Valid license'), l('متاح فورًا', 'Available now')], yrs: 5, cat: l('تجزئة', 'Retail'), skills: [l('تفاوض', 'Negotiation'), l('تحصيل', 'Collections'), l('عرض أرفف', 'Shelf display')] },
+  { n: l('ريم القحطاني', 'Reem Al-Qahtani'), ini: 'رق', exp: l('خبرة 3 سنوات · هايبر ماركت', '3 years · hypermarket'), city: l('جدة', 'Jeddah'), pts: '1,210', tags: [l('رخصة سارية', 'Valid license'), l('متاحة خلال شهر', 'Available within a month')], yrs: 3, cat: l('هايبر ماركت', 'Hypermarket'), skills: [l('عرض أرفف', 'Shelf display'), l('تقارير ميدانية', 'Field reporting')] },
+  { n: l('تركي العتيبي', 'Turki Al-Otaibi'), ini: 'تع', exp: l('خبرة 7 سنوات · مشرف سابق', '7 years · former supervisor'), city: l('الدمام', 'Dammam'), pts: '1,975', tags: [l('سيارة خاصة', 'Own car'), l('قيادة فريق', 'Team leadership')], yrs: 7, cat: l('جملة', 'Wholesale'), skills: [l('قيادة فريق', 'Team leadership'), l('تفاوض', 'Negotiation'), l('تخطيط طرق', 'Route planning')] },
+  { n: l('سارة المطيري', 'Sara Al-Mutairi'), ini: 'سم', exp: l('خبرة 4 سنوات · مشروبات وعصائر', '4 years · beverages & juices'), city: l('جدة', 'Jeddah'), pts: '1,105', tags: [l('رخصة سارية', 'Valid license'), l('متاحة فورًا', 'Available now')], yrs: 4, cat: l('مشروبات', 'Beverages'), skills: [l('تفاوض', 'Negotiation'), l('إطلاق منتجات', 'Product launches')] },
+  { n: l('نايف الدوسري', 'Nayef Al-Dosari'), ini: 'ند', exp: l('خبرة 6 سنوات · ألبان ومبردات', '6 years · dairy & chilled'), city: l('الدمام', 'Dammam'), pts: '980', tags: [l('سيارة خاصة', 'Own car'), l('سلسلة تبريد', 'Cold chain')], yrs: 6, cat: l('ألبان', 'Dairy'), skills: [l('سلسلة تبريد', 'Cold chain'), l('تحصيل', 'Collections'), l('عرض أرفف', 'Shelf display')] },
 ];
 
 export const LEADERS: Leader[] = [
