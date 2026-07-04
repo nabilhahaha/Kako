@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#EDEBE6;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">SalesLink Hub — ثلاثة اتجاهات تصميمية (عربي RTL أولاً)</span></div>
+
+<div style="max-width:760px;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;padding:18px 22px;margin:0 0 26px;font-size:12.5px;line-height:1.8;color:#3a3a3a">
+<div style="font-weight:700;font-size:13px;margin-bottom:6px">الافتراضات وخطة العمل</div>
+<div>• هوية مستقلة: أزرق داكن (أساسي) · زمردي (ثانوي) · برتقالي (تنبيه) — خطوط IBM Plex Sans Arabic + Plex Mono للتسميات الدقيقة.</div>
+<div>• بيانات سعودية (تجزئة/حلويات): الرياض، جدة، الدمام — أرقام غربية كما هو شائع في تطبيقات SaaS السعودية.</div>
+<div>• كل اتجاه يعرض: الرئيسية + ملف العميل (فاتح) + ملف العميل (داكن). بطاقة «اعرف عميلك في 30 ثانية» هي قلب التصميم.</div>
+<div>• بعد اختيار الاتجاه: نظام تصميم كامل ثم نموذج تفاعلي قابل للنقر على مراحل (التسجيل ← الحلقة الأساسية ← التقارير ← الاعتمادات ← البحث والتنبيهات).</div>
+</div>
+
+<div class="dv-opts">
+
+<!-- ============ 1a: Premium Trust ============ -->
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>الثقة الفاخرة — Premium Trust · بطاقات ناعمة، حلقة نقاط، أقرب لـ LinkedIn/Notion</div>
+<div class="dv-card" style="padding:20px;background:#F1F3F6"><div style="display:flex;gap:18px;align-items:flex-start">
+
+<!-- 1a HOME LIGHT -->
+<div dir="rtl" lang="ar" data-screen-label="1a الرئيسية فاتح" style="width:390px;flex:none;background:#F6F8FA;border:1px solid #E2E7ED;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;min-height:840px;font-family:'IBM Plex Sans Arabic',sans-serif;color:#16202C">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px 4px;font-size:12.5px;font-weight:600"><span>9:41</span><span style="display:flex;gap:4px;align-items:center"><span style="width:16px;height:9px;border:1px solid #16202C;border-radius:2.5px;display:inline-block"></span><span style="width:3px;height:3px;background:#16202C;border-radius:50%"></span><span style="width:3px;height:3px;background:#16202C;border-radius:50%"></span></span></div>
+  <div style="display:flex;align-items:center;gap:12px;padding:12px 20px 4px">
+    <div style="width:42px;height:42px;border-radius:50%;background:#1F4E8C;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px">أش</div>
+    <div style="flex:1">
+      <div style="font-size:16px;font-weight:700">مساء الخير، أحمد</div>
+      <div style="font-size:12px;color:#5A6B7E">آخر تحديثات العملاء اليوم</div>
+    </div>
+    <div style="position:relative;width:40px;height:40px;border-radius:50%;background:#fff;border:1px solid #E2E7ED;display:flex;align-items:center;justify-content:center">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#16202C" stroke-width="1.8"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"></path><path d="M10 19a2 2 0 0 0 4 0"></path></svg>
+      <span style="position:absolute;top:7px;left:8px;width:8px;height:8px;background:#E8791A;border-radius:50%;border:1.5px solid #fff"></span>
+    </div>
+  </div>
+  <div style="margin:12px 20px 0;display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #E2E7ED;border-radius:13px;padding:11px 14px">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8695A8" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+    <span style="font-size:13px;color:#8695A8">ابحث باسم العميل، جهة الاتصال، الرقم…</span>
+  </div>
+  <div style="display:flex;gap:8px;padding:12px 20px 2px;overflow:hidden">
+    <span style="flex:none;font-size:12px;font-weight:600;padding:7px 14px;border-radius:99px;background:#1F4E8C;color:#fff">الكل</span>
+    <span style="flex:none;font-size:12px;font-weight:500;padding:7px 14px;border-radius:99px;background:#fff;border:1px solid #E2E7ED;color:#3D4C5E">الرياض</span>
+    <span style="flex:none;font-size:12px;font-weight:500;padding:7px 14px;border-radius:99px;background:#fff;border:1px solid #E2E7ED;color:#3D4C5E">جدة</span>
+    <span style="flex:none;font-size:12px;font-weight:500;padding:7px 14px;border-radius:99px;background:#fff;border:1px solid #E2E7ED;color:#3D4C5E">دفع متأخر</span>
+    <span style="flex:none;font-size:12px;font-weight:500;padding:7px 14px;border-radius:99px;background:#fff;border:1px solid #E2E7ED;color:#3D4C5E">يحتاج تحديث</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:12px;padding:14px 20px 8px">
+    <!-- card 1 -->
+    <div style="background:#fff;border:1px solid #E2E7ED;border-radius:18px;padding:16px;box-shadow:0 1px 2px rgba(22,32,44,.04)">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="width:54px;height:54px;flex:none;border-radius:14px;background:repeating-linear-gradient(45deg,#E7ECF2 0 8px,#F1F4F8 8px 16px);display:flex;align-items:center;justify-content:center"><span style="font:500 8px 'IBM Plex Mono',monospace;color:#98A6B7">store</span></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:700">أسواق النخيل التجارية</div>
+          <div style="font-size:12px;color:#5A6B7E;margin-top:2px">الرياض · حي العليا</div>
+        </div>
+        <div style="flex:none;width:48px;height:48px;border-radius:50%;background:conic-gradient(#12876F 0 92%,#E7ECF2 92% 100%);display:flex;align-items:center;justify-content:center">
+          <div style="width:38px;height:38px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1"><span style="font-size:14px;font-weight:700;color:#12876F">92</span></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:#0E6B57;background:#E7F5F0;border-radius:8px;padding:5px 9px"><span style="width:7px;height:7px;border-radius:50%;background:#12876F"></span>الدفع: ممتاز</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:#1F4E8C;background:#EBF1F9;border-radius:8px;padding:5px 9px">الحركة: سريعة</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:#5A6B7E;background:#F1F4F8;border-radius:8px;padding:5px 9px">عام: 4.8 ★</span>
+      </div>
+      <div style="display:flex;gap:9px;align-items:flex-start;margin-top:12px;background:#F8FAFC;border-radius:12px;padding:10px 12px">
+        <div style="width:26px;height:26px;flex:none;border-radius:50%;background:#E8791A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">أش</div>
+        <div style="min-width:0">
+          <div style="font-size:12.5px;color:#2A3948;line-height:1.55">تم تعيين مسؤول مشتريات جديد — فهد القحطاني</div>
+          <div style="font-size:11px;color:#8695A8;margin-top:2px">أحمد الشمري · قبل ساعتين</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+        <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#5A6B7E"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5A6B7E" stroke-width="1.8"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"></path></svg>12 تعليق</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#5A6B7E">موثق من 8 مناديب</span>
+        <span style="margin-inline-start:auto;font-size:12.5px;font-weight:700;color:#fff;background:#1F4E8C;border-radius:10px;padding:8px 16px">فتح الملف</span>
+      </div>
+    </div>
+    <!-- card 2 -->
+    <div style="background:#fff;border:1px solid #E2E7ED;border-radius:18px;padding:16px;box-shadow:0 1px 2px rgba(22,32,44,.04)">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="width:54px;height:54px;flex:none;border-radius:14px;background:repeating-linear-gradient(45deg,#E7ECF2 0 8px,#F1F4F8 8px 16px);display:flex;align-items:center;justify-content:center"><span style="font:500 8px 'IBM Plex Mono',monospace;color:#98A6B7">store</span></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:700">بقالة الواحة</div>
+          <div style="font-size:12px;color:#5A6B7E;margin-top:2px">جدة · حي الروضة</div>
+        </div>
+        <div style="flex:none;width:48px;height:48px;border-radius:50%;background:conic-gradient(#D9A012 0 61%,#E7ECF2 61% 100%);display:flex;align-items:center;justify-content:center">
+          <div style="width:38px;height:38px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center"><span style="font-size:14px;font-weight:700;color:#B0820D">61</span></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:#9A3B12;background:#FBEDE5;border-radius:8px;padding:5px 9px"><span style="width:7px;height:7px;border-radius:50%;background:#E8791A"></span>الدفع: متأخر 14 يوم</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:#5A6B7E;background:#F1F4F8;border-radius:8px;padding:5px 9px">الحركة: متوسطة</span>
+      </div>
+      <div style="display:flex;gap:9px;align-items:flex-start;margin-top:12px;background:#F8FAFC;border-radius:12px;padding:10px 12px">
+        <div style="width:26px;height:26px;flex:none;border-radius:50%;background:#12876F;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">سم</div>
+        <div style="min-width:0">
+          <div style="font-size:12.5px;color:#2A3948;line-height:1.55">تأخر سداد آخر فاتورة، بانتظار تأكيد المالية</div>
+          <div style="font-size:11px;color:#8695A8;margin-top:2px">سارة المطيري · أمس</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+        <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#5A6B7E"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5A6B7E" stroke-width="1.8"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"></path></svg>5 تعليقات</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#5A6B7E">موثق من 3 مناديب</span>
+        <span style="margin-inline-start:auto;font-size:12.5px;font-weight:700;color:#1F4E8C;background:#EBF1F9;border-radius:10px;padding:8px 16px">فتح الملف</span>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:auto;display:flex;align-items:flex-end;justify-content:space-around;background:#fff;border-top:1px solid #E2E7ED;padding:10px 8px 20px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#1F4E8C"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F4E8C" stroke-width="2"><path d="M3 11 12 4l9 7v8a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg><span style="font-size:10px;font-weight:700">الرئيسية</span></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#8695A8"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8695A8" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="font-size:10px;font-weight:500">البحث</span></div>
+    <div style="width:50px;height:50px;border-radius:16px;background:#1F4E8C;display:flex;align-items:center;justify-content:center;margin-top:-18px;box-shadow:0 6px 14px rgba(31,78,140,.35)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M12 5v14M5 12h14"></path></svg></div>
+    <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;color:#8695A8"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8695A8" stroke-width="2"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"></path><path d="M10 19a2 2 0 0 0 4 0"></path></svg><span style="font-size:10px;font-weight:500">التنبيهات</span><span style="position:absolute;top:-4px;left:6px;min-width:15px;height:15px;background:#E8791A;color:#fff;font-size:9px;font-weight:700;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 3px">3</span></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#8695A8"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8695A8" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg><span style="font-size:10px;font-weight:500">حسابي</span></div>
+  </div>
+</div>
+
+<!-- 1a PROFILE LIGHT -->
+<div dir="rtl" lang="ar" data-screen-label="1a ملف العميل فاتح" style="width:390px;flex:none;background:#F6F8FA;border:1px solid #E2E7ED;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;min-height:840px;font-family:'IBM Plex Sans Arabic',sans-serif;color:#16202C">
+  <div style="position:relative;height:150px;background:repeating-linear-gradient(45deg,#DDE5EE 0 10px,#E9EEF5 10px 20px);flex:none">
+    <span style="position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16202C" stroke-width="2"><path d="m9 6 6 6-6 6"></path></svg></span>
+    <span style="position:absolute;bottom:10px;left:14px;font:500 9px 'IBM Plex Mono',monospace;color:#8695A8">cover / store front</span>
+  </div>
+  <div style="padding:0 20px;margin-top:-30px">
+    <div style="display:flex;align-items:flex-end;gap:12px">
+      <div style="width:72px;height:72px;border-radius:20px;background:#1F4E8C;border:3px solid #F6F8FA;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700">ن</div>
+      <div style="flex:1;padding-bottom:4px">
+        <div style="font-size:18px;font-weight:700">أسواق النخيل التجارية</div>
+        <div style="font-size:12px;color:#5A6B7E;margin-top:2px">الرياض · حي العليا · عميل منذ 2019</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+      <div style="flex:none;width:56px;height:56px;border-radius:50%;background:conic-gradient(#12876F 0 92%,#E7ECF2 92% 100%);display:flex;align-items:center;justify-content:center">
+        <div style="width:44px;height:44px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1"><span style="font-size:15px;font-weight:700;color:#12876F">92</span><span style="font-size:7.5px;color:#8695A8">من 100</span></div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:#12876F">ممتاز — مؤشر ذكاء العميل</div>
+        <div style="font-size:11px;color:#5A6B7E;margin-top:2px">موثق من 8 مناديب · آخر تحقق قبل 3 أيام</div>
+      </div>
+      <span style="font-size:11px;font-weight:600;color:#0E6B57;background:#E7F5F0;border-radius:8px;padding:5px 9px">ثقة عالية</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;background:#1F4E8C;color:#fff;border-radius:14px;padding:10px 0;font-size:11px;font-weight:600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>اتصال</span>
+      <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;background:#fff;border:1px solid #E2E7ED;border-radius:14px;padding:10px 0;font-size:11px;font-weight:600;color:#16202C"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#12876F" stroke-width="1.9"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"></path></svg>واتساب</span>
+      <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;background:#fff;border:1px solid #E2E7ED;border-radius:14px;padding:10px 0;font-size:11px;font-weight:600;color:#16202C"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F4E8C" stroke-width="1.9"><path d="m3 11 18-8-8 18-2-8z"></path></svg>الاتجاهات</span>
+      <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;background:#fff;border:1px solid #E2E7ED;border-radius:14px;padding:10px 0;font-size:11px;font-weight:600;color:#16202C"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8791A" stroke-width="1.9"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="11" r="2"></circle><path d="m21 15-4-3-6 5"></path></svg>المعرض</span>
+    </div>
+  </div>
+  <div style="margin:16px 20px 0;background:#fff;border:1px solid #E2E7ED;border-radius:18px;overflow:hidden;box-shadow:0 1px 2px rgba(22,32,44,.04)">
+    <div style="display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid #EEF2F6">
+      <span style="width:26px;height:26px;border-radius:8px;background:#EBF1F9;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4E8C" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg></span>
+      <span style="font-size:14px;font-weight:700">اعرف عميلك في 30 ثانية</span>
+      <span style="margin-inline-start:auto;font-size:10.5px;color:#8695A8">محدث قبل 3 أيام</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#EEF2F6">
+      <div style="background:#fff;padding:11px 16px"><div style="font-size:10.5px;color:#8695A8">صاحب القرار</div><div style="font-size:13px;font-weight:700;margin-top:2px">خالد العتيبي</div><div style="font-size:10.5px;color:#0E6B57;margin-top:1px">موثق ×8</div></div>
+      <div style="background:#fff;padding:11px 16px"><div style="font-size:10.5px;color:#8695A8">مسؤول المشتريات</div><div style="font-size:13px;font-weight:700;margin-top:2px">فهد القحطاني</div><div style="font-size:10.5px;color:#0E6B57;margin-top:1px">موثق ×3</div></div>
+      <div style="background:#fff;padding:11px 16px"><div style="font-size:10.5px;color:#8695A8">تقييم الدفع</div><div style="display:flex;align-items:center;gap:6px;margin-top:3px"><span style="width:8px;height:8px;border-radius:50%;background:#12876F"></span><span style="font-size:13px;font-weight:700;color:#0E6B57">ممتاز · تأخير 3 أيام</span></div></div>
+      <div style="background:#fff;padding:11px 16px"><div style="font-size:10.5px;color:#8695A8">حركة المنتجات</div><div style="font-size:13px;font-weight:700;margin-top:2px">سريعة · طلب كل 12 يوم</div></div>
+      <div style="background:#fff;padding:11px 16px"><div style="font-size:10.5px;color:#8695A8">متوسط الطلبية</div><div style="font-size:13px;font-weight:700;margin-top:2px">12,500 ر.س</div></div>
+      <div style="background:#fff;padding:11px 16px"><div style="font-size:10.5px;color:#8695A8">أفضل وقت للزيارة</div><div style="font-size:13px;font-weight:700;margin-top:2px">الثلاثاء · 9–11 صباحًا</div></div>
+    </div>
+    <div style="padding:11px 16px;border-top:1px solid #EEF2F6;display:flex;gap:8px;align-items:flex-start"><span style="flex:none;width:8px;height:8px;border-radius:50%;background:#1F4E8C;margin-top:5px"></span><div style="font-size:12px;color:#2A3948;line-height:1.6">يفضّل التنسيق عبر واتساب قبل الزيارة بيوم</div></div>
+    <div style="margin:0 12px 12px;padding:10px 12px;background:#FBEDE5;border-radius:12px;display:flex;gap:8px;align-items:flex-start"><svg style="flex:none;margin-top:2px" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C4570F" stroke-width="2"><path d="M12 3 2 21h20z"></path><path d="M12 10v4M12 17.5v.5"></path></svg><div style="font-size:12px;font-weight:600;color:#9A3B12;line-height:1.6">تحذير: لا يتم استلام البضاعة يوم الجمعة</div></div>
+  </div>
+  <div style="display:flex;gap:6px;padding:16px 20px 6px;overflow:hidden">
+    <span style="flex:none;font-size:12px;font-weight:700;color:#1F4E8C;border-bottom:2.5px solid #1F4E8C;padding:6px 4px">نظرة عامة</span>
+    <span style="flex:none;font-size:12px;font-weight:500;color:#5A6B7E;padding:6px 10px">جهات الاتصال</span>
+    <span style="flex:none;font-size:12px;font-weight:500;color:#5A6B7E;padding:6px 10px">الدفع</span>
+    <span style="flex:none;font-size:12px;font-weight:500;color:#5A6B7E;padding:6px 10px">الحركة</span>
+    <span style="flex:none;font-size:12px;font-weight:500;color:#5A6B7E;padding:6px 10px">الملاحظات</span>
+  </div>
+  <div style="margin:6px 20px 20px;background:#fff;border:1px solid #E2E7ED;border-radius:16px;padding:13px 16px;display:flex;align-items:center;gap:12px">
+    <div style="width:44px;height:44px;flex:none;border-radius:50%;background:#F1F4F8;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#1F4E8C">خع</div>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:6px"><span style="font-size:13.5px;font-weight:700">خالد العتيبي</span><span style="font-size:9.5px;font-weight:700;color:#fff;background:#1F4E8C;border-radius:5px;padding:2px 6px">صاحب القرار</span></div>
+      <div style="font-size:11.5px;color:#5A6B7E;margin-top:2px">المدير العام · 0555 214 890 · موثق ×8</div>
+    </div>
+    <span style="width:36px;height:36px;flex:none;border-radius:50%;background:#E7F5F0;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#12876F" stroke-width="1.9"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"></path></svg></span>
+  </div>
+</div>
+
+<!-- 1a PROFILE DARK -->
+<div dir="rtl" lang="ar" data-screen-label="1a ملف العميل داكن" style="width:390px;flex:none;background:#0D1520;border:1px solid #223146;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;min-height:840px;font-family:'IBM Plex Sans Arabic',sans-serif;color:#ECF1F7">
+  <div style="position:relative;height:150px;background:repeating-linear-gradient(45deg,#1A2536 0 10px,#212E42 10px 20px);flex:none">
+    <span style="position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;background:rgba(13,21,32,.85);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ECF1F7" stroke-width="2"><path d="m9 6 6 6-6 6"></path></svg></span>
+    <span style="position:absolute;bottom:10px;left:14px;font:500 9px 'IBM Plex Mono',monospace;color:#5F7189">cover / store front</span>
+  </div>
+  <div style="padding:0 20px;margin-top:-30px">
+    <div style="display:flex;align-items:flex-end;gap:12px">
+      <div style="width:72px;height:72px;border-radius:20px;background:#3D77C2;border:3px solid #0D1520;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700">ن</div>
+      <div style="flex:1;padding-bottom:4px">
+        <div style="font-size:18px;font-weight:700">أسواق النخيل التجارية</div>
+        <div style="font-size:12px;color:#93A3B5;margin-top:2px">الرياض · حي العليا · عميل منذ 2019</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+      <div style="flex:none;width:56px;height:56px;border-radius:50%;background:conic-gradient(#34C39E 0 92%,#223146 92% 100%);display:flex;align-items:center;justify-content:center">
+        <div style="width:44px;height:44px;border-radius:50%;background:#0D1520;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1"><span style="font-size:15px;font-weight:700;color:#34C39E">92</span><span style="font-size:7.5px;color:#5F7189">من 100</span></div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:#34C39E">ممتاز — مؤشر ذكاء العميل</div>
+        <div style="font-size:11px;color:#93A3B5;margin-top:2px">موثق من 8 مناديب · آخر تحقق قبل 3 أيام</div>
+      </div>
+      <span style="font-size:11px;font-weight:600;color:#34C39E;background:rgba(52,195,158,.12);border-radius:8px;padding:5px 9px">ثقة عالية</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;background:#3D77C2;color:#fff;border-radius:14px;padding:10px 0;font-size:11px;font-weight:600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>اتصال</span>
+      <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;background:#16202E;border:1px solid #223146;border-radius:14px;padding:10px 0;font-size:11px;font-weight:600;color:#ECF1F7"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34C39E" stroke-width="1.9"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"></path></svg>واتساب</span>
+      <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;background:#16202E;border:1px solid #223146;border-radius:14px;padding:10px 0;font-size:11px;font-weight:600;color:#ECF1F7"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6EA8E8" stroke-width="1.9"><path d="m3 11 18-8-8 18-2-8z"></path></svg>الاتجاهات</span>
+      <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;background:#16202E;border:1px solid #223146;border-radius:14px;padding:10px 0;font-size:11px;font-weight:600;color:#ECF1F7"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F09A4A" stroke-width="1.9"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="11" r="2"></circle><path d="m21 15-4-3-6 5"></path></svg>المعرض</span>
+    </div>
+  </div>
+  <div style="margin:16px 20px 0;background:#16202E;border:1px solid #223146;border-radius:18px;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid #223146">
+      <span style="width:26px;height:26px;border-radius:8px;background:rgba(110,168,232,.14);display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6EA8E8" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg></span>
+      <span style="font-size:14px;font-weight:700">اعرف عميلك في 30 ثانية</span>
+      <span style="margin-inline-start:auto;font-size:10.5px;color:#5F7189">محدث قبل 3 أيام</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#223146">
+      <div style="background:#16202E;padding:11px 16px"><div style="font-size:10.5px;color:#5F7189">صاحب القرار</div><div style="font-size:13px;font-weight:700;margin-top:2px">خالد العتيبي</div><div style="font-size:10.5px;color:#34C39E;margin-top:1px">موثق ×8</div></div>
+      <div style="background:#16202E;padding:11px 16px"><div style="font-size:10.5px;color:#5F7189">مسؤول المشتريات</div><div style="font-size:13px;font-weight:700;margin-top:2px">فهد القحطاني</div><div style="font-size:10.5px;color:#34C39E;margin-top:1px">موثق ×3</div></div>
+      <div style="background:#16202E;padding:11px 16px"><div style="font-size:10.5px;color:#5F7189">تقييم الدفع</div><div style="display:flex;align-items:center;gap:6px;margin-top:3px"><span style="width:8px;height:8px;border-radius:50%;background:#34C39E"></span><span style="font-size:13px;font-weight:700;color:#34C39E">ممتاز · تأخير 3 أيام</span></div></div>
+      <div style="background:#16202E;padding:11px 16px"><div style="font-size:10.5px;color:#5F7189">حركة المنتجات</div><div style="font-size:13px;font-weight:700;margin-top:2px">سريعة · طلب كل 12 يوم</div></div>
+      <div style="background:#16202E;padding:11px 16px"><div style="font-size:10.5px;color:#5F7189">متوسط الطلبية</div><div style="font-size:13px;font-weight:700;margin-top:2px">12,500 ر.س</div></div>
+      <div style="background:#16202E;padding:11px 16px"><div style="font-size:10.5px;color:#5F7189">أفضل وقت للزيارة</div><div style="font-size:13px;font-weight:700;margin-top:2px">الثلاثاء · 9–11 صباحًا</div></div>
+    </div>
+    <div style="padding:11px 16px;border-top:1px solid #223146;display:flex;gap:8px;align-items:flex-start"><span style="flex:none;width:8px;height:8px;border-radius:50%;background:#6EA8E8;margin-top:5px"></span><div style="font-size:12px;color:#C6D2E0;line-height:1.6">يفضّل التنسيق عبر واتساب قبل الزيارة بيوم</div></div>
+    <div style="margin:0 12px 12px;padding:10px 12px;background:rgba(240,154,74,.12);border-radius:12px;display:flex;gap:8px;align-items:flex-start"><svg style="flex:none;margin-top:2px" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F09A4A" stroke-width="2"><path d="M12 3 2 21h20z"></path><path d="M12 10v4M12 17.5v.5"></path></svg><div style="font-size:12px;font-weight:600;color:#F0B27E;line-height:1.6">تحذير: لا يتم استلام البضاعة يوم الجمعة</div></div>
+  </div>
+  <div style="display:flex;gap:6px;padding:16px 20px 6px;overflow:hidden">
+    <span style="flex:none;font-size:12px;font-weight:700;color:#6EA8E8;border-bottom:2.5px solid #6EA8E8;padding:6px 4px">نظرة عامة</span>
+    <span style="flex:none;font-size:12px;font-weight:500;color:#93A3B5;padding:6px 10px">جهات الاتصال</span>
+    <span style="flex:none;font-size:12px;font-weight:500;color:#93A3B5;padding:6px 10px">الدفع</span>
+    <span style="flex:none;font-size:12px;font-weight:500;color:#93A3B5;padding:6px 10px">الحركة</span>
+    <span style="flex:none;font-size:12px;font-weight:500;color:#93A3B5;padding:6px 10px">الملاحظات</span>
+  </div>
+  <div style="margin:6px 20px 20px;background:#16202E;border:1px solid #223146;border-radius:16px;padding:13px 16px;display:flex;align-items:center;gap:12px">
+    <div style="width:44px;height:44px;flex:none;border-radius:50%;background:#1E2C40;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#6EA8E8">خع</div>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:6px"><span style="font-size:13.5px;font-weight:700">خالد العتيبي</span><span style="font-size:9.5px;font-weight:700;color:#0D1520;background:#6EA8E8;border-radius:5px;padding:2px 6px">صاحب القرار</span></div>
+      <div style="font-size:11.5px;color:#93A3B5;margin-top:2px">المدير العام · 0555 214 890 · موثق ×8</div>
+    </div>
+    <span style="width:36px;height:36px;flex:none;border-radius:50%;background:rgba(52,195,158,.12);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34C39E" stroke-width="1.9"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"></path></svg></span>
+  </div>
+</div>
+
+</div></div>
+</div>
+
+<!-- ============ 1b: Intel Dossier ============ -->
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>ملف الاستخبارات — Intel Dossier · حواف رفيعة، شريط نقاط مقسّم، تسميات mono ثنائية اللغة</div>
+<div class="dv-card" style="padding:20px;background:#F1F3F6"><div style="display:flex;gap:18px;align-items:flex-start">
+
+<!-- 1b HOME LIGHT -->
+<div dir="rtl" lang="ar" data-screen-label="1b الرئيسية فاتح" style="width:390px;flex:none;background:#FBFBF9;border:1px solid #E3E2DC;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-height:840px;font-family:'IBM Plex Sans Arabic',sans-serif;color:#131A24">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px 4px;font-size:12.5px;font-weight:600"><span>9:41</span><span style="width:16px;height:9px;border:1px solid #131A24;border-radius:2.5px"></span></div>
+  <div style="padding:14px 20px 12px;border-bottom:1px solid #E7E6E0">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font:500 9px 'IBM Plex Mono',monospace;color:#8A93A0;letter-spacing:1.5px">SALESLINK HUB</div>
+        <div style="font-size:19px;font-weight:700;margin-top:3px">سجل العملاء</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <span style="width:36px;height:36px;border:1px solid #E3E2DC;border-radius:9px;display:flex;align-items:center;justify-content:center;background:#fff"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#131A24" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></span>
+        <span style="position:relative;width:36px;height:36px;border:1px solid #E3E2DC;border-radius:9px;display:flex;align-items:center;justify-content:center;background:#fff"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#131A24" stroke-width="1.8"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"></path><path d="M10 19a2 2 0 0 0 4 0"></path></svg><span style="position:absolute;top:-4px;left:-4px;min-width:15px;height:15px;background:#D96B18;color:#fff;font-size:9px;font-weight:700;border-radius:99px;display:flex;align-items:center;justify-content:center">3</span></span>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;margin-top:14px">
+      <div style="flex:1;border:1px solid #E3E2DC;background:#fff;border-radius:10px;padding:9px 12px"><div style="font:500 8.5px 'IBM Plex Mono',monospace;color:#8A93A0;letter-spacing:.5px">ACTIVE</div><div style="font-size:17px;font-weight:700;margin-top:1px">128 <span style="font-size:10.5px;font-weight:500;color:#5C6674">عميل</span></div></div>
+      <div style="flex:1;border:1px solid #E3E2DC;background:#fff;border-radius:10px;padding:9px 12px"><div style="font:500 8.5px 'IBM Plex Mono',monospace;color:#D96B18;letter-spacing:.5px">STALE &gt;90D</div><div style="font-size:17px;font-weight:700;margin-top:1px;color:#B4550E">14 <span style="font-size:10.5px;font-weight:500;color:#5C6674">ملف</span></div></div>
+      <div style="flex:1;border:1px solid #E3E2DC;background:#fff;border-radius:10px;padding:9px 12px"><div style="font:500 8.5px 'IBM Plex Mono',monospace;color:#8A93A0;letter-spacing:.5px">PENDING</div><div style="font-size:17px;font-weight:700;margin-top:1px">6 <span style="font-size:10.5px;font-weight:500;color:#5C6674">تحديثات</span></div></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:7px;padding:12px 20px 0">
+    <span style="font-size:11.5px;font-weight:700;padding:6px 13px;border-radius:8px;background:#13293F;color:#fff">الكل</span>
+    <span style="font-size:11.5px;font-weight:500;padding:6px 13px;border-radius:8px;border:1px solid #E3E2DC;background:#fff;color:#3E4854">الرياض</span>
+    <span style="font-size:11.5px;font-weight:500;padding:6px 13px;border-radius:8px;border:1px solid #E3E2DC;background:#fff;color:#3E4854">جدة</span>
+    <span style="font-size:11.5px;font-weight:500;padding:6px 13px;border-radius:8px;border:1px solid #E3E2DC;background:#fff;color:#3E4854">دفع متأخر</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px;padding:14px 20px 8px">
+    <!-- card 1 -->
+    <div style="background:#fff;border:1px solid #E3E2DC;border-radius:12px;overflow:hidden">
+      <div style="display:flex;gap:12px;align-items:center;padding:13px 15px 0">
+        <div style="width:46px;height:46px;flex:none;border-radius:9px;background:repeating-linear-gradient(45deg,#EBEAE4 0 8px,#F4F3EE 8px 16px);display:flex;align-items:center;justify-content:center"><span style="font:500 7.5px 'IBM Plex Mono',monospace;color:#9AA2AD">store</span></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:7px"><span style="font-size:14.5px;font-weight:700">أسواق النخيل التجارية</span><span style="font:600 8px 'IBM Plex Mono',monospace;color:#0F7A5C;background:#E9F4EF;border:1px solid #CBE5DA;border-radius:4px;padding:2px 5px;letter-spacing:.5px">VERIFIED ×8</span></div>
+          <div style="font-size:11.5px;color:#5C6674;margin-top:2px">الرياض · حي العليا · #C-1042</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 15px 3px">
+        <span style="font:600 9px 'IBM Plex Mono',monospace;color:#8A93A0;letter-spacing:.5px">SCORE</span>
+        <div style="flex:1;display:flex;gap:3px">
+          <span style="flex:1;height:6px;border-radius:3px;background:#0F7A5C"></span><span style="flex:1;height:6px;border-radius:3px;background:#0F7A5C"></span><span style="flex:1;height:6px;border-radius:3px;background:#0F7A5C"></span><span style="flex:1;height:6px;border-radius:3px;background:#0F7A5C"></span><span style="flex:1;height:6px;border-radius:3px;background:#0F7A5C;opacity:.35"></span>
+        </div>
+        <span style="font-size:14px;font-weight:700;color:#0F7A5C">92</span><span style="font-size:11px;font-weight:600;color:#0F7A5C">ممتاز</span>
+      </div>
+      <div style="display:flex;gap:14px;padding:9px 15px;font-size:11.5px;color:#3E4854">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:2px;background:#0F7A5C"></span>الدفع ممتاز</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:2px;background:#13293F"></span>حركة سريعة</span>
+        <span style="display:flex;align-items:center;gap:5px">★ 4.8</span>
+      </div>
+      <div style="border-top:1px dashed #E3E2DC;padding:10px 15px;display:flex;align-items:center;gap:8px">
+        <div style="width:22px;height:22px;flex:none;border-radius:50%;background:#13293F;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700">أش</div>
+        <div style="flex:1;min-width:0;font-size:11.5px;color:#3E4854;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">تم تعيين مسؤول مشتريات جديد — فهد القحطاني</div>
+        <span style="flex:none;font:500 9px 'IBM Plex Mono',monospace;color:#8A93A0">2H</span>
+      </div>
+    </div>
+    <!-- card 2 -->
+    <div style="background:#fff;border:1px solid #E3E2DC;border-radius:12px;overflow:hidden">
+      <div style="display:flex;gap:12px;align-items:center;padding:13px 15px 0">
+        <div style="width:46px;height:46px;flex:none;border-radius:9px;background:repeating-linear-gradient(45deg,#EBEAE4 0 8px,#F4F3EE 8px 16px);display:flex;align-items:center;justify-content:center"><span style="font:500 7.5px 'IBM Plex Mono',monospace;color:#9AA2AD">store</span></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:7px"><span style="font-size:14.5px;font-weight:700">بقالة الواحة</span><span style="font:600 8px 'IBM Plex Mono',monospace;color:#8A93A0;background:#F4F3EE;border:1px solid #E3E2DC;border-radius:4px;padding:2px 5px;letter-spacing:.5px">VERIFIED ×3</span></div>
+          <div style="font-size:11.5px;color:#5C6674;margin-top:2px">جدة · حي الروضة · #C-0877</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 15px 3px">
+        <span style="font:600 9px 'IBM Plex Mono',monospace;color:#8A93A0;letter-spacing:.5px">SCORE</span>
+        <div style="flex:1;display:flex;gap:3px">
+          <span style="flex:1;height:6px;border-radius:3px;background:#C2900F"></span><span style="flex:1;height:6px;border-radius:3px;background:#C2900F"></span><span style="flex:1;height:6px;border-radius:3px;background:#C2900F"></span><span style="flex:1;height:6px;border-radius:3px;background:#E3E2DC"></span><span style="flex:1;height:6px;border-radius:3px;background:#E3E2DC"></span>
+        </div>
+        <span style="font-size:14px;font-weight:700;color:#A67B0B">61</span><span style="font-size:11px;font-weight:600;color:#A67B0B">متوسط</span>
+      </div>
+      <div style="display:flex;gap:14px;padding:9px 15px;font-size:11.5px;color:#3E4854">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:2px;background:#D96B18"></span>متأخر 14 يوم</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:2px;background:#C2900F"></span>حركة متوسطة</span>
+      </div>
+      <div style="border-top:1px dashed #E3E2DC;padding:10px 15px;display:flex;align-items:center;gap:8px">
+        <div style="width:22px;height:22px;flex:none;border-radius:50%;background:#0F7A5C;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700">سم</div>
+        <div style="flex:1;min-width:0;font-size:11.5px;color:#3E4854;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">تأخر سداد آخر فاتورة، بانتظار تأكيد المالية</div>
+        <span style="flex:none;font:500 9px 'IBM Plex Mono',monospace;color:#8A93A0">1D</span>
+      </div>
+    </div>
+    <!-- card 3 compact -->
+    <div style="background:#fff;border:1px solid #E3E2DC;border-radius:12px;padding:13px 15px;display:flex;gap:12px;align-items:center">
+      <div style="width:46px;height:46px;flex:none;border-radius:9px;background:repeating-linear-gradient(45deg,#EBEAE4 0 8px,#F4F3EE 8px 16px);display:flex;align-items:center;justify-content:center"><span style="font:500 7.5px 'IBM Plex Mono',monospace;color:#9AA2AD">store</span></div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:7px"><span style="font-size:14.5px;font-weight:700">هايبر الأمانة</span><span style="font:600 8px 'IBM Plex Mono',monospace;color:#B4550E;background:#FBEFE3;border:1px solid #F0D9BE;border-radius:4px;padding:2px 5px;letter-spacing:.5px">STALE 94D</span></div>
+        <div style="font-size:11.5px;color:#5C6674;margin-top:2px">الدمام · حي الشاطئ · يحتاج زيارة تحديث</div>
+      </div>
+      <span style="font-size:14px;font-weight:700;color:#A67B0B">58</span>
+    </div>
+  </div>
+  <div style="margin-top:auto;display:flex;align-items:center;justify-content:space-around;background:#fff;border-top:1px solid #E3E2DC;padding:12px 8px 22px">
+    <span style="font-size:10.5px;font-weight:700;color:#13293F;display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#13293F" stroke-width="2"><path d="M3 11 12 4l9 7v8a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg>الرئيسية</span>
+    <span style="font-size:10.5px;font-weight:500;color:#8A93A0;display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#8A93A0" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>البحث</span>
+    <span style="width:46px;height:46px;border-radius:12px;background:#13293F;display:flex;align-items:center;justify-content:center;margin-top:-14px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M12 5v14M5 12h14"></path></svg></span>
+    <span style="font-size:10.5px;font-weight:500;color:#8A93A0;display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#8A93A0" stroke-width="2"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"></path><path d="M10 19a2 2 0 0 0 4 0"></path></svg>التنبيهات</span>
+    <span style="font-size:10.5px;font-weight:500;color:#8A93A0;display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#8A93A0" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>حسابي</span>
+  </div>
+</div>
+
+<!-- 1b PROFILE LIGHT -->
+<div dir="rtl" lang="ar" data-screen-label="1b ملف العميل فاتح" style="width:390px;flex:none;background:#FBFBF9;border:1px solid #E3E2DC;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-height:840px;font-family:'IBM Plex Sans Arabic',sans-serif;color:#131A24">
+  <div style="background:#13293F;color:#fff;padding:14px 20px 18px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="width:32px;height:32px;border:1px solid rgba(255,255,255,.25);border-radius:8px;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="m9 6 6 6-6 6"></path></svg></span>
+      <span style="font:500 9px 'IBM Plex Mono',monospace;color:#8FA6C0;letter-spacing:1.5px">CUSTOMER FILE #C-1042</span>
+      <span style="width:32px;height:32px;border:1px solid rgba(255,255,255,.25);border-radius:8px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="5" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="12" cy="19" r="1.6"></circle></svg></span>
+    </div>
+    <div style="display:flex;gap:13px;align-items:center;margin-top:16px">
+      <div style="width:58px;height:58px;flex:none;border-radius:12px;background:repeating-linear-gradient(45deg,#1E3A57 0 8px,#25445F 8px 16px);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center"><span style="font:500 7.5px 'IBM Plex Mono',monospace;color:#8FA6C0">store</span></div>
+      <div style="flex:1">
+        <div style="font-size:17.5px;font-weight:700">أسواق النخيل التجارية</div>
+        <div style="font-size:11.5px;color:#AFC2D8;margin-top:3px">الرياض · حي العليا · عميل منذ 2019</div>
+        <div style="display:flex;gap:6px;margin-top:7px">
+          <span style="font:600 8px 'IBM Plex Mono',monospace;color:#5EE0B0;border:1px solid rgba(94,224,176,.4);border-radius:4px;padding:2px 6px;letter-spacing:.5px">VERIFIED ×8</span>
+          <span style="font:600 8px 'IBM Plex Mono',monospace;color:#AFC2D8;border:1px solid rgba(175,194,216,.35);border-radius:4px;padding:2px 6px;letter-spacing:.5px">GRADE A</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:15px">
+      <span style="font:600 9px 'IBM Plex Mono',monospace;color:#8FA6C0;letter-spacing:.5px">INTEL SCORE</span>
+      <div style="flex:1;display:flex;gap:3px">
+        <span style="flex:1;height:7px;border-radius:3px;background:#5EE0B0"></span><span style="flex:1;height:7px;border-radius:3px;background:#5EE0B0"></span><span style="flex:1;height:7px;border-radius:3px;background:#5EE0B0"></span><span style="flex:1;height:7px;border-radius:3px;background:#5EE0B0"></span><span style="flex:1;height:7px;border-radius:3px;background:rgba(255,255,255,.18)"></span>
+      </div>
+      <span style="font-size:19px;font-weight:700;color:#5EE0B0">92</span>
+      <span style="font-size:11px;font-weight:600;color:#5EE0B0">ممتاز</span>
+    </div>
+  </div>
+  <div style="display:flex;border-bottom:1px solid #E7E6E0;background:#fff">
+    <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 0;font-size:11.5px;font-weight:600;border-inline-end:1px solid #E7E6E0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#13293F" stroke-width="1.9"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>اتصال</span>
+    <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 0;font-size:11.5px;font-weight:600;border-inline-end:1px solid #E7E6E0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F7A5C" stroke-width="1.9"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"></path></svg>واتساب</span>
+    <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 0;font-size:11.5px;font-weight:600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#13293F" stroke-width="1.9"><path d="m3 11 18-8-8 18-2-8z"></path></svg>الاتجاهات</span>
+  </div>
+  <div style="padding:16px 20px 20px">
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <div style="font-size:14.5px;font-weight:700">اعرف عميلك في 30 ثانية</div>
+      <span style="font:500 8.5px 'IBM Plex Mono',monospace;color:#8A93A0;letter-spacing:.5px">UPDATED 3D AGO</span>
+    </div>
+    <div style="margin-top:11px;border:1px solid #E3E2DC;border-radius:12px;background:#fff;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #EFEEE9">
+        <span style="flex:none;font:600 8px 'IBM Plex Mono',monospace;color:#8A93A0;width:52px;letter-spacing:.5px">WHO</span>
+        <div style="flex:1"><span style="font-size:12.5px;font-weight:700">خالد العتيبي</span><span style="font-size:11px;color:#5C6674"> — صاحب القرار</span></div>
+        <span style="font:600 8px 'IBM Plex Mono',monospace;color:#0F7A5C">×8 ✓</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #EFEEE9">
+        <span style="flex:none;font:600 8px 'IBM Plex Mono',monospace;color:#8A93A0;width:52px;letter-spacing:.5px">BUY</span>
+        <div style="flex:1"><span style="font-size:12.5px;font-weight:700">فهد القحطاني</span><span style="font-size:11px;color:#5C6674"> — المشتريات · 0554 118 232</span></div>
+        <span style="font:600 8px 'IBM Plex Mono',monospace;color:#0F7A5C">×3 ✓</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #EFEEE9">
+        <span style="flex:none;font:600 8px 'IBM Plex Mono',monospace;color:#8A93A0;width:52px;letter-spacing:.5px">PAY</span>
+        <div style="flex:1;display:flex;align-items:center;gap:7px"><span style="width:9px;height:9px;border-radius:2.5px;background:#0F7A5C"></span><span style="font-size:12.5px;font-weight:700;color:#0F7A5C">ممتاز</span><span style="font-size:11px;color:#5C6674">متوسط التأخير 3 أيام · ائتمان 45,000 ر.س</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #EFEEE9">
+        <span style="flex:none;font:600 8px 'IBM Plex Mono',monospace;color:#8A93A0;width:52px;letter-spacing:.5px">FLOW</span>
+        <div style="flex:1"><span style="font-size:12.5px;font-weight:700">حركة سريعة</span><span style="font-size:11px;color:#5C6674"> · إعادة طلب كل 12 يوم · متوسط 12,500 ر.س</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #EFEEE9">
+        <span style="flex:none;font:600 8px 'IBM Plex Mono',monospace;color:#8A93A0;width:52px;letter-spacing:.5px">WHEN</span>
+        <div style="flex:1"><span style="font-size:12.5px;font-weight:700">الثلاثاء · 9–11 صباحًا</span><span style="font-size:11px;color:#5C6674"> — أفضل وقت للزيارة</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:#FDF9F3">
+        <span style="flex:none;font:600 8px 'IBM Plex Mono',monospace;color:#B4550E;width:52px;letter-spacing:.5px">ALERT</span>
+        <div style="flex:1;font-size:12px;font-weight:600;color:#8F450B">لا يتم استلام البضاعة يوم الجمعة — نسّق عبر واتساب قبل الزيارة بيوم</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <div style="flex:1;border:1px solid #E3E2DC;border-radius:12px;background:#fff;padding:11px 13px">
+        <div style="font:500 8.5px 'IBM Plex Mono',monospace;color:#8A93A0;letter-spacing:.5px">TOP CATEGORY</div>
+        <div style="font-size:12.5px;font-weight:700;margin-top:3px">شوكولاتة · بسكويت</div>
+        <div style="font-size:10.5px;color:#5C6674;margin-top:1px">الأسرع دورانًا هذا الربع</div>
+      </div>
+      <div style="flex:1;border:1px solid #E3E2DC;border-radius:12px;background:#fff;padding:11px 13px">
+        <div style="font:500 8.5px 'IBM Plex Mono',monospace;color:#8A93A0;letter-spacing:.5px">TREND</div>
+        <div style="display:flex;align-items:flex-end;gap:3px;height:26px;margin-top:6px">
+          <span style="flex:1;background:#C9D4DF;height:35%;border-radius:2px"></span><span style="flex:1;background:#C9D4DF;height:50%;border-radius:2px"></span><span style="flex:1;background:#9FB4C8;height:42%;border-radius:2px"></span><span style="flex:1;background:#9FB4C8;height:65%;border-radius:2px"></span><span style="flex:1;background:#13293F;height:80%;border-radius:2px"></span><span style="flex:1;background:#0F7A5C;height:100%;border-radius:2px"></span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:14px;border:1px solid #E3E2DC;border-radius:12px;background:#fff;padding:12px 14px;display:flex;gap:10px;align-items:flex-start">
+      <div style="width:26px;height:26px;flex:none;border-radius:50%;background:#13293F;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700">أش</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:#3E4854;line-height:1.65">آخر ملاحظة: المدير يفضل مناقشة العروض الموسمية في بداية الشهر، والكميات الكبيرة تُعتمد من خالد مباشرة.</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:5px"><span style="font:500 8.5px 'IBM Plex Mono',monospace;color:#8A93A0">AHMED S. · 3D</span><span style="font:600 8px 'IBM Plex Mono',monospace;color:#0F7A5C;background:#E9F4EF;border-radius:4px;padding:1.5px 5px">APPROVED</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 1b PROFILE DARK -->
+<div dir="rtl" lang="ar" data-screen-label="1b ملف العميل داكن" style="width:390px;flex:none;background:#0F1621;border:1px solid #24303F;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-height:840px;font-family:'IBM Plex Sans Arabic',sans-serif;color:#E9EEF4">
+  <div style="background:#0A1018;color:#fff;padding:14px 20px 18px;border-bottom:1px solid #24303F">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="width:32px;height:32px;border:1px solid rgba(255,255,255,.18);border-radius:8px;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="m9 6 6 6-6 6"></path></svg></span>
+      <span style="font:500 9px 'IBM Plex Mono',monospace;color:#748CA8;letter-spacing:1.5px">CUSTOMER FILE #C-1042</span>
+      <span style="width:32px;height:32px;border:1px solid rgba(255,255,255,.18);border-radius:8px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="5" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="12" cy="19" r="1.6"></circle></svg></span>
+    </div>
+    <div style="display:flex;gap:13px;align-items:center;margin-top:16px">
+      <div style="width:58px;height:58px;flex:none;border-radius:12px;background:repeating-linear-gradient(45deg,#1B2735 0 8px,#223143 8px 16px);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center"><span style="font:500 7.5px 'IBM Plex Mono',monospace;color:#748CA8">store</span></div>
+      <div style="flex:1">
+        <div style="font-size:17.5px;font-weight:700">أسواق النخيل التجارية</div>
+        <div style="font-size:11.5px;color:#93A7BD;margin-top:3px">الرياض · حي العليا · عميل منذ 2019</div>
+        <div style="display:flex;gap:6px;margin-top:7px">
+          <span style="font:600 8px 'IBM Plex Mono',monospace;color:#5EE0B0;border:1px solid rgba(94,224,176,.4);border-radius:4px;padding:2px 6px;letter-spacing:.5px">VERIFIED ×8</span>
+          <span style="font:600 8px 'IBM Plex Mono',monospace;color:#93A7BD;border:1px solid rgba(147,167,189,.35);border-radius:4px;padding:2px 6px;letter-spacing:.5px">GRADE A</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:15px">
+      <span style="font:600 9px 'IBM Plex Mono',monospace;color:#748CA8;letter-spacing:.5px">INTEL SCORE</span>
+      <div style="flex:1;display:flex;gap:3px">
+        <span style="flex:1;height:7px;border-radius:3px;background:#3ECF9A"></span><span style="flex:1;height:7px;border-radius:3px;background:#3ECF9A"></span><span style="flex:1;height:7px;border-radius:3px;background:#3ECF9A"></span><span style="flex:1;height:7px;border-radius:3px;background:#3ECF9A"></span><span style="flex:1;height:7px;border-radius:3px;background:rgba(255,255,255,.14)"></span>
+      </div>
+      <span style="font-size:19px;font-weight:700;color:#3ECF9A">92</span>
+      <span style="font-size:11px;font-weight:600;color:#3ECF9A">ممتاز</span>
+    </div>
+  </div>
+  <div style="display:flex;border-bottom:1px solid #24303F;background:#131C29">
+    <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 0;font-size:11.5px;font-weight:600;border-inline-end:1px solid #24303F"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E9EEF4" stroke-width="1.9"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>اتصال</span>
+    <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 0;font-size:11.5px;font-weight:600;border-inline-end:1px solid #24303F"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3ECF9A" stroke-width="1.9"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"></path></svg>واتساب</span>
+    <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 0;font-size:11.5px;font-weight:600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7FA9DB" stroke-width="1.9"><path d="m3 11 18-8-8 18-2-8z"></path></svg>الاتجاهات</span>
+  </div>
+  <div style="padding:16px 20px 20px">
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <div style="font-size:14.5px;font-weight:700">اعرف عميلك في 30 ثانية</div>
+      <span style="font:500 8.5px 'IBM Plex Mono',monospace;color:#748CA8;letter-spacing:.5px">UPDATED 3D AGO</span>
+    </div>
+    <div style="margin-top:11px;border:1px solid #24303F;border-radius:12px;background:#131C29;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #1D2836">
+        <span style="flex:none;font:600 8px 'IBM Plex Mono',monospace;color:#748CA8;width:52px;letter-spacing:.5px">WHO</span>
+        <div style="flex:1"><span style="font-size:12.5px;font-weight:700">خالد العتيبي</span><span style="font-size:11px;color:#93A7BD"> — صاحب القرار</span></div>
+        <span style="font:600 8px 'IBM Plex Mono',monospace;color:#3ECF9A">×8 ✓</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #1D2836">
+        <span style="flex:none;font:600 8px 'IBM Plex Mono',monospace;color:#748CA8;width:52px;letter-spacing:.5px">BUY</span>
+        <div style="flex:1"><span style="font-size:12.5px;font-weight:700">فهد القحطاني</span><span style="font-size:11px;color:#93A7BD"> — المشتريات · 0554 118 232</span></div>
+        <span style="font:600 8px 'IBM Plex Mono',monospace;color:#3ECF9A">×3 ✓</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #1D2836">
+        <span style="flex:none;font:600 8px 'IBM Plex Mono',monospace;color:#748CA8;width:52px;letter-spacing:.5px">PAY</span>
+        <div style="flex:1;display:flex;align-items:center;gap:7px"><span style="width:9px;height:9px;border-radius:2.5px;background:#3ECF9A"></span><span style="font-size:12.5px;font-weight:700;color:#3ECF9A">ممتاز</span><span style="font-size:11px;color:#93A7BD">متوسط التأخير 3 أيام · ائتمان 45,000 ر.س</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #1D2836">
+        <span style="flex:none;font:600 8px 'IBM Plex Mono',monospace;color:#748CA8;width:52px;letter-spacing:.5px">FLOW</span>
+        <div style="flex:1"><span style="font-size:12.5px;font-weight:700">حركة سريعة</span><span style="font-size:11px;color:#93A7BD"> · إعادة طلب كل 12 يوم · متوسط 12,500 ر.س</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #1D2836">
+        <span style="flex:none;font:600 8px 'IBM Plex Mono',monospace;color:#748CA8;width:52px;letter-spacing:.5px">WHEN</span>
+        <div style="flex:1"><span style="font-size:12.5px;font-weight:700">الثلاثاء · 9–11 صباحًا</span><span style="font-size:11px;color:#93A7BD"> — أفضل وقت للزيارة</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:rgba(217,107,24,.1)">
+        <span style="flex:none;font:600 8px 'IBM Plex Mono',monospace;color:#F09A4A;width:52px;letter-spacing:.5px">ALERT</span>
+        <div style="flex:1;font-size:12px;font-weight:600;color:#F0B27E">لا يتم استلام البضاعة يوم الجمعة — نسّق عبر واتساب قبل الزيارة بيوم</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <div style="flex:1;border:1px solid #24303F;border-radius:12px;background:#131C29;padding:11px 13px">
+        <div style="font:500 8.5px 'IBM Plex Mono',monospace;color:#748CA8;letter-spacing:.5px">TOP CATEGORY</div>
+        <div style="font-size:12.5px;font-weight:700;margin-top:3px">شوكولاتة · بسكويت</div>
+        <div style="font-size:10.5px;color:#93A7BD;margin-top:1px">الأسرع دورانًا هذا الربع</div>
+      </div>
+      <div style="flex:1;border:1px solid #24303F;border-radius:12px;background:#131C29;padding:11px 13px">
+        <div style="font:500 8.5px 'IBM Plex Mono',monospace;color:#748CA8;letter-spacing:.5px">TREND</div>
+        <div style="display:flex;align-items:flex-end;gap:3px;height:26px;margin-top:6px">
+          <span style="flex:1;background:#2A3A4E;height:35%;border-radius:2px"></span><span style="flex:1;background:#2A3A4E;height:50%;border-radius:2px"></span><span style="flex:1;background:#3D5470;height:42%;border-radius:2px"></span><span style="flex:1;background:#3D5470;height:65%;border-radius:2px"></span><span style="flex:1;background:#7FA9DB;height:80%;border-radius:2px"></span><span style="flex:1;background:#3ECF9A;height:100%;border-radius:2px"></span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:14px;border:1px solid #24303F;border-radius:12px;background:#131C29;padding:12px 14px;display:flex;gap:10px;align-items:flex-start">
+      <div style="width:26px;height:26px;flex:none;border-radius:50%;background:#7FA9DB;color:#0F1621;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700">أش</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:#C2CFDD;line-height:1.65">آخر ملاحظة: المدير يفضل مناقشة العروض الموسمية في بداية الشهر، والكميات الكبيرة تُعتمد من خالد مباشرة.</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:5px"><span style="font:500 8.5px 'IBM Plex Mono',monospace;color:#748CA8">AHMED S. · 3D</span><span style="font:600 8px 'IBM Plex Mono',monospace;color:#3ECF9A;background:rgba(62,207,154,.12);border-radius:4px;padding:1.5px 5px">APPROVED</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div></div>
+</div>
+
+<!-- ============ 1c: Velocity ============ -->
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>السرعة — Velocity · قراءة خاطفة، رقم ضخم، بطاقة 30 ثانية كبلاطات قابلة للسحب، شريط إجراءات ثابت</div>
+<div class="dv-card" style="padding:20px;background:#F1F3F6"><div style="display:flex;gap:18px;align-items:flex-start">
+
+<!-- 1c HOME DARK -->
+<div dir="rtl" lang="ar" data-screen-label="1c الرئيسية داكن" style="width:390px;flex:none;background:#0B111B;border:1px solid #1F2A3A;border-radius:28px;overflow:hidden;display:flex;flex-direction:column;min-height:840px;font-family:'IBM Plex Sans Arabic',sans-serif;color:#EDF2F8">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 22px 4px;font-size:12.5px;font-weight:600"><span>9:41</span><span style="width:16px;height:9px;border:1px solid #EDF2F8;border-radius:2.5px"></span></div>
+  <div style="display:flex;align-items:center;gap:12px;padding:14px 22px 0">
+    <div style="flex:1">
+      <div style="font-size:21px;font-weight:700;line-height:1.3">جولة اليوم <span style="color:#4C8DE0">·</span> الرياض</div>
+      <div style="font-size:12px;color:#8FA0B5;margin-top:2px">5 زيارات مجدولة · 2 تحتاج انتباه</div>
+    </div>
+    <div style="position:relative;width:42px;height:42px;border-radius:14px;background:#151F2E;border:1px solid #1F2A3A;display:flex;align-items:center;justify-content:center">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#EDF2F8" stroke-width="1.8"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"></path><path d="M10 19a2 2 0 0 0 4 0"></path></svg>
+      <span style="position:absolute;top:-4px;left:-4px;min-width:16px;height:16px;background:#F2811D;color:#0B111B;font-size:9.5px;font-weight:800;border-radius:99px;display:flex;align-items:center;justify-content:center">3</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;padding:14px 22px 0">
+    <div style="flex:1;background:linear-gradient(160deg,#1A4B8F,#123159);border-radius:16px;padding:12px 14px">
+      <div style="font-size:26px;font-weight:800;line-height:1">12</div><div style="font-size:10.5px;color:#B7CCE8;margin-top:4px">تحديث هذا الأسبوع</div>
+    </div>
+    <div style="flex:1;background:linear-gradient(160deg,#0E5B47,#0A3D30);border-radius:16px;padding:12px 14px">
+      <div style="font-size:26px;font-weight:800;line-height:1">92%</div><div style="font-size:10.5px;color:#A9DECB;margin-top:4px">اكتمال البيانات</div>
+    </div>
+    <div style="flex:1;background:linear-gradient(160deg,#8F4A10,#5E300A);border-radius:16px;padding:12px 14px">
+      <div style="font-size:26px;font-weight:800;line-height:1">2</div><div style="font-size:10.5px;color:#F3CDA4;margin-top:4px">تحذيرات نشطة</div>
+    </div>
+  </div>
+  <div style="font-size:13px;font-weight:700;color:#8FA0B5;padding:18px 22px 10px">التالي في جولتك</div>
+  <div style="display:flex;flex-direction:column;gap:10px;padding:0 22px">
+    <!-- card 1 -->
+    <div style="background:#121B29;border:1px solid #1F2A3A;border-radius:20px;padding:15px 16px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="flex:none;width:58px;height:58px;border-radius:16px;background:#0E5B47;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1"><span style="font-size:21px;font-weight:800;color:#5EE0B0">92</span><span style="font-size:8px;color:#A9DECB;margin-top:3px">ممتاز</span></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15.5px;font-weight:700">أسواق النخيل التجارية</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px;color:#8FA0B5"><span>حي العليا · 3.2 كم</span><span style="width:4px;height:4px;border-radius:50%;background:#3B4A5E"></span><span style="color:#5EE0B0;font-weight:600">أفضل وقت: الآن</span></div>
+          <div style="display:flex;gap:5px;margin-top:7px">
+            <span style="font-size:10px;font-weight:700;background:rgba(94,224,176,.14);color:#5EE0B0;border-radius:6px;padding:3px 7px">دفع ممتاز</span>
+            <span style="font-size:10px;font-weight:700;background:rgba(76,141,224,.14);color:#7FA9DB;border-radius:6px;padding:3px 7px">حركة سريعة</span>
+          </div>
+        </div>
+        <span style="flex:none;width:34px;height:34px;border-radius:50%;background:#1A4B8F;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="m15 6-6 6 6 6"></path></svg></span>
+      </div>
+    </div>
+    <!-- card 2 warning -->
+    <div style="background:#121B29;border:1px solid #4A2E12;border-radius:20px;padding:15px 16px;position:relative;overflow:hidden">
+      <span style="position:absolute;top:0;right:0;font-size:9px;font-weight:800;background:#F2811D;color:#0B111B;padding:4px 10px;border-radius:0 0 0 10px">يحتاج انتباه</span>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+        <div style="flex:none;width:58px;height:58px;border-radius:16px;background:#6B4E10;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1"><span style="font-size:21px;font-weight:800;color:#F5C33B">61</span><span style="font-size:8px;color:#F3E0A4;margin-top:3px">متوسط</span></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15.5px;font-weight:700">بقالة الواحة</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px;color:#8FA0B5"><span>حي الروضة · 7.8 كم</span></div>
+          <div style="display:flex;gap:5px;margin-top:7px">
+            <span style="font-size:10px;font-weight:700;background:rgba(242,129,29,.16);color:#F2A45B;border-radius:6px;padding:3px 7px">متأخر 14 يوم</span>
+            <span style="font-size:10px;font-weight:700;background:rgba(143,160,181,.14);color:#8FA0B5;border-radius:6px;padding:3px 7px">آخر زيارة: 21 يوم</span>
+          </div>
+        </div>
+        <span style="flex:none;width:34px;height:34px;border-radius:50%;background:#151F2E;border:1px solid #1F2A3A;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#EDF2F8" stroke-width="2.2"><path d="m15 6-6 6 6 6"></path></svg></span>
+      </div>
+    </div>
+    <!-- card 3 -->
+    <div style="background:#121B29;border:1px solid #1F2A3A;border-radius:20px;padding:15px 16px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="flex:none;width:58px;height:58px;border-radius:16px;background:#5E1F1F;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1"><span style="font-size:21px;font-weight:800;color:#F08A8A">34</span><span style="font-size:8px;color:#F0BDBD;margin-top:3px">خطر</span></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15.5px;font-weight:700">تموينات البدر</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px;color:#8FA0B5"><span>حي السويدي · 11 كم</span></div>
+          <div style="display:flex;gap:5px;margin-top:7px">
+            <span style="font-size:10px;font-weight:700;background:rgba(240,138,138,.14);color:#F08A8A;border-radius:6px;padding:3px 7px">ائتمان موقوف</span>
+            <span style="font-size:10px;font-weight:700;background:rgba(143,160,181,.14);color:#8FA0B5;border-radius:6px;padding:3px 7px">بيانات قديمة 94 يوم</span>
+          </div>
+        </div>
+        <span style="flex:none;width:34px;height:34px;border-radius:50%;background:#151F2E;border:1px solid #1F2A3A;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#EDF2F8" stroke-width="2.2"><path d="m15 6-6 6 6 6"></path></svg></span>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:auto;display:flex;align-items:flex-end;justify-content:space-around;background:#0E1622;border-top:1px solid #1F2A3A;padding:10px 8px 22px">
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#4C8DE0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4C8DE0" stroke-width="2"><path d="M3 11 12 4l9 7v8a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg><span style="font-size:10px;font-weight:700">الرئيسية</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#5F7189"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5F7189" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="font-size:10px">البحث</span></span>
+    <span style="width:54px;height:54px;border-radius:18px;background:linear-gradient(150deg,#2E6FC4,#1A4B8F);display:flex;align-items:center;justify-content:center;margin-top:-20px;box-shadow:0 8px 20px rgba(46,111,196,.4)"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M12 5v14M5 12h14"></path></svg></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#5F7189"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5F7189" stroke-width="2"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"></path><path d="M10 19a2 2 0 0 0 4 0"></path></svg><span style="font-size:10px">التنبيهات</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#5F7189"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5F7189" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg><span style="font-size:10px">حسابي</span></span>
+  </div>
+</div>
+
+<!-- 1c PROFILE DARK -->
+<div dir="rtl" lang="ar" data-screen-label="1c ملف العميل داكن" style="width:390px;flex:none;background:#0B111B;border:1px solid #1F2A3A;border-radius:28px;overflow:hidden;display:flex;flex-direction:column;min-height:840px;font-family:'IBM Plex Sans Arabic',sans-serif;color:#EDF2F8;position:relative">
+  <div style="background:linear-gradient(165deg,#123159 0%,#0B111B 75%);padding:14px 22px 0">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="m9 6 6 6-6 6"></path></svg></span>
+      <span style="font-size:12px;font-weight:600;color:#8FA0B5">ملف العميل</span>
+      <span style="width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="5" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="12" cy="19" r="1.6"></circle></svg></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin-top:18px">
+      <div style="width:64px;height:64px;flex:none;border-radius:20px;background:repeating-linear-gradient(45deg,#1B2E48 0 9px,#22395A 9px 18px);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center"><span style="font:500 8px 'IBM Plex Mono',monospace;color:#748CA8">store</span></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:18px;font-weight:800">أسواق النخيل التجارية</div>
+        <div style="font-size:11.5px;color:#8FA0B5;margin-top:3px">الرياض · حي العليا · 3.2 كم</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;margin-top:16px;padding-bottom:18px">
+      <div style="display:flex;align-items:baseline;gap:6px;line-height:1"><span style="font-size:56px;font-weight:800;color:#5EE0B0;letter-spacing:-2px">92</span><span style="font-size:13px;color:#8FA0B5">/100</span></div>
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:6px"><span style="font-size:13px;font-weight:800;color:#5EE0B0">ممتاز</span><span style="font-size:10px;font-weight:700;color:#0B111B;background:#5EE0B0;border-radius:5px;padding:2px 6px">موثق ×8</span></div>
+        <div style="display:flex;gap:3px;margin-top:7px">
+          <span style="flex:1;height:5px;border-radius:3px;background:#5EE0B0"></span><span style="flex:1;height:5px;border-radius:3px;background:#5EE0B0"></span><span style="flex:1;height:5px;border-radius:3px;background:#5EE0B0"></span><span style="flex:1;height:5px;border-radius:3px;background:#5EE0B0"></span><span style="flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.15)"></span>
+        </div>
+        <div style="font-size:10px;color:#8FA0B5;margin-top:5px">مؤشر ذكاء العميل · آخر تحقق قبل 3 أيام</div>
+      </div>
+    </div>
+  </div>
+  <div style="padding:16px 22px 120px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:14px;font-weight:800">اعرف عميلك في 30 ثانية</div>
+      <div style="display:flex;gap:4px"><span style="width:16px;height:5px;border-radius:3px;background:#4C8DE0"></span><span style="width:5px;height:5px;border-radius:3px;background:#2A3A4E"></span><span style="width:5px;height:5px;border-radius:3px;background:#2A3A4E"></span></div>
+    </div>
+    <div style="display:flex;gap:9px;margin-top:12px;overflow:hidden">
+      <div style="flex:none;width:150px;background:#121B29;border:1px solid #1F2A3A;border-radius:18px;padding:13px 14px">
+        <div style="width:30px;height:30px;border-radius:10px;background:rgba(76,141,224,.15);display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7FA9DB" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg></div>
+        <div style="font-size:10px;color:#8FA0B5;margin-top:9px">صاحب القرار</div>
+        <div style="font-size:13.5px;font-weight:700;margin-top:2px">خالد العتيبي</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:6px"><span style="font-size:9px;font-weight:700;color:#5EE0B0">موثق ×8</span><span style="width:3px;height:3px;border-radius:50%;background:#3B4A5E"></span><span style="font-size:9px;color:#8FA0B5">اتصال مباشر</span></div>
+      </div>
+      <div style="flex:none;width:150px;background:#121B29;border:1px solid #1F2A3A;border-radius:18px;padding:13px 14px">
+        <div style="width:30px;height:30px;border-radius:10px;background:rgba(94,224,176,.13);display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5EE0B0" stroke-width="2"><rect x="4" y="7" width="16" height="13" rx="2"></rect><path d="M8 7V5a4 4 0 0 1 8 0v2"></path></svg></div>
+        <div style="font-size:10px;color:#8FA0B5;margin-top:9px">تقييم الدفع</div>
+        <div style="font-size:13.5px;font-weight:700;margin-top:2px;color:#5EE0B0">ممتاز</div>
+        <div style="font-size:9px;color:#8FA0B5;margin-top:6px">متوسط تأخير 3 أيام · ائتمان نشط</div>
+      </div>
+      <div style="flex:none;width:150px;background:#121B29;border:1px solid #1F2A3A;border-radius:18px;padding:13px 14px">
+        <div style="width:30px;height:30px;border-radius:10px;background:rgba(242,129,29,.14);display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F2A45B" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"></path><path d="M14 7h7v7"></path></svg></div>
+        <div style="font-size:10px;color:#8FA0B5;margin-top:9px">حركة المنتجات</div>
+        <div style="font-size:13.5px;font-weight:700;margin-top:2px">سريعة</div>
+        <div style="font-size:9px;color:#8FA0B5;margin-top:6px">إعادة طلب كل 12 يوم</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:9px;margin-top:9px">
+      <div style="flex:1;background:#121B29;border:1px solid #1F2A3A;border-radius:16px;padding:11px 13px"><div style="font-size:9.5px;color:#8FA0B5">متوسط الطلبية</div><div style="font-size:15px;font-weight:800;margin-top:3px">12,500 <span style="font-size:10px;font-weight:600;color:#8FA0B5">ر.س</span></div></div>
+      <div style="flex:1;background:#121B29;border:1px solid #1F2A3A;border-radius:16px;padding:11px 13px"><div style="font-size:9.5px;color:#8FA0B5">أفضل زيارة</div><div style="font-size:15px;font-weight:800;margin-top:3px">الثلاثاء <span style="font-size:10px;font-weight:600;color:#8FA0B5">9–11 ص</span></div></div>
+    </div>
+    <div style="margin-top:9px;background:linear-gradient(140deg,#3A2410,#241608);border:1px solid #4A2E12;border-radius:16px;padding:12px 14px;display:flex;gap:10px;align-items:center">
+      <span style="flex:none;width:34px;height:34px;border-radius:12px;background:rgba(242,129,29,.18);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F2A45B" stroke-width="2"><path d="M12 3 2 21h20z"></path><path d="M12 10v4M12 17.5v.5"></path></svg></span>
+      <div style="flex:1"><div style="font-size:12.5px;font-weight:700;color:#F2A45B">لا يتم استلام البضاعة يوم الجمعة</div><div style="font-size:10.5px;color:#C9A176;margin-top:2px">نسّق عبر واتساب قبل الزيارة بيوم — ملاحظة موثقة من 5 مناديب</div></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
+      <div style="font-size:14px;font-weight:800">آخر الملاحظات</div>
+      <span style="font-size:11px;font-weight:600;color:#4C8DE0">عرض الكل</span>
+    </div>
+    <div style="margin-top:10px;background:#121B29;border:1px solid #1F2A3A;border-radius:16px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start">
+      <div style="width:30px;height:30px;flex:none;border-radius:50%;background:#1A4B8F;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">أش</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:#C2CFDD;line-height:1.6">تم تعيين مسؤول مشتريات جديد — فهد القحطاني. الكميات الكبيرة تُعتمد من خالد مباشرة.</div>
+        <div style="font-size:10px;color:#5F7189;margin-top:4px">أحمد الشمري · قبل ساعتين · 12 تعليق</div>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute;bottom:0;right:0;left:0;padding:14px 22px 24px;background:linear-gradient(0deg,#0B111B 65%,transparent);display:flex;gap:9px">
+    <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:#2E6FC4;color:#fff;border-radius:16px;padding:14px 0;font-size:13px;font-weight:700;box-shadow:0 8px 20px rgba(46,111,196,.35)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>اتصال</span>
+    <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:#0E5B47;color:#fff;border-radius:16px;padding:14px 0;font-size:13px;font-weight:700"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"></path></svg>واتساب</span>
+    <span style="width:52px;flex:none;display:flex;align-items:center;justify-content:center;background:#151F2E;border:1px solid #1F2A3A;border-radius:16px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EDF2F8" stroke-width="2"><path d="m3 11 18-8-8 18-2-8z"></path></svg></span>
+  </div>
+</div>
+
+<!-- 1c PROFILE LIGHT -->
+<div dir="rtl" lang="ar" data-screen-label="1c ملف العميل فاتح" style="width:390px;flex:none;background:#F4F6F9;border:1px solid #E1E6EC;border-radius:28px;overflow:hidden;display:flex;flex-direction:column;min-height:840px;font-family:'IBM Plex Sans Arabic',sans-serif;color:#131C28;position:relative">
+  <div style="background:linear-gradient(165deg,#1A4B8F 0%,#2E6FC4 100%);padding:14px 22px 0;color:#fff">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="m9 6 6 6-6 6"></path></svg></span>
+      <span style="font-size:12px;font-weight:600;color:#C4D7F0">ملف العميل</span>
+      <span style="width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="5" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="12" cy="19" r="1.6"></circle></svg></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin-top:18px">
+      <div style="width:64px;height:64px;flex:none;border-radius:20px;background:repeating-linear-gradient(45deg,rgba(255,255,255,.18) 0 9px,rgba(255,255,255,.08) 9px 18px);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center"><span style="font:500 8px 'IBM Plex Mono',monospace;color:#C4D7F0">store</span></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:18px;font-weight:800">أسواق النخيل التجارية</div>
+        <div style="font-size:11.5px;color:#C4D7F0;margin-top:3px">الرياض · حي العليا · 3.2 كم</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;margin-top:14px;padding-bottom:18px">
+      <div style="display:flex;align-items:baseline;gap:6px;line-height:1"><span style="font-size:56px;font-weight:800;color:#fff;letter-spacing:-2px">92</span><span style="font-size:13px;color:#C4D7F0">/100</span></div>
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:6px"><span style="font-size:13px;font-weight:800;color:#8FF0CC">ممتاز</span><span style="font-size:10px;font-weight:700;color:#123159;background:#8FF0CC;border-radius:5px;padding:2px 6px">موثق ×8</span></div>
+        <div style="display:flex;gap:3px;margin-top:7px">
+          <span style="flex:1;height:5px;border-radius:3px;background:#8FF0CC"></span><span style="flex:1;height:5px;border-radius:3px;background:#8FF0CC"></span><span style="flex:1;height:5px;border-radius:3px;background:#8FF0CC"></span><span style="flex:1;height:5px;border-radius:3px;background:#8FF0CC"></span><span style="flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.3)"></span>
+        </div>
+        <div style="font-size:10px;color:#C4D7F0;margin-top:5px">مؤشر ذكاء العميل · آخر تحقق قبل 3 أيام</div>
+      </div>
+    </div>
+  </div>
+  <div style="padding:16px 22px 120px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:14px;font-weight:800">اعرف عميلك في 30 ثانية</div>
+      <div style="display:flex;gap:4px"><span style="width:16px;height:5px;border-radius:3px;background:#2E6FC4"></span><span style="width:5px;height:5px;border-radius:3px;background:#D4DCE5"></span><span style="width:5px;height:5px;border-radius:3px;background:#D4DCE5"></span></div>
+    </div>
+    <div style="display:flex;gap:9px;margin-top:12px;overflow:hidden">
+      <div style="flex:none;width:150px;background:#fff;border:1px solid #E1E6EC;border-radius:18px;padding:13px 14px;box-shadow:0 1px 3px rgba(19,28,40,.05)">
+        <div style="width:30px;height:30px;border-radius:10px;background:#EAF1FA;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2E6FC4" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg></div>
+        <div style="font-size:10px;color:#67788C;margin-top:9px">صاحب القرار</div>
+        <div style="font-size:13.5px;font-weight:700;margin-top:2px">خالد العتيبي</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:6px"><span style="font-size:9px;font-weight:700;color:#0E8A66">موثق ×8</span><span style="width:3px;height:3px;border-radius:50%;background:#C8D2DD"></span><span style="font-size:9px;color:#67788C">اتصال مباشر</span></div>
+      </div>
+      <div style="flex:none;width:150px;background:#fff;border:1px solid #E1E6EC;border-radius:18px;padding:13px 14px;box-shadow:0 1px 3px rgba(19,28,40,.05)">
+        <div style="width:30px;height:30px;border-radius:10px;background:#E8F6F0;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0E8A66" stroke-width="2"><rect x="4" y="7" width="16" height="13" rx="2"></rect><path d="M8 7V5a4 4 0 0 1 8 0v2"></path></svg></div>
+        <div style="font-size:10px;color:#67788C;margin-top:9px">تقييم الدفع</div>
+        <div style="font-size:13.5px;font-weight:700;margin-top:2px;color:#0E8A66">ممتاز</div>
+        <div style="font-size:9px;color:#67788C;margin-top:6px">متوسط تأخير 3 أيام · ائتمان نشط</div>
+      </div>
+      <div style="flex:none;width:150px;background:#fff;border:1px solid #E1E6EC;border-radius:18px;padding:13px 14px;box-shadow:0 1px 3px rgba(19,28,40,.05)">
+        <div style="width:30px;height:30px;border-radius:10px;background:#FBF0E4;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D9700F" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"></path><path d="M14 7h7v7"></path></svg></div>
+        <div style="font-size:10px;color:#67788C;margin-top:9px">حركة المنتجات</div>
+        <div style="font-size:13.5px;font-weight:700;margin-top:2px">سريعة</div>
+        <div style="font-size:9px;color:#67788C;margin-top:6px">إعادة طلب كل 12 يوم</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:9px;margin-top:9px">
+      <div style="flex:1;background:#fff;border:1px solid #E1E6EC;border-radius:16px;padding:11px 13px;box-shadow:0 1px 3px rgba(19,28,40,.05)"><div style="font-size:9.5px;color:#67788C">متوسط الطلبية</div><div style="font-size:15px;font-weight:800;margin-top:3px">12,500 <span style="font-size:10px;font-weight:600;color:#67788C">ر.س</span></div></div>
+      <div style="flex:1;background:#fff;border:1px solid #E1E6EC;border-radius:16px;padding:11px 13px;box-shadow:0 1px 3px rgba(19,28,40,.05)"><div style="font-size:9.5px;color:#67788C">أفضل زيارة</div><div style="font-size:15px;font-weight:800;margin-top:3px">الثلاثاء <span style="font-size:10px;font-weight:600;color:#67788C">9–11 ص</span></div></div>
+    </div>
+    <div style="margin-top:9px;background:#FFF4E8;border:1px solid #F3D9BC;border-radius:16px;padding:12px 14px;display:flex;gap:10px;align-items:center">
+      <span style="flex:none;width:34px;height:34px;border-radius:12px;background:#FBE3C8;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C4570F" stroke-width="2"><path d="M12 3 2 21h20z"></path><path d="M12 10v4M12 17.5v.5"></path></svg></span>
+      <div style="flex:1"><div style="font-size:12.5px;font-weight:700;color:#9A4A0C">لا يتم استلام البضاعة يوم الجمعة</div><div style="font-size:10.5px;color:#B4763D;margin-top:2px">نسّق عبر واتساب قبل الزيارة بيوم — ملاحظة موثقة من 5 مناديب</div></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
+      <div style="font-size:14px;font-weight:800">آخر الملاحظات</div>
+      <span style="font-size:11px;font-weight:600;color:#2E6FC4">عرض الكل</span>
+    </div>
+    <div style="margin-top:10px;background:#fff;border:1px solid #E1E6EC;border-radius:16px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 1px 3px rgba(19,28,40,.05)">
+      <div style="width:30px;height:30px;flex:none;border-radius:50%;background:#1A4B8F;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">أش</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:#3A4757;line-height:1.6">تم تعيين مسؤول مشتريات جديد — فهد القحطاني. الكميات الكبيرة تُعتمد من خالد مباشرة.</div>
+        <div style="font-size:10px;color:#8A97A8;margin-top:4px">أحمد الشمري · قبل ساعتين · 12 تعليق</div>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute;bottom:0;right:0;left:0;padding:14px 22px 24px;background:linear-gradient(0deg,#F4F6F9 65%,transparent);display:flex;gap:9px">
+    <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:#1A4B8F;color:#fff;border-radius:16px;padding:14px 0;font-size:13px;font-weight:700;box-shadow:0 8px 20px rgba(26,75,143,.28)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>اتصال</span>
+    <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:#0E8A66;color:#fff;border-radius:16px;padding:14px 0;font-size:13px;font-weight:700"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"></path></svg>واتساب</span>
+    <span style="width:52px;flex:none;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid #E1E6EC;border-radius:16px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#131C28" stroke-width="2"><path d="m3 11 18-8-8 18-2-8z"></path></svg></span>
+  </div>
+</div>
+
+</div></div>
+</div>
+
+<!-- ============ 1d: Components ============ -->
+<div class="dv-opt" id="1d">
+<div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>مكوّنات مؤشر الذكاء والتحقق — قارن معالجات النقاط الثلاث بمعزل عن الشاشات</div>
+<div class="dv-card" style="padding:22px;width:520px">
+  <div style="font:600 9px 'IBM Plex Mono',monospace;color:#8A93A0;letter-spacing:1.5px;margin-bottom:14px">INTELLIGENCE SCORE — 3 TREATMENTS</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" dir="rtl" lang="ar">
+    <div style="border:1px solid #E4E7EC;border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;font-family:'IBM Plex Sans Arabic',sans-serif">
+      <div style="flex:none;width:54px;height:54px;border-radius:50%;background:conic-gradient(#12876F 0 92%,#E7ECF2 92% 100%);display:flex;align-items:center;justify-content:center"><div style="width:42px;height:42px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center"><span style="font-size:15px;font-weight:700;color:#12876F">92</span></div></div>
+      <div><div style="font-size:12.5px;font-weight:700;color:#16202C">حلقة تقدّم</div><div style="font-size:10.5px;color:#67788C;margin-top:2px">دائرية، مألوفة، تعمل بأي مقاس</div></div>
+    </div>
+    <div style="border:1px solid #24303F;background:#0F1621;border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;font-family:'IBM Plex Sans Arabic',sans-serif">
+      <div style="flex:none;width:54px;height:54px;border-radius:50%;background:conic-gradient(#3ECF9A 0 92%,#24303F 92% 100%);display:flex;align-items:center;justify-content:center"><div style="width:42px;height:42px;border-radius:50%;background:#0F1621;display:flex;align-items:center;justify-content:center"><span style="font-size:15px;font-weight:700;color:#3ECF9A">92</span></div></div>
+      <div><div style="font-size:12.5px;font-weight:700;color:#E9EEF4">حلقة — داكن</div><div style="font-size:10.5px;color:#93A7BD;margin-top:2px">تباين عالٍ على الخلفية الداكنة</div></div>
+    </div>
+    <div style="border:1px solid #E4E7EC;border-radius:14px;padding:14px;font-family:'IBM Plex Sans Arabic',sans-serif">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font:600 9px 'IBM Plex Mono',monospace;color:#8A93A0">SCORE</span><div style="flex:1;display:flex;gap:3px"><span style="flex:1;height:7px;border-radius:3px;background:#0F7A5C"></span><span style="flex:1;height:7px;border-radius:3px;background:#0F7A5C"></span><span style="flex:1;height:7px;border-radius:3px;background:#0F7A5C"></span><span style="flex:1;height:7px;border-radius:3px;background:#0F7A5C"></span><span style="flex:1;height:7px;border-radius:3px;background:#E4E7EC"></span></div><span style="font-size:15px;font-weight:700;color:#0F7A5C">92</span></div>
+      <div style="font-size:12.5px;font-weight:700;color:#16202C;margin-top:9px">شريط مقسّم (5 درجات)</div><div style="font-size:10.5px;color:#67788C;margin-top:2px">يُظهر الفئة فورًا مثل التصنيف الائتماني</div>
+    </div>
+    <div style="border:1px solid #E4E7EC;border-radius:14px;padding:14px;font-family:'IBM Plex Sans Arabic',sans-serif">
+      <div style="display:flex;align-items:baseline;gap:7px;line-height:1"><span style="font-size:34px;font-weight:800;color:#131C28;letter-spacing:-1px">92</span><span style="font-size:11px;color:#67788C">/100</span><span style="font-size:10.5px;font-weight:700;color:#0E8A66;background:#E8F6F0;border-radius:6px;padding:3px 8px;margin-inline-start:auto">ممتاز</span></div>
+      <div style="font-size:12.5px;font-weight:700;color:#16202C;margin-top:9px">رقم ضخم + تسمية</div><div style="font-size:10.5px;color:#67788C;margin-top:2px">الأسرع قراءة أثناء الحركة الميدانية</div>
+    </div>
+  </div>
+  <div style="font:600 9px 'IBM Plex Mono',monospace;color:#8A93A0;letter-spacing:1.5px;margin:18px 0 12px">PAYMENT TRAFFIC LIGHT + VERIFICATION</div>
+  <div dir="rtl" lang="ar" style="display:flex;flex-wrap:wrap;gap:8px;font-family:'IBM Plex Sans Arabic',sans-serif">
+    <span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#0E6B57;background:#E7F5F0;border-radius:9px;padding:6px 11px"><span style="width:8px;height:8px;border-radius:50%;background:#12876F"></span>ممتاز · تأخير 0–5 أيام</span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#8A6A08;background:#FAF3DC;border-radius:9px;padding:6px 11px"><span style="width:8px;height:8px;border-radius:50%;background:#D9A012"></span>متوسط · 6–20 يوم</span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#9A2C2C;background:#FBEAEA;border-radius:9px;padding:6px 11px"><span style="width:8px;height:8px;border-radius:50%;background:#CC3D3D"></span>مرتفع الخطورة · +20 يوم</span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#0E6B57;border:1.5px solid #9BD4C3;border-radius:9px;padding:6px 11px">✓ موثق من 8 مناديب</span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#5C6674;border:1.5px solid #D8DCE2;border-radius:9px;padding:6px 11px">✓ موثق من 3</span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#9A6215;border:1.5px dashed #E4C89A;border-radius:9px;padding:6px 11px">غير موثق — يحتاج تأكيد</span>
+  </div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">جرّب الآتي: «ابنِ النموذج التفاعلي من <a class="dv-oid" href="#1a">1a</a>» · «خذ بطاقة 30 ثانية من <a class="dv-oid" href="#1b">1b</a> وادمجها في <a class="dv-oid" href="#1c">1c</a>» · «أرني نسخة إنجليزية LTR» · «اتجاهات جديدة كليًا»</p>
+</section>
+</x-dc>
+</body>
+</html>

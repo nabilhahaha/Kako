@@ -1,0 +1,75 @@
+/* ============================================================
+   SalesBook — global styles
+   Token system ported verbatim from the design bundle
+   (project/SalesBook.dc.html). Light on [data-slk],
+   dark overrides on [data-slk][data-th="dark"].
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #E7E5E0;
+  font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- design tokens: light ---- */
+[data-slk] {
+  --bg:#F6F8FA; --card:#FFFFFF; --bd:#E2E7ED; --dv:#EEF2F6;
+  --tx:#16202C; --sub:#5A6B7E; --fnt:#8695A8;
+  --pri:#1F4E8C; --priD:#173D6E; --onPri:#FFFFFF; --priT:#EBF1F9; --lnk:#1F4E8C;
+  --grn:#12876F; --grnT:#E7F5F0; --grnTx:#0E6B57;
+  --amb:#D9A012; --ambT:#FAF3DC; --ambTx:#8A6A08;
+  --red:#CC3D3D; --redT:#FBEAEA; --redTx:#9A2C2C;
+  --org:#E8791A; --orgT:#FBEDE5; --orgTx:#9A3B12;
+  --chip:#F1F4F8; --sh:rgba(22,32,44,.06); --ov:rgba(13,21,32,.45);
+}
+
+/* ---- design tokens: dark ---- */
+[data-slk][data-th="dark"] {
+  --bg:#0D1520; --card:#16202E; --bd:#223146; --dv:#1D2A3C;
+  --tx:#ECF1F7; --sub:#93A3B5; --fnt:#5F7189;
+  --pri:#3D77C2; --priD:#2E62A8; --onPri:#FFFFFF; --priT:rgba(110,168,232,.14); --lnk:#6EA8E8;
+  --grn:#34C39E; --grnT:rgba(52,195,158,.13); --grnTx:#3ECF9A;
+  --amb:#E0B33A; --ambT:rgba(224,179,58,.14); --ambTx:#E4C36A;
+  --red:#E06666; --redT:rgba(224,102,102,.14); --redTx:#EE8C8C;
+  --org:#F09A4A; --orgT:rgba(240,154,74,.14); --orgTx:#F0B27E;
+  --chip:#1E2C40; --sh:rgba(0,0,0,.35); --ov:rgba(3,8,15,.62);
+}
+
+[data-slk] input, [data-slk] textarea { font-family: 'IBM Plex Sans Arabic', sans-serif; }
+[data-slk] input::placeholder, [data-slk] textarea::placeholder { color: var(--fnt); }
+
+/* keyboard focus visibility (a11y) */
+[data-slk] :focus-visible {
+  outline: 2.5px solid var(--pri);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+[data-slk] button { font-family: inherit; }
+
+/* hide scrollbars on marked scroll areas */
+[data-scroll] { scrollbar-width: none; }
+[data-scroll]::-webkit-scrollbar { display: none; }
+
+/* ---- keyframes (verbatim from the design) ---- */
+@keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+@keyframes pop { 0%{opacity:0;transform:translateY(-8px) scale(.92);} 60%{transform:translateY(2px) scale(1.02);} 100%{opacity:1;transform:translateY(0) scale(1);} }
+@keyframes shimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+@keyframes ringPop { from { opacity:0; transform:scale(.7); } to { opacity:1; transform:scale(1); } }
+@keyframes drawCheck { from { stroke-dashoffset:48; } to { stroke-dashoffset:0; } }
+@keyframes pulseSoft { 0%,100%{transform:scale(1);opacity:.5;} 50%{transform:scale(1.18);opacity:0;} }
+@keyframes recPulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
+}
