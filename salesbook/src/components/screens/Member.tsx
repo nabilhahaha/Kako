@@ -3,7 +3,7 @@ import { useApp } from '@/state/app';
 import { useI18n } from '@/state/i18n';
 
 export function Member() {
-  const { s, data, update, back, openChat, toast } = useApp();
+  const { s, data, update, back, nav, openChat, toast } = useApp();
   const { t, tt } = useI18n();
   const member = data.member;
   const on = !!s.conns[member.n.ar];
@@ -39,6 +39,7 @@ export function Member() {
           <span onClick={connect} style={{ cursor: 'pointer', flex: 1, height: 42, borderRadius: 12, background: on ? 'var(--grnT)' : 'var(--pri)', color: on ? 'var(--grnTx)' : 'var(--onPri)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12.5, fontWeight: 700, transition: 'all .2s' }}>{on ? tt('✓ أُرسل الطلب', '✓ Sent') : tt('+ اتصال', '+ Connect')}</span>
           <span onClick={() => openChat('t1')} style={{ cursor: 'pointer', flex: 1, height: 42, borderRadius: 12, background: 'var(--card)', border: '1px solid var(--bd)', color: 'var(--tx)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12.5, fontWeight: 700, transition: 'transform .15s' }}>{tt('مراسلة', 'Message')}</span>
         </div>
+        <div onClick={() => nav('portfolio')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8, height: 42, borderRadius: 12, background: 'var(--priT)', color: 'var(--pri)', fontSize: 12.5, fontWeight: 700 }}>{tt('عرض الملف التقديمي الكامل', 'View full portfolio')}</div>
         <div style={{ background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 16, padding: '13px 15px', marginTop: 12 }}>
           <div style={{ fontSize: 12.5, fontWeight: 700 }}>{tt('نبذة', 'About')}</div>
           <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.75, marginTop: 6 }}>{t(member.about)}</div>

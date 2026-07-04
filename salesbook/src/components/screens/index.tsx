@@ -21,6 +21,7 @@ const Admin = dynamic(() => import('./Admin').then((m) => m.Admin), { loading })
 const Review = dynamic(() => import('./Review').then((m) => m.Review), { loading });
 const Careers = dynamic(() => import('./Careers').then((m) => m.Careers), { loading });
 const Hiring = dynamic(() => import('./Hiring').then((m) => m.Hiring), { loading });
+const Portfolio = dynamic(() => import('./Portfolio').then((m) => m.Portfolio), { loading });
 const Company = dynamic(() => import('./Company').then((m) => m.Company), { loading });
 const Leaderboard = dynamic(() => import('./Leaderboard').then((m) => m.Leaderboard), { loading });
 const Network = dynamic(() => import('./Network').then((m) => m.Network), { loading });
@@ -48,6 +49,7 @@ export const SCREENS: Record<string, ComponentType> = {
   review: Review,
   careers: Careers,
   hiring: Hiring,
+  portfolio: Portfolio,
   company: Company,
   leaderboard: Leaderboard,
   network: Network,

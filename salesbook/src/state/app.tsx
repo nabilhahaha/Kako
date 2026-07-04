@@ -2,7 +2,7 @@
 import {
   createContext, useContext, useCallback, useEffect, useMemo, useRef, useState, ReactNode,
 } from 'react';
-import type { Bootstrap, ChatMsg, L, Theme, ApprovalStatus } from '@/lib/types';
+import type { Bootstrap, ChatMsg, L, Post, Theme, ApprovalStatus } from '@/lib/types';
 import { bootstrap as seedBootstrap } from '@/lib/seed';
 
 export type ConnState = 'pending' | 'accepted' | 'declined';
@@ -39,6 +39,7 @@ export interface AppState {
   rsvp: Record<string, boolean>;
   joined: Record<string, boolean>;
   notifRead: boolean;
+  myPosts: Post[];
   savedCands: Record<string, boolean>;
   interviews: Record<string, 'sched' | 'done' | 'offer'>;
   hTab: 'search' | 'saved' | 'meet';
@@ -66,7 +67,7 @@ function initialState(data: Bootstrap, theme: Theme): AppState {
     reportStep: 0, repCust: null, repOverall: 0, repPay: null, repMove: null, repVoice: false, repPhotos: 0,
     feedFilter: 'all', likes: {}, availOn: false, applied: {}, careersTab: 'jobs',
     connReqs: { q1: 'pending', q2: 'pending' }, conns: {}, chatId: 't1', chatInput: '', typing: false, chatMsgs: null,
-    rsvp: {}, joined: {}, notifRead: false,
+    rsvp: {}, joined: {}, notifRead: false, myPosts: [],
     savedCands: {}, interviews: {}, hTab: 'search', hCity: 'all', hExp: 'all', hCat: 'all', hQuery: '',
     requests, rejectFor: null, rejReason: null, reviews,
     toast: null, ntf1: true, ntf2: false,
