@@ -71,7 +71,6 @@ export function NextCustomerSheet({
               <NavigateButton
                 latitude={current.customer.latitude!}
                 longitude={current.customer.longitude!}
-                variant="soft"
                 className="flex-1"
               />
               <button

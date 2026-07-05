@@ -72,7 +72,8 @@ function toFormValues(customer: Customer) {
     notes: customer.notes ?? '',
     latitude: customer.latitude?.toString() ?? '',
     longitude: customer.longitude?.toString() ?? '',
-    customer_category: customer.customer_category,
+    // Null category loads empty, so saving an existing customer forces a choice.
+    customer_category: customer.customer_category ?? ('' as CustomerCategory),
     custom_category: customer.custom_category ?? '',
   }
 }
@@ -168,6 +169,11 @@ export function CustomerForm({
             </span>
             <ChevronRight size={18} className="text-ink-3" />
           </button>
+          {customer && !category && !errors.customer_category && (
+            <span className="mt-1 block px-1 text-[13px] font-medium text-ios-orange">
+              This customer has no category yet — please choose one.
+            </span>
+          )}
         </Field>
         {category === 'other' && (
           <Field label="Specify Category" error={errors.custom_category?.message}>

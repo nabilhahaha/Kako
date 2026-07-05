@@ -225,7 +225,6 @@ export function CustomerDetailPage() {
           <NavigateButton
             latitude={customer.latitude}
             longitude={customer.longitude}
-            variant="soft"
             className="h-[52px] shrink-0 rounded-2xl px-5"
           />
         )}

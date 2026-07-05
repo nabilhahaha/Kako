@@ -54,8 +54,13 @@ export function hasCoords(
 
 // ------------------------------------------------------------- navigation
 
+/**
+ * Universal Google Maps directions link. Opens the Google Maps app when it's
+ * installed on iPhone/Android and falls back to Google Maps in the browser
+ * otherwise, with turn-by-turn driving navigation to the coordinate.
+ */
 export function googleMapsDirUrl(lat: number, lng: number): string {
-  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
 }
 
 /**

@@ -42,7 +42,7 @@ export interface Customer {
   notes: string | null
   latitude: number | null
   longitude: number | null
-  customer_category: CustomerCategory
+  customer_category: CustomerCategory | null
   custom_category: string | null
   created_at: string
   updated_at: string
@@ -74,7 +74,7 @@ export interface CustomerRef {
   name: string
   code: string | null
   city: string | null
-  customer_category: CustomerCategory
+  customer_category: CustomerCategory | null
   custom_category: string | null
 }
 
@@ -93,7 +93,7 @@ export interface CustomerInput {
   notes?: string | null
   latitude?: number | null
   longitude?: number | null
-  customer_category: CustomerCategory
+  customer_category: CustomerCategory | null
   custom_category?: string | null
 }
 

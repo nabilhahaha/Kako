@@ -4,6 +4,7 @@ import { Sheet } from '@/components/ui/Sheet'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useLocation } from '@/hooks/useLocation'
+import { NavigateButton } from '@/components/nav/NavigateButton'
 import { distanceMeters, formatDistance, hasCoords } from '@/lib/geo'
 import { categoryLabel } from '@/lib/constants'
 import { cn } from '@/lib/utils'
@@ -24,33 +25,37 @@ const NEARBY_COUNT = 8
 function CustomerRow({
   customer,
   distanceLabel,
+  withNavigate,
   onClick,
 }: {
   customer: Customer
   distanceLabel?: string
+  withNavigate?: boolean
   onClick: () => void
 }) {
   return (
-    <button
-      onClick={onClick}
-      className="flex w-full items-center gap-3 border-b border-separator/60 px-4 py-3.5 text-left last:border-b-0 active:bg-surface-2"
-    >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-[15px] font-bold text-accent">
-        {customer.name.slice(0, 1).toUpperCase()}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-semibold">{customer.name}</span>
-        <span className="block truncate text-[13px] text-ink-2">
-          {[customer.code, customer.city, customer.area].filter(Boolean).join(' · ') || '—'}
+    <div className="flex items-center gap-2 border-b border-separator/60 pr-3 last:border-b-0">
+      <button onClick={onClick} className="flex min-w-0 flex-1 items-center gap-3 py-3.5 pl-4 text-left active:bg-surface-2">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-[15px] font-bold text-accent">
+          {customer.name.slice(0, 1).toUpperCase()}
         </span>
-      </span>
-      {distanceLabel && (
-        <span className="flex shrink-0 items-center gap-1 text-[13px] font-semibold text-accent">
-          <Navigation size={12} className="fill-current" />
-          {distanceLabel}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-semibold">{customer.name}</span>
+          <span className="block truncate text-[13px] text-ink-2">
+            {[customer.code, customer.city, customer.area].filter(Boolean).join(' · ') || '—'}
+          </span>
         </span>
+        {distanceLabel && (
+          <span className="flex shrink-0 items-center gap-1 text-[13px] font-semibold text-ios-blue">
+            <Navigation size={12} className="fill-current" />
+            {distanceLabel}
+          </span>
+        )}
+      </button>
+      {withNavigate && hasCoords(customer) && (
+        <NavigateButton latitude={customer.latitude} longitude={customer.longitude} variant="icon" />
       )}
-    </button>
+    </div>
   )
 }
 
@@ -129,6 +134,7 @@ export function CustomerPicker({
                 key={customer.id}
                 customer={customer}
                 distanceLabel={formatDistance(meters)}
+                withNavigate
                 onClick={() => pick(customer)}
               />
             ))}

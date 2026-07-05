@@ -71,13 +71,22 @@ export const CUSTOMER_CATEGORY_LABELS: Record<CustomerCategory, string> = {
   other: 'Other',
 }
 
+export const CATEGORY_NOT_SET_LABEL = 'Category Not Set'
+
 /** Display label for a customer's category — the custom text when "Other". */
 export function categoryLabel(
   customer: Pick<Customer, 'customer_category' | 'custom_category'> | CustomerRef | null | undefined,
 ): string {
-  if (!customer) return '—'
+  if (!customer || !customer.customer_category) return CATEGORY_NOT_SET_LABEL
   if (customer.customer_category === 'other' && customer.custom_category) {
     return customer.custom_category
   }
   return CUSTOMER_CATEGORY_LABELS[customer.customer_category]
+}
+
+/** True when the customer has no category selected yet. */
+export function isCategorySet(
+  customer: Pick<Customer, 'customer_category'> | CustomerRef | null | undefined,
+): boolean {
+  return !!customer && !!customer.customer_category
 }

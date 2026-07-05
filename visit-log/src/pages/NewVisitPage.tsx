@@ -18,6 +18,7 @@ import { CustomerForm } from '@/components/customers/CustomerForm'
 import { PhotoPicker, releaseDraftPhotos, type DraftPhoto } from '@/components/visits/PhotoPicker'
 import { NextCustomerSheet } from '@/components/visits/NextCustomerSheet'
 import { CategoryBadge } from '@/components/customers/CategoryBadge'
+import { NavigateButton } from '@/components/nav/NavigateButton'
 import { useCustomers } from '@/hooks/queries'
 import { useCreateVisit } from '@/hooks/mutations'
 import { useGeolocation } from '@/hooks/useGeolocation'
@@ -213,6 +214,13 @@ export function NewVisitPage() {
             </span>
             <ChevronRight size={18} className="text-ink-3" />
           </button>
+          {customer && customer.latitude != null && customer.longitude != null && (
+            <NavigateButton
+              latitude={customer.latitude}
+              longitude={customer.longitude}
+              className="mt-2.5 w-full"
+            />
+          )}
         </Section>
 
         <Section step={2} title="Date & Time">
