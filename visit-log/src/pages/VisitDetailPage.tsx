@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Camera, ChevronRight, FileQuestion, Pencil, Trash2 } from 'lucide-react'
+import { Camera, ChevronRight, FileQuestion, Pencil, Store, Trash2 } from 'lucide-react'
 import { Page, HeaderIconButton } from '@/components/layout/Page'
 import { Card } from '@/components/ui/Card'
 import { StatusBadge, TypeBadge } from '@/components/ui/Badge'
@@ -14,6 +14,7 @@ import { StaticMap } from '@/components/map/StaticMap'
 import { NavigateButton } from '@/components/nav/NavigateButton'
 import { useSignedUrls, useVisit } from '@/hooks/queries'
 import { useDeleteVisit } from '@/hooks/mutations'
+import { storefrontOf } from '@/lib/storefront'
 import { formatDay, formatTime } from '@/lib/utils'
 
 export function VisitDetailPage() {
@@ -23,11 +24,17 @@ export function VisitDetailPage() {
   const deleteVisit = useDeleteVisit()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [storefrontOpen, setStorefrontOpen] = useState(false)
 
-  const paths = useMemo(
-    () => visit.data?.photos.map((photo) => photo.storage_path) ?? [],
-    [visit.data],
-  )
+  const storefront = useMemo(() => (visit.data ? storefrontOf(visit.data) : null), [visit.data])
+  // Only show the dedicated gallery here; a legacy visit's storefront fallback
+  // photo is one of these gallery photos, which is fine to also list.
+  const galleryPhotos = visit.data?.photos ?? []
+  const paths = useMemo(() => {
+    const list = galleryPhotos.map((photo) => photo.storage_path)
+    if (storefront) list.push(storefront.full)
+    return list
+  }, [galleryPhotos, storefront])
   const { data: urls } = useSignedUrls(paths)
 
   const onDelete = async () => {
@@ -110,23 +117,42 @@ export function VisitDetailPage() {
         </div>
       </Card>
 
-      <div className="mb-3 flex items-center gap-2 px-1">
-        <Camera size={16} className="text-ink-2" />
-        <h3 className="text-[16px] font-bold">
-          {data.photos.length} Photo{data.photos.length === 1 ? '' : 's'}
-        </h3>
-      </div>
-      <div className="mb-4 grid grid-cols-3 gap-2">
-        {data.photos.map((photo, index) => (
+      {storefront && (
+        <>
+          <div className="mb-2 flex items-center gap-2 px-1">
+            <Store size={16} className="text-ink-2" />
+            <h3 className="text-[16px] font-bold">Store Front Photo</h3>
+          </div>
           <PhotoImg
-            key={photo.id}
-            url={urls?.[photo.storage_path]}
-            alt={`Photo ${index + 1}`}
-            className="aspect-square cursor-pointer rounded-2xl"
-            onClick={() => setLightboxIndex(index)}
+            url={urls?.[storefront.full]}
+            alt="Store front"
+            className="mb-5 aspect-[4/3] w-full cursor-pointer rounded-card"
+            onClick={() => setStorefrontOpen(true)}
           />
-        ))}
-      </div>
+        </>
+      )}
+
+      {galleryPhotos.length > 0 && (
+        <>
+          <div className="mb-3 flex items-center gap-2 px-1">
+            <Camera size={16} className="text-ink-2" />
+            <h3 className="text-[16px] font-bold">
+              {galleryPhotos.length} Visit Photo{galleryPhotos.length === 1 ? '' : 's'}
+            </h3>
+          </div>
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            {galleryPhotos.map((photo, index) => (
+              <PhotoImg
+                key={photo.id}
+                url={urls?.[photo.storage_path]}
+                alt={`Photo ${index + 1}`}
+                className="aspect-square cursor-pointer rounded-2xl"
+                onClick={() => setLightboxIndex(index)}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {data.notes && (
         <Card className="mb-4">
@@ -146,13 +172,27 @@ export function VisitDetailPage() {
 
       {lightboxIndex !== null && (
         <Lightbox
-          photos={data.photos.map((photo) => ({
+          photos={galleryPhotos.map((photo) => ({
             id: photo.id,
             url: urls?.[photo.storage_path],
             caption: `${data.customer?.name ?? 'Visit'} — ${formatDay(data.visited_at)}`,
           }))}
           index={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
+        />
+      )}
+
+      {storefrontOpen && storefront && (
+        <Lightbox
+          photos={[
+            {
+              id: 'storefront',
+              url: urls?.[storefront.full],
+              caption: `${data.customer?.name ?? 'Store front'} — Store Front Photo`,
+            },
+          ]}
+          index={0}
+          onClose={() => setStorefrontOpen(false)}
         />
       )}
 

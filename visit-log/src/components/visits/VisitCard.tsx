@@ -5,17 +5,29 @@ import { motion } from 'framer-motion'
 import { StatusBadge, TypeBadge } from '@/components/ui/Badge'
 import { PhotoImg } from '@/components/photos/PhotoImg'
 import { useSignedUrls } from '@/hooks/queries'
+import { storefrontOf } from '@/lib/storefront'
 import { formatDay, formatTime } from '@/lib/utils'
 import type { VisitWithMeta } from '@/types'
 
-/** Signed thumbnail URL (first photo) for each visit in a list. */
+/**
+ * Returns a resolver from visit id to its signed storefront thumbnail (falling
+ * back to the first gallery photo for legacy visits), batching all sign requests.
+ */
 export function useVisitThumbs(visits: VisitWithMeta[]) {
-  const paths = useMemo(
-    () => visits.map((v) => v.photos[0]?.storage_path).filter(Boolean) as string[],
-    [visits],
-  )
+  const byVisit = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const visit of visits) {
+      const sf = storefrontOf(visit)
+      if (sf) map[visit.id] = sf.thumb
+    }
+    return map
+  }, [visits])
+  const paths = useMemo(() => Object.values(byVisit), [byVisit])
   const { data } = useSignedUrls(paths)
-  return data ?? {}
+  return (visitId: string): string | undefined => {
+    const path = byVisit[visitId]
+    return path ? data?.[path] : undefined
+  }
 }
 
 export function VisitCard({

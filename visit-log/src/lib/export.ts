@@ -89,7 +89,11 @@ export function exportCustomersExcel(customers: Customer[]) {
 
 const ROSHEN_RED: [number, number, number] = [227, 6, 19]
 
-export function exportCustomerHistoryPdf(customer: Customer, visits: VisitWithMeta[]) {
+export function exportCustomerHistoryPdf(
+  customer: Customer,
+  visits: VisitWithMeta[],
+  heroImage?: string | null,
+) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
 
@@ -128,8 +132,21 @@ export function exportCustomerHistoryPdf(customer: Customer, visits: VisitWithMe
     align: 'right',
   })
 
+  // Store front hero image beneath the customer header.
+  let tableTop = 150 + details.length * 14
+  if (heroImage) {
+    try {
+      const imgWidth = pageWidth - 80
+      const imgHeight = imgWidth * 0.5625 // 16:9
+      doc.addImage(heroImage, 'JPEG', 40, tableTop, imgWidth, imgHeight, undefined, 'FAST')
+      tableTop += imgHeight + 16
+    } catch {
+      /* skip a corrupt image rather than fail the whole export */
+    }
+  }
+
   autoTable(doc, {
-    startY: 150 + details.length * 14,
+    startY: tableTop,
     head: [['Date', 'Time', 'Visit Type', 'Status', 'Photos', 'Notes']],
     body: visits.map((visit) => [
       formatDate(visit.visited_at),

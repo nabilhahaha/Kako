@@ -118,7 +118,7 @@ export function DashboardPage() {
               visit={visit}
               index={index}
               thumbUrl={
-                visit.photos[0] ? thumbs[visit.photos[0].storage_path] : undefined
+                thumbs(visit.id)
               }
             />
           ))}

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { OptionSheet } from '@/components/ui/OptionSheet'
 import { CustomerForm } from '@/components/customers/CustomerForm'
 import { CategoryBadge } from '@/components/customers/CategoryBadge'
+import { CustomerAvatar, useCustomerThumbUrls } from '@/components/customers/CustomerAvatar'
 import { ImportSheet } from '@/components/customers/ImportSheet'
 import { filterCustomers } from '@/components/customers/CustomerPicker'
 import { useCustomers } from '@/hooks/queries'
@@ -36,6 +37,9 @@ export function CustomersPage() {
       : customers.data ?? []
     return filterCustomers(byCategory, term)
   }, [customers.data, term, categoryFilter])
+
+  const filteredIds = useMemo(() => filtered.map((c) => c.id), [filtered])
+  const resolveThumb = useCustomerThumbUrls(filteredIds)
 
   return (
     <Page
@@ -124,9 +128,11 @@ export function CustomersPage() {
                   to={`/customers/${customer.id}`}
                   className="flex items-center gap-3 border-b border-separator/60 px-4 py-3.5 last:border-b-0 active:bg-surface-2"
                 >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-[16px] font-bold text-accent">
-                    {customer.name.slice(0, 1).toUpperCase()}
-                  </span>
+                  <CustomerAvatar
+                    customer={customer}
+                    thumbUrl={resolveThumb(customer.id)}
+                    className="h-11 w-11 text-[16px]"
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[16px] font-semibold">
                       {customer.name}

@@ -16,13 +16,14 @@ import { toast } from '@/components/ui/toast'
 import { CustomerPicker } from '@/components/customers/CustomerPicker'
 import { CustomerForm } from '@/components/customers/CustomerForm'
 import { PhotoPicker, releaseDraftPhotos, type DraftPhoto } from '@/components/visits/PhotoPicker'
+import { StorefrontPicker, type DraftStorefront } from '@/components/visits/StorefrontPicker'
 import { NextCustomerSheet } from '@/components/visits/NextCustomerSheet'
 import { CategoryBadge } from '@/components/customers/CategoryBadge'
 import { NavigateButton } from '@/components/nav/NavigateButton'
 import { useCustomers } from '@/hooks/queries'
 import { useCreateVisit } from '@/hooks/mutations'
 import { useGeolocation } from '@/hooks/useGeolocation'
-import { MIN_PHOTOS, VISIT_STATUS_META, VISIT_TYPE_META } from '@/lib/constants'
+import { VISIT_STATUS_META, VISIT_TYPE_META } from '@/lib/constants'
 import { cn, toLocalInputValue } from '@/lib/utils'
 import { VISIT_STATUSES, VISIT_TYPES, type Customer, type VisitStatus, type VisitType } from '@/types'
 
@@ -97,6 +98,7 @@ export function NewVisitPage() {
 
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [visitedAt, setVisitedAt] = useState(() => toLocalInputValue(new Date().toISOString()))
+  const [storefront, setStorefront] = useState<DraftStorefront | null>(null)
   const [photos, setPhotos] = useState<DraftPhoto[]>([])
   const [visitType, setVisitType] = useState<VisitType>('general_visit')
   const [status, setStatus] = useState<VisitStatus>('good')
@@ -124,8 +126,8 @@ export function NewVisitPage() {
       toast('Select a customer first', 'error')
       return
     }
-    if (photos.length < MIN_PHOTOS) {
-      toast('Add at least one photo', 'error')
+    if (!storefront) {
+      toast('Capture the store front photo', 'error')
       return
     }
     try {
@@ -139,11 +141,14 @@ export function NewVisitPage() {
           latitude: geo.latitude,
           longitude: geo.longitude,
         },
+        storefront: { blob: storefront.blob, takenAt: storefront.takenAt },
         photos: photos.map((photo) => photo.blob),
       })
       releaseDraftPhotos(photos)
+      URL.revokeObjectURL(storefront.previewUrl)
       savedVisitRef.current = result.status === 'saved' ? result.visitId : null
       setVisitedIds((ids) => (customer ? [...ids, customer.id] : ids))
+      setStorefront(null)
       setPhotos([])
       toast(
         result.status === 'saved' ? 'Visit saved' : 'Saved offline — will sync automatically',
@@ -160,7 +165,9 @@ export function NewVisitPage() {
     const found = customers.find((c) => c.id === customerId)
     if (!found) return
     releaseDraftPhotos(photos)
+    if (storefront) URL.revokeObjectURL(storefront.previewUrl)
     setCustomer(found)
+    setStorefront(null)
     setPhotos([])
     setNotes('')
     setVisitType('general_visit')
@@ -223,7 +230,11 @@ export function NewVisitPage() {
           )}
         </Section>
 
-        <Section step={2} title="Date & Time">
+        <Section step={2} title="Store Front Photo">
+          <StorefrontPicker value={storefront} onChange={setStorefront} />
+        </Section>
+
+        <Section step={3} title="Date & Time">
           <label className="flex items-center gap-3 rounded-card bg-surface p-4 shadow-card">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-ios-blue/12 text-ios-blue">
               <Calendar size={20} />
@@ -237,11 +248,12 @@ export function NewVisitPage() {
           </label>
         </Section>
 
-        <Section step={3} title="Photos">
+        <Section step={4} title="Visit Photos">
           <PhotoPicker photos={photos} onChange={setPhotos} />
+          <p className="mt-1.5 px-1 text-[12px] text-ink-3">Optional — separate from the store front photo.</p>
         </Section>
 
-        <Section step={4} title="Visit Type">
+        <Section step={5} title="Visit Type">
           <button
             type="button"
             onClick={() => setTypeOpen(true)}
@@ -255,11 +267,11 @@ export function NewVisitPage() {
           </button>
         </Section>
 
-        <Section step={5} title="Visit Status">
+        <Section step={6} title="Visit Status">
           <StatusGrid value={status} onChange={setStatus} />
         </Section>
 
-        <Section step={6} title="Notes">
+        <Section step={7} title="Notes">
           <Textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}

@@ -26,6 +26,7 @@ export async function syncOutbox(queryClient: QueryClient): Promise<number> {
             latitude: item.latitude,
             longitude: item.longitude,
           },
+          { blob: item.storefront, takenAt: item.storefront_taken_at ?? item.visited_at },
           item.photos,
         )
         await removePendingVisit(item.localId)

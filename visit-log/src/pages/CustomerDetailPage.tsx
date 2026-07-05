@@ -25,11 +25,13 @@ import { CustomerForm } from '@/components/customers/CustomerForm'
 import { CategoryBadge } from '@/components/customers/CategoryBadge'
 import { NavigateButton } from '@/components/nav/NavigateButton'
 import { VisitCard, useVisitThumbs } from '@/components/visits/VisitCard'
+import { PhotoImg } from '@/components/photos/PhotoImg'
 import { StaticMap } from '@/components/map/StaticMap'
-import { useCustomer, useVisits } from '@/hooks/queries'
+import { useCustomer, useSignedUrls, useVisits } from '@/hooks/queries'
 import { useDeleteCustomer } from '@/hooks/mutations'
 import { useLocation } from '@/hooks/useLocation'
-import { fetchAllVisits } from '@/lib/api'
+import { fetchAllVisits, fetchImageDataUrl } from '@/lib/api'
+import { storefrontOf } from '@/lib/storefront'
 import { distanceMeters, formatDistance, formatDriveTime, hasCoords } from '@/lib/geo'
 import { slugify } from '@/lib/utils'
 import type { Customer } from '@/types'
@@ -52,6 +54,10 @@ export function CustomerDetailPage() {
   const visits = useVisits({ customerId: id })
   const allVisits = visits.data?.pages.flatMap((page) => page.visits) ?? []
   const thumbs = useVisitThumbs(allVisits)
+  // Cover = the newest visit's storefront (falls back to its first gallery photo).
+  const cover = useMemo(() => (allVisits[0] ? storefrontOf(allVisits[0]) : null), [allVisits])
+  const { data: coverUrls } = useSignedUrls(cover ? [cover.full] : [])
+  const coverUrl = cover ? coverUrls?.[cover.full] : undefined
   const deleteCustomer = useDeleteCustomer()
   const [editOpen, setEditOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -79,7 +85,11 @@ export function CustomerDetailPage() {
         fetchAllVisits({ customerId: target.id }),
         import('@/lib/export'),
       ])
-      if (kind === 'pdf') exporters.exportCustomerHistoryPdf(target, history)
+      if (kind === 'pdf') {
+        const sf = history[0] ? storefrontOf(history[0]) : null
+        const hero = sf ? await fetchImageDataUrl(sf.full) : null
+        exporters.exportCustomerHistoryPdf(target, history, hero)
+      }
       if (kind === 'excel') exporters.exportVisitsExcel(history, `${slugify(target.name)}-visits`)
       if (kind === 'csv') exporters.exportVisitsCsv(history, `${slugify(target.name)}-visits`)
       toast('Export ready')
@@ -137,6 +147,14 @@ export function CustomerDetailPage() {
         </>
       }
     >
+      {coverUrl && (
+        <PhotoImg
+          url={coverUrl}
+          alt={`${customer.name} store front`}
+          className="mb-4 aspect-[16/9] w-full rounded-card"
+        />
+      )}
+
       <Card className="mb-4">
         <div className="flex items-center justify-between gap-4 border-b border-separator/60 py-2.5 text-[14px]">
           <span className="shrink-0 font-medium text-ink-2">Category</span>
@@ -270,7 +288,7 @@ export function CustomerDetailPage() {
               visit={visit}
               index={index}
               hideCustomer
-              thumbUrl={visit.photos[0] ? thumbs[visit.photos[0].storage_path] : undefined}
+              thumbUrl={thumbs(visit.id)}
             />
           ))}
           <LoadMore

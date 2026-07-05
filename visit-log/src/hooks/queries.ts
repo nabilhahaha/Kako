@@ -3,6 +3,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import {
   fetchCustomers,
   fetchCustomerSummaries,
+  fetchCustomerCovers,
   fetchGalleryPhotos,
   fetchSignedUrls,
   fetchStats,
@@ -131,5 +132,13 @@ export function useCustomerSummaries() {
     queryKey: ['customer-summaries'],
     queryFn: fetchCustomerSummaries,
     staleTime: 30 * 1000,
+  })
+}
+
+export function useCustomerCovers() {
+  return useQuery({
+    queryKey: ['customer-covers'],
+    queryFn: fetchCustomerCovers,
+    staleTime: 60 * 1000,
   })
 }

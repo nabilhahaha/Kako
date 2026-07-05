@@ -8,6 +8,7 @@ import {
   updateCustomer,
   updateVisit,
 } from '@/lib/api'
+import type { StorefrontInput } from '@/lib/api'
 import { addPendingVisit } from '@/lib/outbox'
 import { isNetworkError } from '@/lib/utils'
 import type { CustomerInput, VisitInput, VisitPhoto, VisitWithMeta } from '@/types'
@@ -18,6 +19,7 @@ function useInvalidateVisitData() {
     queryClient.invalidateQueries({ queryKey: ['visits'] })
     queryClient.invalidateQueries({ queryKey: ['stats'] })
     queryClient.invalidateQueries({ queryKey: ['gallery'] })
+    queryClient.invalidateQueries({ queryKey: ['customer-covers'] })
     if (visitId) queryClient.invalidateQueries({ queryKey: ['visit', visitId] })
   }
 }
@@ -65,19 +67,23 @@ export function useCreateVisit() {
   return useMutation({
     mutationFn: async ({
       input,
+      storefront,
       photos,
     }: {
       input: VisitInput
+      storefront: StorefrontInput
       photos: Blob[]
     }): Promise<CreateVisitResult> => {
       try {
-        const visit = await createVisit(input, photos)
+        const visit = await createVisit(input, storefront, photos)
         return { status: 'saved', visitId: visit.id }
       } catch (error) {
         if (isNetworkError(error)) {
           await addPendingVisit({
             ...input,
             localId: crypto.randomUUID(),
+            storefront: storefront.blob,
+            storefront_taken_at: storefront.takenAt,
             photos,
             queued_at: new Date().toISOString(),
           })
@@ -99,13 +105,24 @@ export function useUpdateVisit() {
       newPhotos,
       removedPhotos,
       keptCount,
+      newStorefront,
+      oldStorefrontPaths,
     }: {
       id: string
       input: VisitInput
       newPhotos: Blob[]
       removedPhotos: VisitPhoto[]
       keptCount: number
-    }) => updateVisit(id, input, { newPhotos, removedPhotos, keptCount }),
+      newStorefront?: StorefrontInput | null
+      oldStorefrontPaths?: string[]
+    }) =>
+      updateVisit(id, input, {
+        newPhotos,
+        removedPhotos,
+        keptCount,
+        newStorefront,
+        oldStorefrontPaths,
+      }),
     onSuccess: (_data, variables) => invalidate(variables.id),
   })
 }

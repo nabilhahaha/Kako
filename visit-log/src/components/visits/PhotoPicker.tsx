@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 import { Camera, X } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { Reorder } from 'framer-motion'
 import { toast } from '@/components/ui/toast'
+import { Lightbox } from '@/components/photos/Lightbox'
 import { compressImage } from '@/lib/image'
 import { MAX_PHOTOS } from '@/lib/constants'
 
@@ -20,9 +21,9 @@ export function releaseDraftPhotos(photos: DraftPhoto[]) {
 }
 
 /**
- * Camera/gallery capture with compression and previews. `reservedCount`
- * accounts for already-saved photos when editing, so the 20-photo cap holds
- * across both.
+ * Optional visit gallery: multiple photos from camera or library, drag to
+ * reorder, tap to preview fullscreen, delete individually. `reservedCount`
+ * accounts for already-saved photos when editing, so the 20-photo cap holds.
  */
 export function PhotoPicker({
   photos,
@@ -35,15 +36,14 @@ export function PhotoPicker({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [processing, setProcessing] = useState(false)
+  const [preview, setPreview] = useState<number | null>(null)
   const total = photos.length + reservedCount
 
   const addFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return
     const room = MAX_PHOTOS - total
     const selected = Array.from(files).slice(0, room)
-    if (files.length > room) {
-      toast(`Maximum ${MAX_PHOTOS} photos per visit`, 'info')
-    }
+    if (files.length > room) toast(`Maximum ${MAX_PHOTOS} photos per visit`, 'info')
     if (selected.length === 0) return
     setProcessing(true)
     try {
@@ -67,56 +67,67 @@ export function PhotoPicker({
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         className="hidden"
         onChange={(event) => addFiles(event.target.files)}
       />
-      <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-        <AnimatePresence>
-          {photos.map((photo) => (
-            <motion.div
-              key={photo.id}
-              layout
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.85 }}
-              className="relative aspect-square"
+      <Reorder.Group
+        as="div"
+        axis="y"
+        values={photos}
+        onReorder={onChange}
+        className="grid grid-cols-4 gap-2 sm:grid-cols-5"
+      >
+        {photos.map((photo, index) => (
+          <Reorder.Item
+            key={photo.id}
+            value={photo}
+            as="div"
+            className="relative aspect-square cursor-grab touch-none active:cursor-grabbing"
+            whileDrag={{ scale: 1.08, zIndex: 20 }}
+          >
+            <img
+              src={photo.previewUrl}
+              alt={`Visit photo ${index + 1}`}
+              draggable={false}
+              onClick={() => setPreview(index)}
+              className="pointer-events-auto h-full w-full rounded-2xl object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => remove(photo.id)}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label="Remove photo"
+              className="absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-ink text-bg shadow-card"
             >
-              <img
-                src={photo.previewUrl}
-                alt="Visit photo preview"
-                className="h-full w-full rounded-2xl object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => remove(photo.id)}
-                aria-label="Remove photo"
-                className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ink text-bg shadow-card"
-              >
-                <X size={13} />
-              </button>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+              <X size={13} />
+            </button>
+          </Reorder.Item>
+        ))}
         {total < MAX_PHOTOS && (
-          <motion.button
-            layout
+          <button
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={processing}
             className="press flex aspect-square flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-separator bg-surface-2/50 text-ink-2"
           >
             <Camera size={22} className={processing ? 'animate-pulse text-accent' : ''} />
-            <span className="text-[11px] font-semibold">
-              {processing ? 'Adding…' : 'Add'}
-            </span>
-          </motion.button>
+            <span className="text-[11px] font-semibold">{processing ? 'Adding…' : 'Add'}</span>
+          </button>
         )}
-      </div>
+      </Reorder.Group>
       <p className="mt-2 px-1 text-[12px] font-medium text-ink-3">
+        {photos.length > 1 ? 'Drag to reorder · ' : ''}
         {total} / {MAX_PHOTOS} photos
       </p>
+
+      {preview !== null && (
+        <Lightbox
+          photos={photos.map((p, i) => ({ id: p.id, url: p.previewUrl, caption: `Photo ${i + 1}` }))}
+          index={preview}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </div>
   )
 }

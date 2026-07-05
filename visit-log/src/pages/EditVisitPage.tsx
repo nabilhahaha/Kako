@@ -10,10 +10,12 @@ import { Skeleton } from '@/components/ui/Spinner'
 import { toast } from '@/components/ui/toast'
 import { PhotoImg } from '@/components/photos/PhotoImg'
 import { PhotoPicker, releaseDraftPhotos, type DraftPhoto } from '@/components/visits/PhotoPicker'
+import { StorefrontPicker, type DraftStorefront } from '@/components/visits/StorefrontPicker'
 import { Section, StatusGrid } from '@/pages/NewVisitPage'
 import { useSignedUrls, useVisit } from '@/hooks/queries'
 import { useUpdateVisit } from '@/hooks/mutations'
-import { MIN_PHOTOS, VISIT_TYPE_META } from '@/lib/constants'
+import { VISIT_TYPE_META } from '@/lib/constants'
+import { storefrontOf } from '@/lib/storefront'
 import { toLocalInputValue } from '@/lib/utils'
 import { VISIT_TYPES, type VisitStatus, type VisitType } from '@/types'
 
@@ -35,6 +37,7 @@ export function EditVisitPage() {
   const [notes, setNotes] = useState('')
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set())
   const [newPhotos, setNewPhotos] = useState<DraftPhoto[]>([])
+  const [newStorefront, setNewStorefront] = useState<DraftStorefront | null>(null)
   const [typeOpen, setTypeOpen] = useState(false)
   const [initialized, setInitialized] = useState(false)
 
@@ -50,10 +53,12 @@ export function EditVisitPage() {
 
   useEffect(() => () => releaseDraftPhotos(newPhotos), []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const paths = useMemo(
-    () => visit.data?.photos.map((photo) => photo.storage_path) ?? [],
-    [visit.data],
-  )
+  const storefront = useMemo(() => (visit.data ? storefrontOf(visit.data) : null), [visit.data])
+  const paths = useMemo(() => {
+    const list = visit.data?.photos.map((photo) => photo.storage_path) ?? []
+    if (storefront) list.push(storefront.full)
+    return list
+  }, [visit.data, storefront])
   const { data: urls } = useSignedUrls(paths)
 
   if (visit.isLoading || !initialized) {
@@ -76,7 +81,6 @@ export function EditVisitPage() {
 
   const data = visit.data!
   const keptPhotos = data.photos.filter((photo) => !removedIds.has(photo.id))
-  const totalPhotos = keptPhotos.length + newPhotos.length
 
   const toggleRemove = (photoId: string) => {
     setRemovedIds((current) => {
@@ -88,11 +92,12 @@ export function EditVisitPage() {
   }
 
   const save = async () => {
-    if (totalPhotos < MIN_PHOTOS) {
-      toast('A visit needs at least one photo', 'error')
-      return
-    }
     try {
+      // Only remove the previous storefront objects when they were real
+      // storefront columns (not a backward-compat gallery fallback).
+      const oldStorefrontPaths = [data.storefront_photo_url, data.storefront_thumbnail_url].filter(
+        (p): p is string => !!p,
+      )
       await updateVisit.mutateAsync({
         id: data.id,
         input: {
@@ -107,8 +112,11 @@ export function EditVisitPage() {
         newPhotos: newPhotos.map((photo) => photo.blob),
         removedPhotos: data.photos.filter((photo) => removedIds.has(photo.id)),
         keptCount: keptPhotos.length,
+        newStorefront: newStorefront ? { blob: newStorefront.blob, takenAt: newStorefront.takenAt } : null,
+        oldStorefrontPaths,
       })
       releaseDraftPhotos(newPhotos)
+      if (newStorefront) URL.revokeObjectURL(newStorefront.previewUrl)
       toast('Visit updated')
       navigate(`/visits/${data.id}`, { replace: true })
     } catch (error) {
@@ -140,7 +148,15 @@ export function EditVisitPage() {
           </label>
         </Section>
 
-        <Section step={2} title="Photos">
+        <Section step={2} title="Store Front Photo">
+          <StorefrontPicker
+            value={newStorefront}
+            existingUrl={storefront ? urls?.[storefront.full] : undefined}
+            onChange={setNewStorefront}
+          />
+        </Section>
+
+        <Section step={3} title="Visit Photos">
           {keptPhotos.length + removedIds.size > 0 && (
             <div className="mb-3 grid grid-cols-4 gap-2 sm:grid-cols-5">
               {data.photos.map((photo) => {
@@ -168,7 +184,7 @@ export function EditVisitPage() {
           <PhotoPicker photos={newPhotos} onChange={setNewPhotos} reservedCount={keptPhotos.length} />
         </Section>
 
-        <Section step={3} title="Visit Type">
+        <Section step={4} title="Visit Type">
           <button
             type="button"
             onClick={() => setTypeOpen(true)}
@@ -182,11 +198,11 @@ export function EditVisitPage() {
           </button>
         </Section>
 
-        <Section step={4} title="Visit Status">
+        <Section step={5} title="Visit Status">
           <StatusGrid value={status} onChange={setStatus} />
         </Section>
 
-        <Section step={5} title="Notes">
+        <Section step={6} title="Notes">
           <Textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}

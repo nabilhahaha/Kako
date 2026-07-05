@@ -57,6 +57,9 @@ export interface Visit {
   notes: string | null
   latitude: number | null
   longitude: number | null
+  storefront_photo_url: string | null
+  storefront_thumbnail_url: string | null
+  storefront_taken_at: string | null
   created_at: string
   updated_at: string
 }
@@ -66,6 +69,7 @@ export interface VisitPhoto {
   visit_id: string
   storage_path: string
   position: number
+  type: 'visit' | 'storefront'
   created_at: string
 }
 
@@ -110,6 +114,8 @@ export interface VisitInput {
 /** A visit captured while offline, waiting in the IndexedDB outbox. */
 export interface PendingVisit extends VisitInput {
   localId: string
+  storefront: Blob
+  storefront_taken_at: string
   photos: Blob[]
   queued_at: string
 }

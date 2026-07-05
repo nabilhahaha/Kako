@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { STORAGE_BUCKET } from '@/lib/constants'
+import { compressThumbnail } from '@/lib/image'
+import { storefrontOf, type StorefrontRef } from '@/lib/storefront'
 import type {
   Customer,
   CustomerInput,
@@ -14,7 +16,7 @@ export const VISIT_PAGE_SIZE = 30
 export const GALLERY_PAGE_SIZE = 60
 
 const VISIT_SELECT =
-  '*, customer:customers(id,name,code,city,customer_category,custom_category), photos:visit_photos(id,visit_id,storage_path,position,created_at)'
+  '*, customer:customers(id,name,code,city,customer_category,custom_category), photos:visit_photos(id,visit_id,storage_path,position,type,created_at)'
 
 function sortPhotos<T extends { photos: VisitPhoto[] }>(visit: T): T {
   visit.photos.sort((a, b) => a.position - b.position)
@@ -139,35 +141,101 @@ async function uploadVisitPhotos(
     if (uploadError) throw uploadError
     const { error: rowError } = await supabase
       .from('visit_photos')
-      .insert({ visit_id: visitId, storage_path: path, position })
+      .insert({ visit_id: visitId, storage_path: path, position, type: 'visit' })
     if (rowError) throw rowError
   }
 }
 
-export async function createVisit(input: VisitInput, photos: Blob[]): Promise<Visit> {
+/** Uploads the storefront full image plus a small thumbnail; returns both paths. */
+async function uploadStorefront(
+  userId: string,
+  visitId: string,
+  storefront: Blob,
+): Promise<{ full: string; thumb: string }> {
+  const stamp = Date.now()
+  const rid = crypto.randomUUID().slice(0, 8)
+  const full = `${userId}/${visitId}/storefront-${stamp}-${rid}.jpg`
+  const thumb = `${userId}/${visitId}/storefront-${stamp}-${rid}-thumb.jpg`
+  const thumbnail = await compressThumbnail(storefront)
+  const up1 = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(full, storefront, { contentType: 'image/jpeg', upsert: false })
+  if (up1.error) throw up1.error
+  const up2 = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(thumb, thumbnail, { contentType: 'image/jpeg', upsert: false })
+  if (up2.error) {
+    await removeStorageObjects([full])
+    throw up2.error
+  }
+  return { full, thumb }
+}
+
+export interface StorefrontInput {
+  blob: Blob
+  takenAt: string
+}
+
+export async function createVisit(
+  input: VisitInput,
+  storefront: StorefrontInput,
+  photos: Blob[],
+): Promise<Visit> {
   const userId = await currentUserId()
   const { data, error } = await supabase.from('visits').insert(input).select().single()
   if (error) throw error
   const visit = data as Visit
   try {
+    const sf = await uploadStorefront(userId, visit.id, storefront.blob)
+    const { error: sfError } = await supabase
+      .from('visits')
+      .update({
+        storefront_photo_url: sf.full,
+        storefront_thumbnail_url: sf.thumb,
+        storefront_taken_at: storefront.takenAt,
+      })
+      .eq('id', visit.id)
+    if (sfError) throw sfError
     await uploadVisitPhotos(userId, visit.id, photos, 0)
   } catch (uploadError) {
-    // Keep the database consistent: a visit without its photos is worse than
-    // no visit — the caller will queue the whole thing in the outbox instead.
+    // Roll back so we never persist a half-uploaded visit — the caller queues
+    // the whole thing in the offline outbox instead.
+    await deleteVisitObjectsUnder(userId, visit.id)
     await supabase.from('visits').delete().eq('id', visit.id)
     throw uploadError
   }
-  return visit
+  return { ...visit }
 }
 
 export async function updateVisit(
   id: string,
   input: VisitInput,
-  options: { newPhotos: Blob[]; removedPhotos: VisitPhoto[]; keptCount: number },
+  options: {
+    newPhotos: Blob[]
+    removedPhotos: VisitPhoto[]
+    keptCount: number
+    newStorefront?: StorefrontInput | null
+    oldStorefrontPaths?: string[]
+  },
 ): Promise<void> {
   const userId = await currentUserId()
   const { error } = await supabase.from('visits').update(input).eq('id', id)
   if (error) throw error
+
+  if (options.newStorefront) {
+    const sf = await uploadStorefront(userId, id, options.newStorefront.blob)
+    const { error: sfError } = await supabase
+      .from('visits')
+      .update({
+        storefront_photo_url: sf.full,
+        storefront_thumbnail_url: sf.thumb,
+        storefront_taken_at: options.newStorefront.takenAt,
+      })
+      .eq('id', id)
+    if (sfError) throw sfError
+    if (options.oldStorefrontPaths?.length) await removeStorageObjects(options.oldStorefrontPaths)
+  }
+
   if (options.removedPhotos.length > 0) {
     const ids = options.removedPhotos.map((p) => p.id)
     const { error: deleteError } = await supabase.from('visit_photos').delete().in('id', ids)
@@ -180,9 +248,25 @@ export async function updateVisit(
 }
 
 export async function deleteVisit(visit: VisitWithMeta): Promise<void> {
-  await removeStorageObjects(visit.photos.map((p) => p.storage_path))
+  const paths = visit.photos.map((p) => p.storage_path)
+  if (visit.storefront_photo_url) paths.push(visit.storefront_photo_url)
+  if (visit.storefront_thumbnail_url) paths.push(visit.storefront_thumbnail_url)
+  await removeStorageObjects(paths)
   const { error } = await supabase.from('visits').delete().eq('id', visit.id)
   if (error) throw error
+}
+
+/** Best-effort removal of every storage object under a visit folder. */
+async function deleteVisitObjectsUnder(userId: string, visitId: string): Promise<void> {
+  try {
+    const { data } = await supabase.storage.from(STORAGE_BUCKET).list(`${userId}/${visitId}`, {
+      limit: 1000,
+    })
+    const paths = (data ?? []).map((o) => `${userId}/${visitId}/${o.name}`)
+    await removeStorageObjects(paths)
+  } catch {
+    /* best effort */
+  }
 }
 
 async function removeStorageObjects(paths: string[]): Promise<void> {
@@ -429,4 +513,62 @@ export async function fetchCustomerSummaries(): Promise<Record<string, CustomerS
     if (rows.length < PAGE) break
   }
   return summaries
+}
+
+// ---------------------------------------------------------- customer covers
+
+/**
+ * Latest storefront image per customer, for list avatars, the map card and the
+ * customer cover. Walks visits newest-first and takes each customer's first
+ * visit that yields an effective storefront (dedicated column or gallery fallback).
+ */
+export async function fetchCustomerCovers(): Promise<Record<string, StorefrontRef>> {
+  const covers: Record<string, StorefrontRef> = {}
+  const PAGE = 500
+  for (let page = 0; page < 100; page++) {
+    const from = page * PAGE
+    const { data, error } = await supabase
+      .from('visits')
+      .select(
+        'customer_id, visited_at, storefront_photo_url, storefront_thumbnail_url, photos:visit_photos(storage_path, position)',
+      )
+      .order('visited_at', { ascending: false })
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    const rows = data as unknown as {
+      customer_id: string
+      storefront_photo_url: string | null
+      storefront_thumbnail_url: string | null
+      photos: { storage_path: string; position: number }[]
+    }[]
+    for (const row of rows) {
+      if (covers[row.customer_id]) continue
+      const sf = storefrontOf(row)
+      if (sf) covers[row.customer_id] = sf
+    }
+    if (rows.length < PAGE) break
+  }
+  return covers
+}
+
+// ------------------------------------------------------------ pdf image data
+
+/** Signs a storage path, downloads it, and returns a JPEG data URL for jsPDF. */
+export async function fetchImageDataUrl(path: string): Promise<string | null> {
+  try {
+    const map = await fetchSignedUrls([path])
+    const url = map[path]
+    if (!url) return null
+    const resp = await fetch(url)
+    if (!resp.ok) return null
+    const blob = await resp.blob()
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
 }
