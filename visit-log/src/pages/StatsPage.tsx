@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { Page } from '@/components/layout/Page'
 import { Card } from '@/components/ui/Card'
+import { SalespersonFilter } from '@/components/admin/SalespersonFilter'
 import { StatCard } from '@/components/stats/StatCard'
 import { DailyBarChart, BreakdownBars } from '@/components/stats/BarChart'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -69,6 +70,7 @@ export function StatsPage() {
 
   return (
     <Page title="Statistics">
+      <SalespersonFilter />
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Today's Visits" value={data.today} icon={Sun} index={0} />
         <StatCard

@@ -140,7 +140,11 @@ function hasRealStorefront(visit: VisitWithMeta): boolean {
 }
 
 /** Assembles a complete, aggregated report for a scope. */
-export async function buildReport(scope: ReportScope, now = new Date()): Promise<ReportData> {
+export async function buildReport(
+  scope: ReportScope,
+  now = new Date(),
+  scopeUserId?: string,
+): Promise<ReportData> {
   const window = resolveWindow(scope, now)
 
   const customerIds =
@@ -156,8 +160,9 @@ export async function buildReport(scope: ReportScope, now = new Date()): Promise
       customerIds,
       from: window.from,
       to: window.to,
+      scopeUserId,
     }),
-    fetchCustomers(),
+    fetchCustomers(scopeUserId),
     supabase.auth.getSession(),
   ])
 

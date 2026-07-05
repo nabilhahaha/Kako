@@ -10,13 +10,14 @@ export type ReportProgress = { phase: string; done: number; total: number }
 export async function generateReport(
   scope: ReportScope,
   onProgress?: (p: ReportProgress) => void,
+  scopeUserId?: string,
 ): Promise<ReportPdf> {
   onProgress?.({ phase: 'Collecting visits', done: 0, total: 0 })
   const [{ buildReport }, { generateReportPdf }] = await Promise.all([
     import('@/lib/report/build'),
     import('@/lib/report/pdf'),
   ])
-  const data = await buildReport(scope)
+  const data = await buildReport(scope, new Date(), scopeUserId)
   const pdf = await generateReportPdf(data, (phase, done, total) => onProgress?.({ phase, done, total }))
   return pdf
 }

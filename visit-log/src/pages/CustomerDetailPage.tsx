@@ -25,6 +25,7 @@ import { CategoryBadge } from '@/components/customers/CategoryBadge'
 import { NavigateButton } from '@/components/nav/NavigateButton'
 import { CustomerTimeline } from '@/components/visits/CustomerTimeline'
 import { GenerateReportButton } from '@/components/report/GenerateReportButton'
+import { SalespersonFilter } from '@/components/admin/SalespersonFilter'
 import { PhotoImg } from '@/components/photos/PhotoImg'
 import { StaticMap } from '@/components/map/StaticMap'
 import { useCustomer, useSignedUrls, useVisits } from '@/hooks/queries'
@@ -253,6 +254,8 @@ export function CustomerDetailPage() {
           label="Professional Report"
         />
       </div>
+
+      <SalespersonFilter />
 
       <div className="mb-3 flex items-center justify-between px-1">
         <h3 className="text-[19px] font-bold">Visit History</h3>

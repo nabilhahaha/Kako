@@ -6,6 +6,7 @@ import { MapPin } from 'lucide-react'
 import { PERSIST_MAX_AGE, persister, queryClient } from '@/lib/queryClient'
 import { syncOutbox } from '@/lib/sync'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
+import { AdminScopeProvider } from '@/hooks/useAdminScope'
 import { ThemeProvider } from '@/hooks/useTheme'
 import { LocationProvider } from '@/hooks/useLocation'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -21,6 +22,7 @@ import { GalleryPage } from '@/pages/GalleryPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { StatsPage } from '@/pages/StatsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { ProfilePage } from '@/pages/ProfilePage'
 
 // Leaflet + clustering is heavy; keep the map off the initial bundle.
 const MapPage = lazy(() => import('@/pages/MapPage').then((m) => ({ default: m.MapPage })))
@@ -77,6 +79,7 @@ export default function App() {
         <AuthProvider>
           <LocationProvider>
           <BrowserRouter>
+            <AdminScopeProvider>
             <SyncManager />
             <Routes>
               <Route path="/login" element={<LoginPage />} />
@@ -113,10 +116,12 @@ export default function App() {
                 <Route path="/search" element={<SearchPage />} />
                 <Route path="/stats" element={<StatsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>
             <Toaster />
+            </AdminScopeProvider>
           </BrowserRouter>
           </LocationProvider>
         </AuthProvider>

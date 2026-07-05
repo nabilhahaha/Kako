@@ -31,10 +31,25 @@ async function currentUserId(): Promise<string> {
 
 // ---------------------------------------------------------------- customers
 
-export async function fetchCustomers(): Promise<Customer[]> {
-  const { data, error } = await supabase.from('customers').select('*').order('name')
+export async function fetchCustomers(scopeUserId?: string): Promise<Customer[]> {
+  let query = supabase.from('customers').select('*').order('name')
+  // Admins may narrow to one salesperson; RLS already limits everyone else.
+  if (scopeUserId) query = query.eq('owner_user_id', scopeUserId)
+  const { data, error } = await query
   if (error) throw error
   return data as Customer[]
+}
+
+/** Roles/profiles — admins can read all; a salesperson sees only their own. */
+export async function fetchProfiles(): Promise<
+  { id: string; email: string | null; full_name: string | null; role: 'salesperson' | 'admin' }[]
+> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, role')
+    .order('full_name')
+  if (error) throw error
+  return data as { id: string; email: string | null; full_name: string | null; role: 'salesperson' | 'admin' }[]
 }
 
 export async function createCustomer(input: CustomerInput): Promise<Customer> {
@@ -90,6 +105,8 @@ export interface VisitFilters {
   to?: string
   /** Chronological order. Defaults to newest-first when omitted. */
   sort?: 'newest' | 'oldest'
+  /** Admin-only: narrow to a single salesperson's visits. */
+  scopeUserId?: string
 }
 
 function applyVisitFilters(query: any, filters: VisitFilters): any {
@@ -98,6 +115,7 @@ function applyVisitFilters(query: any, filters: VisitFilters): any {
   if (filters.status) query = query.eq('status', filters.status)
   if (filters.from) query = query.gte('visited_at', filters.from)
   if (filters.to) query = query.lte('visited_at', filters.to)
+  if (filters.scopeUserId) query = query.eq('user_id', filters.scopeUserId)
   return query
 }
 
@@ -287,6 +305,8 @@ export interface GalleryFilters {
   visitType?: string
   status?: string
   date?: string // yyyy-MM-dd
+  /** Admin-only: narrow to a single salesperson's photos. */
+  scopeUserId?: string
 }
 
 export async function fetchGalleryPhotos(
@@ -301,6 +321,7 @@ export async function fetchGalleryPhotos(
     )
     .order('created_at', { ascending: false })
     .range(from, from + GALLERY_PAGE_SIZE - 1)
+  if (filters.scopeUserId) query = query.eq('user_id', filters.scopeUserId)
   if (filters.customerId) query = query.eq('visit.customer_id', filters.customerId)
   if (filters.visitType) query = query.eq('visit.visit_type', filters.visitType)
   if (filters.status) query = query.eq('visit.status', filters.status)
@@ -358,15 +379,16 @@ export interface Stats {
   byStatus: Record<string, number>
 }
 
-async function countVisits(modify?: (q: any) => any): Promise<number> {
+async function countVisits(modify?: (q: any) => any, scopeUserId?: string): Promise<number> {
   let query = supabase.from('visits').select('id', { count: 'exact', head: true })
+  if (scopeUserId) query = query.eq('user_id', scopeUserId)
   if (modify) query = modify(query)
   const { count, error } = await query
   if (error) throw error
   return count ?? 0
 }
 
-export async function fetchStats(): Promise<Stats> {
+export async function fetchStats(scopeUserId?: string): Promise<Stats> {
   const now = new Date()
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const day = (startOfDay.getDay() + 6) % 7 // Monday-based week
@@ -374,21 +396,28 @@ export async function fetchStats(): Promise<Stats> {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const chartStart = new Date(startOfDay.getTime() - 13 * 24 * 60 * 60 * 1000)
 
+  let customersQuery = supabase.from('customers').select('id', { count: 'exact', head: true })
+  if (scopeUserId) customersQuery = customersQuery.eq('owner_user_id', scopeUserId)
+  let photosQuery = supabase.from('visit_photos').select('id', { count: 'exact', head: true })
+  if (scopeUserId) photosQuery = photosQuery.eq('user_id', scopeUserId)
+  let recentQuery = supabase
+    .from('visits')
+    .select('visited_at,visit_type,status')
+    .gte('visited_at', chartStart.toISOString())
+    .limit(2000)
+  if (scopeUserId) recentQuery = recentQuery.eq('user_id', scopeUserId)
+
   const [today, week, month, totalVisits, followUp, urgent, customers, photos, recent] =
     await Promise.all([
-      countVisits((q) => q.gte('visited_at', startOfDay.toISOString())),
-      countVisits((q) => q.gte('visited_at', startOfWeek.toISOString())),
-      countVisits((q) => q.gte('visited_at', startOfMonth.toISOString())),
-      countVisits(),
-      countVisits((q) => q.eq('status', 'needs_follow_up')),
-      countVisits((q) => q.eq('status', 'urgent')),
-      supabase.from('customers').select('id', { count: 'exact', head: true }),
-      supabase.from('visit_photos').select('id', { count: 'exact', head: true }),
-      supabase
-        .from('visits')
-        .select('visited_at,visit_type,status')
-        .gte('visited_at', chartStart.toISOString())
-        .limit(2000),
+      countVisits((q) => q.gte('visited_at', startOfDay.toISOString()), scopeUserId),
+      countVisits((q) => q.gte('visited_at', startOfWeek.toISOString()), scopeUserId),
+      countVisits((q) => q.gte('visited_at', startOfMonth.toISOString()), scopeUserId),
+      countVisits(undefined, scopeUserId),
+      countVisits((q) => q.eq('status', 'needs_follow_up'), scopeUserId),
+      countVisits((q) => q.eq('status', 'urgent'), scopeUserId),
+      customersQuery,
+      photosQuery,
+      recentQuery,
     ])
 
   if (customers.error) throw customers.error
@@ -437,6 +466,7 @@ export interface SearchResults {
 export async function searchEverything(
   term: string,
   matchedTypes: string[],
+  scopeUserId?: string,
 ): Promise<{ visits: VisitWithMeta[] }> {
   const safe = term.replace(/[%_,()]/g, ' ').trim()
   if (!safe && matchedTypes.length === 0) return { visits: [] }
@@ -445,6 +475,7 @@ export async function searchEverything(
     .select(VISIT_SELECT)
     .order('visited_at', { ascending: false })
     .limit(50)
+  if (scopeUserId) query = query.eq('user_id', scopeUserId)
   const conditions: string[] = []
   if (safe) conditions.push(`notes.ilike.%${safe}%`)
   if (matchedTypes.length > 0) conditions.push(`visit_type.in.(${matchedTypes.join(',')})`)
@@ -479,16 +510,20 @@ export interface CustomerSummary {
  * the set of visit types seen. One scan of the visit table, aggregated client
  * side — fine for a single user's personal history.
  */
-export async function fetchCustomerSummaries(): Promise<Record<string, CustomerSummary>> {
+export async function fetchCustomerSummaries(
+  scopeUserId?: string,
+): Promise<Record<string, CustomerSummary>> {
   const summaries: Record<string, CustomerSummary> = {}
   const PAGE = 1000
   for (let page = 0; page < 50; page++) {
     const from = page * PAGE
-    const { data, error } = await supabase
+    let q = supabase
       .from('visits')
       .select('customer_id, visited_at, visit_type, status')
       .order('visited_at', { ascending: false })
       .range(from, from + PAGE - 1)
+    if (scopeUserId) q = q.eq('user_id', scopeUserId)
+    const { data, error } = await q
     if (error) throw error
     const rows = data as {
       customer_id: string
@@ -524,18 +559,22 @@ export async function fetchCustomerSummaries(): Promise<Record<string, CustomerS
  * customer cover. Walks visits newest-first and takes each customer's first
  * visit that yields an effective storefront (dedicated column or gallery fallback).
  */
-export async function fetchCustomerCovers(): Promise<Record<string, StorefrontRef>> {
+export async function fetchCustomerCovers(
+  scopeUserId?: string,
+): Promise<Record<string, StorefrontRef>> {
   const covers: Record<string, StorefrontRef> = {}
   const PAGE = 500
   for (let page = 0; page < 100; page++) {
     const from = page * PAGE
-    const { data, error } = await supabase
+    let cq = supabase
       .from('visits')
       .select(
         'customer_id, visited_at, storefront_photo_url, storefront_thumbnail_url, photos:visit_photos(storage_path, position)',
       )
       .order('visited_at', { ascending: false })
       .range(from, from + PAGE - 1)
+    if (scopeUserId) cq = cq.eq('user_id', scopeUserId)
+    const { data, error } = await cq
     if (error) throw error
     const rows = data as unknown as {
       customer_id: string
@@ -583,6 +622,7 @@ export async function fetchReportVisits(opts: {
   customerIds?: string[]
   from?: string
   to?: string
+  scopeUserId?: string
 }): Promise<VisitWithMeta[]> {
   if (opts.visitId) {
     const visit = await fetchVisit(opts.visitId)
@@ -599,6 +639,7 @@ export async function fetchReportVisits(opts: {
     if (opts.customerIds && opts.customerIds.length > 0) query = query.in('customer_id', opts.customerIds)
     if (opts.from) query = query.gte('visited_at', opts.from)
     if (opts.to) query = query.lte('visited_at', opts.to)
+    if (opts.scopeUserId) query = query.eq('user_id', opts.scopeUserId)
     const { data, error } = await query
     if (error) throw error
     const rows = (data as unknown as VisitWithMeta[]).map(sortPhotos)

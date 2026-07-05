@@ -9,10 +9,12 @@ import {
   Search,
   Settings,
   Sun,
+  UserCircle,
 } from 'lucide-react'
 import { Page, HeaderIconButton } from '@/components/layout/Page'
 import { StatCard } from '@/components/stats/StatCard'
 import { VisitCard, useVisitThumbs } from '@/components/visits/VisitCard'
+import { SalespersonFilter } from '@/components/admin/SalespersonFilter'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Spinner'
 import { useStats, useVisits } from '@/hooks/queries'
@@ -43,6 +45,9 @@ export function DashboardPage() {
           <HeaderIconButton onClick={() => navigate('/reports')} label="Reports">
             <FileText size={19} />
           </HeaderIconButton>
+          <HeaderIconButton onClick={() => navigate('/profile')} label="Profile">
+            <UserCircle size={19} />
+          </HeaderIconButton>
           <HeaderIconButton onClick={() => navigate('/settings')} label="Settings">
             <Settings size={19} />
           </HeaderIconButton>
@@ -53,6 +58,8 @@ export function DashboardPage() {
         <h2 className="text-[26px] font-bold tracking-tight">{greeting()}</h2>
         <p className="text-[15px] text-ink-2">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
       </div>
+
+      <SalespersonFilter />
 
       <div className="mb-4 grid grid-cols-3 gap-3">
         {stats.isLoading ? (

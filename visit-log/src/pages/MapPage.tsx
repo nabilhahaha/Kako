@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Spinner } from '@/components/ui/Spinner'
 import { OptionSheet } from '@/components/ui/OptionSheet'
 import { useCustomers, useCustomerSummaries } from '@/hooks/queries'
+import { useAdminScope } from '@/hooks/useAdminScope'
 import { useLocation } from '@/hooks/useLocation'
 import { CUSTOMER_CATEGORY_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
@@ -38,6 +39,7 @@ export function MapPage() {
   const { location, status, refresh } = useLocation()
   const customers = useCustomers()
   const summaries = useCustomerSummaries()
+  const { isAdmin, salespeople, scopeUserId, setScopeUserId } = useAdminScope()
   const [filter, setFilter] = useState<MapFilterId>('all')
   const [categoryFilter, setCategoryFilter] = useState<CustomerCategory | undefined>()
   const [categoryOpen, setCategoryOpen] = useState(false)
@@ -116,6 +118,24 @@ export function MapPage() {
             </button>
           ))}
         </div>
+        {isAdmin && (
+          <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-2.5">
+            {[{ id: null as string | null, label: 'All Salespeople' }]
+              .concat(salespeople.map((p) => ({ id: p.id, label: p.full_name || p.email?.split('@')[0] || 'Salesperson' })))
+              .map((chip) => (
+                <button
+                  key={chip.id ?? 'all'}
+                  onClick={() => setScopeUserId(chip.id)}
+                  className={cn(
+                    'shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors',
+                    scopeUserId === chip.id ? 'bg-ios-blue text-white shadow-fab' : 'bg-surface text-ink-2 shadow-card',
+                  )}
+                >
+                  {chip.label}
+                </button>
+              ))}
+          </div>
+        )}
       </div>
 
       {/* Map */}

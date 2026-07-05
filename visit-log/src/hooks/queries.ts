@@ -14,11 +14,13 @@ import {
   type VisitFilters,
 } from '@/lib/api'
 import { listPendingVisits, OUTBOX_EVENT } from '@/lib/outbox'
+import { useAdminScope } from '@/hooks/useAdminScope'
 import { VISIT_TYPE_META } from '@/lib/constants'
 import { VISIT_TYPES, type VisitType } from '@/types'
 
 export function useCustomers() {
-  return useQuery({ queryKey: ['customers'], queryFn: fetchCustomers })
+  const { scopeParam } = useAdminScope()
+  return useQuery({ queryKey: ['customers', scopeParam], queryFn: () => fetchCustomers(scopeParam) })
 }
 
 export function useCustomer(id: string | undefined) {
@@ -30,9 +32,11 @@ export function useCustomer(id: string | undefined) {
 }
 
 export function useVisits(filters: VisitFilters = {}) {
+  const { scopeParam } = useAdminScope()
+  const scoped: VisitFilters = { ...filters, scopeUserId: scopeParam }
   return useInfiniteQuery({
-    queryKey: ['visits', filters],
-    queryFn: ({ pageParam }) => fetchVisits(filters, pageParam),
+    queryKey: ['visits', scoped],
+    queryFn: ({ pageParam }) => fetchVisits(scoped, pageParam),
     initialPageParam: 0,
     getNextPageParam: (last, pages) => (last.hasMore ? pages.length : undefined),
   })
@@ -47,16 +51,19 @@ export function useVisit(id: string | undefined) {
 }
 
 export function useGallery(filters: GalleryFilters = {}) {
+  const { scopeParam } = useAdminScope()
+  const scoped: GalleryFilters = { ...filters, scopeUserId: scopeParam }
   return useInfiniteQuery({
-    queryKey: ['gallery', filters],
-    queryFn: ({ pageParam }) => fetchGalleryPhotos(filters, pageParam),
+    queryKey: ['gallery', scoped],
+    queryFn: ({ pageParam }) => fetchGalleryPhotos(scoped, pageParam),
     initialPageParam: 0,
     getNextPageParam: (last, pages) => (last.hasMore ? pages.length : undefined),
   })
 }
 
 export function useStats() {
-  return useQuery({ queryKey: ['stats'], queryFn: fetchStats, staleTime: 30 * 1000 })
+  const { scopeParam } = useAdminScope()
+  return useQuery({ queryKey: ['stats', scopeParam], queryFn: () => fetchStats(scopeParam), staleTime: 30 * 1000 })
 }
 
 export function useSignedUrls(paths: string[]) {
@@ -80,9 +87,10 @@ export function useVisitSearch(term: string) {
           ),
     [trimmed],
   )
+  const { scopeParam } = useAdminScope()
   return useQuery({
-    queryKey: ['search', trimmed, matchedTypes.join(',')],
-    queryFn: () => searchEverything(trimmed, matchedTypes),
+    queryKey: ['search', trimmed, matchedTypes.join(','), scopeParam],
+    queryFn: () => searchEverything(trimmed, matchedTypes, scopeParam),
     enabled: trimmed.length >= 2,
     staleTime: 15 * 1000,
   })
@@ -128,17 +136,19 @@ export function useDebouncedValue<T>(value: T, delay = 250): T {
 }
 
 export function useCustomerSummaries() {
+  const { scopeParam } = useAdminScope()
   return useQuery({
-    queryKey: ['customer-summaries'],
-    queryFn: fetchCustomerSummaries,
+    queryKey: ['customer-summaries', scopeParam],
+    queryFn: () => fetchCustomerSummaries(scopeParam),
     staleTime: 30 * 1000,
   })
 }
 
 export function useCustomerCovers() {
+  const { scopeParam } = useAdminScope()
   return useQuery({
-    queryKey: ['customer-covers'],
-    queryFn: fetchCustomerCovers,
+    queryKey: ['customer-covers', scopeParam],
+    queryFn: () => fetchCustomerCovers(scopeParam),
     staleTime: 60 * 1000,
   })
 }

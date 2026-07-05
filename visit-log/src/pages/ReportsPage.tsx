@@ -16,7 +16,9 @@ import { Card } from '@/components/ui/Card'
 import { toast } from '@/components/ui/toast'
 import { ReportCustomerPicker } from '@/components/report/ReportCustomerPicker'
 import { ReportResultSheet } from '@/components/report/ReportResultSheet'
+import { SalespersonFilter } from '@/components/admin/SalespersonFilter'
 import { useCustomers } from '@/hooks/queries'
+import { useAdminScope } from '@/hooks/useAdminScope'
 import { cn } from '@/lib/utils'
 import type { ReportType, ReportScope } from '@/lib/report/build'
 import type { ReportPdf } from '@/lib/report/pdf'
@@ -83,6 +85,7 @@ function OptionRow({
 export function ReportsPage() {
   const customersQuery = useCustomers()
   const customers = useMemo(() => customersQuery.data ?? [], [customersQuery.data])
+  const { scopeParam } = useAdminScope()
 
   const [type, setType] = useState<ReportType | null>(null)
   const [from, setFrom] = useState('')
@@ -140,7 +143,7 @@ export function ReportsPage() {
     setProgress({ phase: 'Preparing', done: 0, total: 0 })
     try {
       const { generateReport } = await import('@/lib/report')
-      const result = await generateReport(scope, setProgress)
+      const result = await generateReport(scope, setProgress, scopeParam)
       if (result.blob.size === 0) throw new Error('empty report')
       setPdf(result)
       setResultOpen(true)
@@ -172,6 +175,8 @@ export function ReportsPage() {
           </p>
         </div>
       </div>
+
+      <SalespersonFilter />
 
       <div className="space-y-4">
         <Card>
