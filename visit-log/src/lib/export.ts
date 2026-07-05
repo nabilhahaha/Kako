@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { format } from 'date-fns'
-import { visitStatusLabel, visitTypeLabel } from '@/lib/constants'
+import { categoryLabel, visitStatusLabel, visitTypeLabel } from '@/lib/constants'
 import { downloadBlob, formatDate, formatTime, googleMapsUrl, slugify } from '@/lib/utils'
 import type { Customer, VisitWithMeta } from '@/types'
 
@@ -29,6 +29,7 @@ function visitsToRows(visits: VisitWithMeta[]): Row[] {
 function customersToRows(customers: Customer[]): Row[] {
   return customers.map((c) => ({
     Name: c.name,
+    Category: categoryLabel(c),
     Code: c.code ?? '',
     City: c.city ?? '',
     Area: c.area ?? '',

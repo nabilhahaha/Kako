@@ -1,7 +1,8 @@
 import * as XLSX from 'xlsx'
 import type { CustomerInput } from '@/types'
 
-const HEADER_SYNONYMS: Record<keyof CustomerInput, string[]> = {
+// Only the columns that come from a spreadsheet; category is set separately.
+const HEADER_SYNONYMS: Partial<Record<keyof CustomerInput, string[]>> = {
   name: ['name', 'customername', 'customer', 'storename', 'store', 'shop', 'shopname'],
   code: ['code', 'customercode', 'customerid', 'storecode', 'accountcode'],
   city: ['city', 'town'],
@@ -58,7 +59,8 @@ export async function parseCustomerFile(file: File): Promise<ImportPreview> {
       }
     }
     if (typeof row.name === 'string' && row.name) {
-      rows.push(row as unknown as CustomerInput)
+      // Imported customers default to the "Other" category (editable afterwards).
+      rows.push({ ...(row as unknown as CustomerInput), customer_category: 'other', custom_category: null })
     } else {
       skipped++
     }

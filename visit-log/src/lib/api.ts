@@ -14,7 +14,7 @@ export const VISIT_PAGE_SIZE = 30
 export const GALLERY_PAGE_SIZE = 60
 
 const VISIT_SELECT =
-  '*, customer:customers(id,name,code,city), photos:visit_photos(id,visit_id,storage_path,position,created_at)'
+  '*, customer:customers(id,name,code,city,customer_category,custom_category), photos:visit_photos(id,visit_id,storage_path,position,created_at)'
 
 function sortPhotos<T extends { photos: VisitPhoto[] }>(visit: T): T {
   visit.photos.sort((a, b) => a.position - b.position)
@@ -211,7 +211,7 @@ export async function fetchGalleryPhotos(
   let query = supabase
     .from('visit_photos')
     .select(
-      'id,visit_id,storage_path,position,created_at, visit:visits!inner(id,visited_at,visit_type,status,customer_id, customer:customers(id,name,code,city))',
+      'id,visit_id,storage_path,position,created_at, visit:visits!inner(id,visited_at,visit_type,status,customer_id, customer:customers(id,name,code,city,customer_category,custom_category))',
     )
     .order('created_at', { ascending: false })
     .range(from, from + GALLERY_PAGE_SIZE - 1)

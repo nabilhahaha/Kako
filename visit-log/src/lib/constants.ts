@@ -9,7 +9,7 @@ import {
   ClipboardList,
   type LucideIcon,
 } from 'lucide-react'
-import type { VisitStatus, VisitType } from '@/types'
+import type { Customer, CustomerCategory, CustomerRef, VisitStatus, VisitType } from '@/types'
 
 export const STORAGE_BUCKET = 'visit-images'
 export const MIN_PHOTOS = 1
@@ -54,3 +54,30 @@ export const VISIT_STATUS_META: Record<
 
 export const visitTypeLabel = (type: VisitType) => VISIT_TYPE_META[type].label
 export const visitStatusLabel = (status: VisitStatus) => VISIT_STATUS_META[status].label
+
+export const CUSTOMER_CATEGORY_LABELS: Record<CustomerCategory, string> = {
+  wholesale: 'Wholesale',
+  grocery: 'Grocery',
+  sweets: 'Sweets',
+  roastery: 'Roastery',
+  discounter: 'Discounter',
+  shop_5_115: '5 / 11.5 Shop',
+  mini_market: 'Mini Market',
+  supermarket: 'Supermarket',
+  hypermarket: 'Hypermarket',
+  convenience: 'Convenience Store',
+  bakery: 'Bakery',
+  pharmacy: 'Pharmacy',
+  other: 'Other',
+}
+
+/** Display label for a customer's category — the custom text when "Other". */
+export function categoryLabel(
+  customer: Pick<Customer, 'customer_category' | 'custom_category'> | CustomerRef | null | undefined,
+): string {
+  if (!customer) return '—'
+  if (customer.customer_category === 'other' && customer.custom_category) {
+    return customer.custom_category
+  }
+  return CUSTOMER_CATEGORY_LABELS[customer.customer_category]
+}

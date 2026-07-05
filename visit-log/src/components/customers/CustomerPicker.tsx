@@ -5,6 +5,7 @@ import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useLocation } from '@/hooks/useLocation'
 import { distanceMeters, formatDistance, hasCoords } from '@/lib/geo'
+import { categoryLabel } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { Customer } from '@/types'
 
@@ -12,7 +13,7 @@ export function filterCustomers(customers: Customer[], term: string): Customer[]
   const query = term.trim().toLowerCase()
   if (!query) return customers
   return customers.filter((customer) =>
-    [customer.name, customer.code, customer.city, customer.area, customer.phone]
+    [customer.name, customer.code, customer.city, customer.area, customer.phone, categoryLabel(customer)]
       .filter(Boolean)
       .some((field) => field!.toLowerCase().includes(query)),
   )

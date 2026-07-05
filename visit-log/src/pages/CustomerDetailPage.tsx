@@ -22,6 +22,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadMore } from '@/components/ui/LoadMore'
 import { toast } from '@/components/ui/toast'
 import { CustomerForm } from '@/components/customers/CustomerForm'
+import { CategoryBadge } from '@/components/customers/CategoryBadge'
 import { NavigateButton } from '@/components/nav/NavigateButton'
 import { VisitCard, useVisitThumbs } from '@/components/visits/VisitCard'
 import { StaticMap } from '@/components/map/StaticMap'
@@ -137,6 +138,10 @@ export function CustomerDetailPage() {
       }
     >
       <Card className="mb-4">
+        <div className="flex items-center justify-between gap-4 border-b border-separator/60 py-2.5 text-[14px]">
+          <span className="shrink-0 font-medium text-ink-2">Category</span>
+          <CategoryBadge customer={customer} size="md" />
+        </div>
         {customer.code && <InfoRow label="Code" value={customer.code} />}
         {(customer.city || customer.area) && (
           <InfoRow

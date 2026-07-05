@@ -17,6 +17,7 @@ import { CustomerPicker } from '@/components/customers/CustomerPicker'
 import { CustomerForm } from '@/components/customers/CustomerForm'
 import { PhotoPicker, releaseDraftPhotos, type DraftPhoto } from '@/components/visits/PhotoPicker'
 import { NextCustomerSheet } from '@/components/visits/NextCustomerSheet'
+import { CategoryBadge } from '@/components/customers/CategoryBadge'
 import { useCustomers } from '@/hooks/queries'
 import { useCreateVisit } from '@/hooks/mutations'
 import { useGeolocation } from '@/hooks/useGeolocation'
@@ -197,11 +198,18 @@ export function NewVisitPage() {
               <span className="block truncate text-[16px] font-bold">
                 {customer ? customer.name : 'Select customer'}
               </span>
-              <span className="block truncate text-[13px] text-ink-2">
-                {customer
-                  ? [customer.code, customer.city].filter(Boolean).join(' · ') || 'Selected'
-                  : 'Choose who you are visiting'}
-              </span>
+              {customer ? (
+                <span className="mt-0.5 flex items-center gap-1.5">
+                  <CategoryBadge customer={customer} />
+                  <span className="truncate text-[13px] text-ink-2">
+                    {[customer.code, customer.city].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+              ) : (
+                <span className="block truncate text-[13px] text-ink-2">
+                  Choose who you are visiting
+                </span>
+              )}
             </span>
             <ChevronRight size={18} className="text-ink-3" />
           </button>

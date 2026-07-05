@@ -1,14 +1,17 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { LocateFixed } from 'lucide-react'
+import { ChevronRight, LocateFixed } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Textarea } from '@/components/ui/Input'
+import { OptionSheet } from '@/components/ui/OptionSheet'
 import { toast } from '@/components/ui/toast'
 import { useSaveCustomer } from '@/hooks/mutations'
-import type { Customer, CustomerInput } from '@/types'
+import { CUSTOMER_CATEGORY_LABELS } from '@/lib/constants'
+import { cn } from '@/lib/utils'
+import { CUSTOMER_CATEGORIES, type Customer, type CustomerCategory, type CustomerInput } from '@/types'
 
 const coordinate = (min: number, max: number, label: string) =>
   z
@@ -20,21 +23,31 @@ const coordinate = (min: number, max: number, label: string) =>
       return Number.isFinite(num) && num >= min && num <= max
     }, `Invalid ${label}`)
 
-const schema = z.object({
-  name: z.string().trim().min(1, 'Customer name is required'),
-  code: z.string().trim(),
-  city: z.string().trim(),
-  area: z.string().trim(),
-  address: z.string().trim(),
-  phone: z.string().trim(),
-  notes: z.string().trim(),
-  latitude: coordinate(-90, 90, 'latitude'),
-  longitude: coordinate(-180, 180, 'longitude'),
-})
+const schema = z
+  .object({
+    name: z.string().trim().min(1, 'Customer name is required'),
+    code: z.string().trim(),
+    city: z.string().trim(),
+    area: z.string().trim(),
+    address: z.string().trim(),
+    phone: z.string().trim(),
+    notes: z.string().trim(),
+    latitude: coordinate(-90, 90, 'latitude'),
+    longitude: coordinate(-180, 180, 'longitude'),
+    // '' until the user picks — required on both create and edit.
+    customer_category: z.enum(CUSTOMER_CATEGORIES, {
+      errorMap: () => ({ message: 'Customer category is required' }),
+    }),
+    custom_category: z.string().trim(),
+  })
+  .refine((v) => v.customer_category !== 'other' || v.custom_category.length > 0, {
+    message: 'Please specify the category',
+    path: ['custom_category'],
+  })
 
 type FormValues = z.infer<typeof schema>
 
-const emptyValues: FormValues = {
+const emptyValues = {
   name: '',
   code: '',
   city: '',
@@ -44,9 +57,11 @@ const emptyValues: FormValues = {
   notes: '',
   latitude: '',
   longitude: '',
+  customer_category: '' as CustomerCategory,
+  custom_category: '',
 }
 
-function toFormValues(customer: Customer): FormValues {
+function toFormValues(customer: Customer) {
   return {
     name: customer.name,
     code: customer.code ?? '',
@@ -57,8 +72,15 @@ function toFormValues(customer: Customer): FormValues {
     notes: customer.notes ?? '',
     latitude: customer.latitude?.toString() ?? '',
     longitude: customer.longitude?.toString() ?? '',
+    customer_category: customer.customer_category,
+    custom_category: customer.custom_category ?? '',
   }
 }
+
+const categoryOptions = CUSTOMER_CATEGORIES.map((value) => ({
+  value,
+  label: CUSTOMER_CATEGORY_LABELS[value],
+}))
 
 export function CustomerForm({
   open,
@@ -72,13 +94,17 @@ export function CustomerForm({
   onSaved?: (customer: Customer) => void
 }) {
   const save = useSaveCustomer()
+  const [categoryOpen, setCategoryOpen] = useState(false)
   const {
     register,
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: emptyValues })
+
+  const category = watch('customer_category')
 
   useEffect(() => {
     if (open) reset(customer ? toFormValues(customer) : emptyValues)
@@ -111,6 +137,8 @@ export function CustomerForm({
       notes: values.notes || null,
       latitude: values.latitude ? parseFloat(values.latitude) : null,
       longitude: values.longitude ? parseFloat(values.longitude) : null,
+      customer_category: values.customer_category,
+      custom_category: values.customer_category === 'other' ? values.custom_category : null,
     }
     try {
       const saved = await save.mutateAsync({ id: customer?.id, input })
@@ -128,6 +156,25 @@ export function CustomerForm({
         <Field label="Customer Name" error={errors.name?.message}>
           <Input placeholder="ABC Market" autoComplete="off" {...register('name')} />
         </Field>
+
+        <Field label="Customer Category" error={errors.customer_category?.message}>
+          <button
+            type="button"
+            onClick={() => setCategoryOpen(true)}
+            className="flex h-12 w-full items-center justify-between rounded-2xl bg-surface-2 px-4 text-left text-[16px] transition-colors focus:ring-4 focus:ring-accent/10"
+          >
+            <span className={cn(category ? 'text-ink' : 'text-ink-3')}>
+              {category ? CUSTOMER_CATEGORY_LABELS[category] : 'Select category'}
+            </span>
+            <ChevronRight size={18} className="text-ink-3" />
+          </button>
+        </Field>
+        {category === 'other' && (
+          <Field label="Specify Category" error={errors.custom_category?.message}>
+            <Input placeholder="e.g. Cafeteria" autoComplete="off" {...register('custom_category')} />
+          </Field>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <Field label="Customer Code" optional>
             <Input placeholder="C-001" autoComplete="off" {...register('code')} />
@@ -187,6 +234,19 @@ export function CustomerForm({
           {customer ? 'Save Changes' : 'Add Customer'}
         </Button>
       </form>
+
+      <OptionSheet
+        open={categoryOpen}
+        onClose={() => setCategoryOpen(false)}
+        title="Customer Category"
+        options={categoryOptions}
+        value={category || undefined}
+        onSelect={(next) => {
+          if (!next) return
+          setValue('customer_category', next, { shouldValidate: true })
+          if (next !== 'other') setValue('custom_category', '', { shouldValidate: true })
+        }}
+      />
     </Sheet>
   )
 }

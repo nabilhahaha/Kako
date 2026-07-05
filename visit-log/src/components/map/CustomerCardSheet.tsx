@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, Pencil, Plus } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
+import { CategoryBadge } from '@/components/customers/CategoryBadge'
 import { NavigateButton } from '@/components/nav/NavigateButton'
 import { useLocation } from '@/hooks/useLocation'
 import type { CustomerSummary } from '@/lib/api'
@@ -50,6 +51,7 @@ export function CustomerCardSheet({
     <Sheet open={!!customer} onClose={onClose} title={customer.name}>
       <div className="space-y-4 pt-1">
         <div className="flex flex-wrap items-center gap-2">
+          <CategoryBadge customer={customer} size="md" />
           <span className={cn('inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-ink-2')}>
             <span className={cn('h-2 w-2 rounded-full', meta.dot)} />
             {meta.label}

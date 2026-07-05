@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Car, Crosshair, Layers, MapPinOff } from 'lucide-react'
+import { Car, ChevronDown, Crosshair, Layers, MapPinOff, X } from 'lucide-react'
 import { CustomerMap, toMapped } from '@/components/map/CustomerMap'
 import { CustomerCardSheet } from '@/components/map/CustomerCardSheet'
 import { RouteSheet } from '@/components/map/RouteSheet'
@@ -8,11 +8,18 @@ import { MAP_FILTERS, matchesFilter, type MapFilterId } from '@/components/map/M
 import { RECENCY_META } from '@/lib/recency'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Spinner } from '@/components/ui/Spinner'
+import { OptionSheet } from '@/components/ui/OptionSheet'
 import { useCustomers, useCustomerSummaries } from '@/hooks/queries'
 import { useLocation } from '@/hooks/useLocation'
+import { CUSTOMER_CATEGORY_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { hasCoords } from '@/lib/geo'
-import type { Customer } from '@/types'
+import { CUSTOMER_CATEGORIES, type Customer, type CustomerCategory } from '@/types'
+
+const categoryOptions = CUSTOMER_CATEGORIES.map((value) => ({
+  value,
+  label: CUSTOMER_CATEGORY_LABELS[value],
+}))
 
 function Legend() {
   return (
@@ -32,6 +39,8 @@ export function MapPage() {
   const customers = useCustomers()
   const summaries = useCustomerSummaries()
   const [filter, setFilter] = useState<MapFilterId>('all')
+  const [categoryFilter, setCategoryFilter] = useState<CustomerCategory | undefined>()
+  const [categoryOpen, setCategoryOpen] = useState(false)
   const [selected, setSelected] = useState<Customer | null>(null)
   const [routeOpen, setRouteOpen] = useState(false)
   const [legendOpen, setLegendOpen] = useState(false)
@@ -44,9 +53,19 @@ export function MapPage() {
 
   const filtered = useMemo(() => {
     const data = customers.data ?? []
-    const byFilter = data.filter((c) => matchesFilter(filter, summaries.data?.[c.id]))
+    const byFilter = data.filter(
+      (c) =>
+        matchesFilter(filter, summaries.data?.[c.id]) &&
+        (!categoryFilter || c.customer_category === categoryFilter),
+    )
     return toMapped(byFilter, summaries.data)
-  }, [customers.data, summaries.data, filter])
+  }, [customers.data, summaries.data, filter, categoryFilter])
+
+  // The Route Assistant respects the active category filter too.
+  const routeCustomers = useMemo(
+    () => (categoryFilter ? mappable.filter((c) => c.customer_category === categoryFilter) : mappable),
+    [mappable, categoryFilter],
+  )
 
   const recenter = () => {
     refresh()
@@ -64,6 +83,26 @@ export function MapPage() {
           </span>
         </div>
         <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-2.5">
+          <div
+            className={cn(
+              'flex shrink-0 items-center overflow-hidden rounded-full text-[13px] font-semibold',
+              categoryFilter ? 'bg-accent text-white shadow-fab' : 'bg-surface text-ink-2 shadow-card',
+            )}
+          >
+            <button onClick={() => setCategoryOpen(true)} className="flex items-center gap-1 py-1.5 pl-3.5 pr-2">
+              {categoryFilter ? CUSTOMER_CATEGORY_LABELS[categoryFilter] : 'Category'}
+              {!categoryFilter && <ChevronDown size={13} />}
+            </button>
+            {categoryFilter && (
+              <button
+                onClick={() => setCategoryFilter(undefined)}
+                aria-label="Clear category filter"
+                className="py-1.5 pl-0.5 pr-3"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
           {MAP_FILTERS.map((f) => (
             <button
               key={f.id}
@@ -153,7 +192,16 @@ export function MapPage() {
         summary={selected ? summaries.data?.[selected.id] : undefined}
         onClose={() => setSelected(null)}
       />
-      <RouteSheet open={routeOpen} onClose={() => setRouteOpen(false)} customers={mappable} />
+      <RouteSheet open={routeOpen} onClose={() => setRouteOpen(false)} customers={routeCustomers} />
+      <OptionSheet
+        open={categoryOpen}
+        onClose={() => setCategoryOpen(false)}
+        title="Filter by Category"
+        options={categoryOptions}
+        value={categoryFilter}
+        onSelect={setCategoryFilter}
+        allowClear="All Categories"
+      />
     </div>
   )
 }

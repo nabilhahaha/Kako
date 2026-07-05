@@ -1,27 +1,41 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, FileUp, Plus, Store } from 'lucide-react'
+import { ChevronDown, ChevronRight, FileUp, Plus, Store, X } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Page, HeaderIconButton } from '@/components/layout/Page'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Spinner'
 import { Button } from '@/components/ui/Button'
+import { OptionSheet } from '@/components/ui/OptionSheet'
 import { CustomerForm } from '@/components/customers/CustomerForm'
+import { CategoryBadge } from '@/components/customers/CategoryBadge'
 import { ImportSheet } from '@/components/customers/ImportSheet'
 import { filterCustomers } from '@/components/customers/CustomerPicker'
 import { useCustomers } from '@/hooks/queries'
+import { CUSTOMER_CATEGORY_LABELS } from '@/lib/constants'
+import { cn } from '@/lib/utils'
+import { CUSTOMER_CATEGORIES, type CustomerCategory } from '@/types'
+
+const categoryOptions = CUSTOMER_CATEGORIES.map((value) => ({
+  value,
+  label: CUSTOMER_CATEGORY_LABELS[value],
+}))
 
 export function CustomersPage() {
   const customers = useCustomers()
   const [term, setTerm] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<CustomerCategory | undefined>()
+  const [categoryOpen, setCategoryOpen] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
 
-  const filtered = useMemo(
-    () => filterCustomers(customers.data ?? [], term),
-    [customers.data, term],
-  )
+  const filtered = useMemo(() => {
+    const byCategory = categoryFilter
+      ? (customers.data ?? []).filter((c) => c.customer_category === categoryFilter)
+      : customers.data ?? []
+    return filterCustomers(byCategory, term)
+  }, [customers.data, term, categoryFilter])
 
   return (
     <Page
@@ -40,9 +54,31 @@ export function CustomersPage() {
       <SearchInput
         value={term}
         onChange={setTerm}
-        placeholder="Search name, code, city…"
-        className="mb-4"
+        placeholder="Search name, code, city, category…"
+        className="mb-3"
       />
+      <div className="mb-4 flex items-center gap-2">
+        <div
+          className={cn(
+            'flex items-center overflow-hidden rounded-full text-[13px] font-semibold',
+            categoryFilter ? 'bg-accent text-white' : 'bg-surface text-ink-2 shadow-card',
+          )}
+        >
+          <button onClick={() => setCategoryOpen(true)} className="flex items-center gap-1.5 py-2 pl-3.5 pr-2">
+            {categoryFilter ? CUSTOMER_CATEGORY_LABELS[categoryFilter] : 'Category'}
+            {!categoryFilter && <ChevronDown size={13} />}
+          </button>
+          {categoryFilter && (
+            <button
+              onClick={() => setCategoryFilter(undefined)}
+              aria-label="Clear category filter"
+              className="py-2 pl-0.5 pr-3"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      </div>
 
       {customers.isLoading ? (
         <div className="space-y-3">
@@ -95,10 +131,11 @@ export function CustomersPage() {
                     <span className="block truncate text-[16px] font-semibold">
                       {customer.name}
                     </span>
-                    <span className="block truncate text-[13px] text-ink-2">
-                      {[customer.code, customer.city, customer.area]
-                        .filter(Boolean)
-                        .join(' · ') || 'No details yet'}
+                    <span className="mt-0.5 flex items-center gap-1.5">
+                      <CategoryBadge customer={customer} />
+                      <span className="truncate text-[13px] text-ink-2">
+                        {[customer.code, customer.city].filter(Boolean).join(' · ')}
+                      </span>
                     </span>
                   </span>
                   <ChevronRight size={17} className="shrink-0 text-ink-3" />
@@ -114,6 +151,15 @@ export function CustomersPage() {
 
       <CustomerForm open={formOpen} onClose={() => setFormOpen(false)} />
       <ImportSheet open={importOpen} onClose={() => setImportOpen(false)} />
+      <OptionSheet
+        open={categoryOpen}
+        onClose={() => setCategoryOpen(false)}
+        title="Filter by Category"
+        options={categoryOptions}
+        value={categoryFilter}
+        onSelect={setCategoryFilter}
+        allowClear="All Categories"
+      />
     </Page>
   )
 }

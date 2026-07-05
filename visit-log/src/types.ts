@@ -11,8 +11,25 @@ export const VISIT_TYPES = [
 
 export const VISIT_STATUSES = ['excellent', 'good', 'needs_follow_up', 'urgent'] as const
 
+export const CUSTOMER_CATEGORIES = [
+  'wholesale',
+  'grocery',
+  'sweets',
+  'roastery',
+  'discounter',
+  'shop_5_115',
+  'mini_market',
+  'supermarket',
+  'hypermarket',
+  'convenience',
+  'bakery',
+  'pharmacy',
+  'other',
+] as const
+
 export type VisitType = (typeof VISIT_TYPES)[number]
 export type VisitStatus = (typeof VISIT_STATUSES)[number]
+export type CustomerCategory = (typeof CUSTOMER_CATEGORIES)[number]
 
 export interface Customer {
   id: string
@@ -25,6 +42,8 @@ export interface Customer {
   notes: string | null
   latitude: number | null
   longitude: number | null
+  customer_category: CustomerCategory
+  custom_category: string | null
   created_at: string
   updated_at: string
 }
@@ -55,6 +74,8 @@ export interface CustomerRef {
   name: string
   code: string | null
   city: string | null
+  customer_category: CustomerCategory
+  custom_category: string | null
 }
 
 export interface VisitWithMeta extends Visit {
@@ -72,6 +93,8 @@ export interface CustomerInput {
   notes?: string | null
   latitude?: number | null
   longitude?: number | null
+  customer_category: CustomerCategory
+  custom_category?: string | null
 }
 
 export interface VisitInput {
