@@ -145,6 +145,7 @@ export function ReportsPage() {
       setPdf(result)
       setResultOpen(true)
     } catch (error) {
+      console.error('[report] generate failed', error)
       toast(error instanceof Error && error.message !== 'empty report' ? error.message : 'Could not build the report', 'error')
     } finally {
       setBusy(false)

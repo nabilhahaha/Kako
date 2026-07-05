@@ -31,7 +31,8 @@ export function GenerateReportButton({
       if (result.blob.size === 0) throw new Error('empty report')
       setPdf(result)
       setOpen(true)
-    } catch {
+    } catch (error) {
+      console.error('[report] generate button failed', error)
       toast('Could not build the report', 'error')
     } finally {
       setBusy(false)

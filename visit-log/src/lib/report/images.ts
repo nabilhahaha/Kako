@@ -42,11 +42,17 @@ export async function loadReportImages(
   const result: Record<string, string> = {}
   if (unique.length === 0) return result
 
-  // Sign in chunks (createSignedUrls has practical limits).
+  // Sign in chunks (createSignedUrls has practical limits). A signing failure
+  // for a chunk (network blip, token refresh, rate limit) must NOT abort the
+  // whole report — those images simply fall back to placeholders in the PDF.
   const signed: Record<string, string> = {}
   const SIGN_CHUNK = 100
   for (let i = 0; i < unique.length; i += SIGN_CHUNK) {
-    Object.assign(signed, await fetchSignedUrls(unique.slice(i, i + SIGN_CHUNK)))
+    try {
+      Object.assign(signed, await fetchSignedUrls(unique.slice(i, i + SIGN_CHUNK)))
+    } catch {
+      /* leave this chunk unsigned — the renderer draws a placeholder instead */
+    }
   }
 
   let done = 0

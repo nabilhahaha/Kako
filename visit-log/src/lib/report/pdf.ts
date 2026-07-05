@@ -21,6 +21,18 @@ const STATUS_RGB: Record<VisitStatus, [number, number, number]> = {
 
 const MAX_PHOTOS_PER_CUSTOMER = 24
 
+/** Formats a timestamp, tolerating null/undefined/invalid values (→ "—"). */
+function safeDate(value: string | null | undefined, fmt: string): string {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  try {
+    return format(d, fmt)
+  } catch {
+    return '—'
+  }
+}
+
 class Report {
   doc: jsPDF
   W: number
@@ -201,8 +213,8 @@ class Report {
       ['Avg Visits / Customer', data.avgVisitsPerCustomer.toFixed(1)],
       ['Avg Photos / Visit', data.avgPhotosPerVisit.toFixed(1)],
       ['GPS Verified', String(data.totals.gpsVerified)],
-      ['Latest Visit', data.latestVisit ? format(new Date(data.latestVisit), 'd MMM yyyy') : '—'],
-      ['Oldest Visit', data.oldestVisit ? format(new Date(data.oldestVisit), 'd MMM yyyy') : '—'],
+      ['Latest Visit', safeDate(data.latestVisit, 'd MMM yyyy')],
+      ['Oldest Visit', safeDate(data.oldestVisit, 'd MMM yyyy')],
       ['Cities', String(Object.keys(data.cityBreakdown).length)],
     ])
     this.y += 6
@@ -317,14 +329,25 @@ class Report {
     this.text(`${section.totalVisits} visits`, this.W - this.M - 16, this.y + 30, { size: 12, bold: true, color: [255, 255, 255], align: 'right' })
     this.y += 68
 
-    // Hero storefront
-    if (section.storefront && this.images[section.storefront.full]) {
+    // Hero storefront — render the photo when available, otherwise a labelled
+    // placeholder so the layout stays intact even if the image failed to load.
+    if (section.storefront) {
       const heroH = this.contentW * 0.42
       this.ensure(heroH + 12)
-      try {
-        this.doc.addImage(this.images[section.storefront.full], 'JPEG', this.M, this.y, this.contentW, heroH, undefined, 'FAST')
-      } catch {
-        /* skip */
+      const img = this.images[section.storefront.full]
+      let drawn = false
+      if (img) {
+        try {
+          this.doc.addImage(img, 'JPEG', this.M, this.y, this.contentW, heroH, undefined, 'FAST')
+          drawn = true
+        } catch {
+          drawn = false
+        }
+      }
+      if (!drawn) {
+        d.setFillColor(...SOFT)
+        d.roundedRect(this.M, this.y, this.contentW, heroH, 8, 8, 'F')
+        this.text('Store Front Photo unavailable', this.W / 2, this.y + heroH / 2, { size: 10, color: MUTED, align: 'center' })
       }
       this.y += heroH + 14
     }
@@ -336,8 +359,8 @@ class Report {
     if (c.latitude != null && c.longitude != null) {
       info.push(['Coordinates', `${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}`])
     }
-    info.push(['Created', format(new Date(c.created_at), 'd MMM yyyy')])
-    info.push(['Last Visit', section.lastVisit ? format(new Date(section.lastVisit), 'd MMM yyyy') : '—'])
+    info.push(['Created', safeDate(c.created_at, 'd MMM yyyy')])
+    info.push(['Last Visit', safeDate(section.lastVisit, 'd MMM yyyy')])
     for (const [label, value] of info) {
       this.ensure(20)
       this.text(label, this.M, this.y + 8, { size: 9, color: MUTED })
@@ -370,7 +393,7 @@ class Report {
         d.setFillColor(...STATUS_RGB[v.status as VisitStatus])
         d.circle(this.M + 14, this.y + 16, 4, 'F')
         this.text(
-          `Visit ${section.visits.length - i} · ${format(new Date(v.visited_at), 'd MMM yyyy · HH:mm')}`,
+          `Visit ${section.visits.length - i} · ${safeDate(v.visited_at, 'd MMM yyyy · HH:mm')}`,
           this.M + 26,
           this.y + 19,
           { size: 9.5, bold: true },
@@ -415,8 +438,8 @@ class Report {
     this.text('Customer Summary', this.M + 14, this.y + 20, { size: 11, bold: true })
     const sumRows: [string, string][] = [
       ['Total Visits', String(section.totalVisits)],
-      ['First Visit', section.firstVisit ? format(new Date(section.firstVisit), 'd MMM yyyy') : '—'],
-      ['Last Visit', section.lastVisit ? format(new Date(section.lastVisit), 'd MMM yyyy') : '—'],
+      ['First Visit', safeDate(section.firstVisit, 'd MMM yyyy')],
+      ['Last Visit', safeDate(section.lastVisit, 'd MMM yyyy')],
       ['Avg Frequency', section.avgFrequencyDays != null ? `${section.avgFrequencyDays.toFixed(1)} days` : '—'],
       ['Latest Status', section.latestStatus ? visitStatusLabel(section.latestStatus) : '—'],
       ['Follow-up Needed', section.followUpNeeded ? 'Yes' : 'No'],
@@ -503,7 +526,13 @@ export async function generateReportPdf(
   report.cover(data)
   if (data.customers.length > 0 || data.totals.visits > 0) report.executiveSummary(data)
   data.customers.forEach((section, i) => {
-    report.customerSection(section, i)
+    // Isolate each customer page: a single malformed record must never abort
+    // the whole report.
+    try {
+      report.customerSection(section, i)
+    } catch (error) {
+      console.error('[report] customer section failed', section.customer?.id, error)
+    }
     onProgress?.('Rendering customers', i + 1, data.customers.length)
   })
   report.finalSummary(data)

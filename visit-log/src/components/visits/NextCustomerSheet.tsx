@@ -60,7 +60,8 @@ export function NextCustomerSheet({
       setPdf(result)
       setAutoShare(share)
       setResultOpen(true)
-    } catch {
+    } catch (error) {
+      console.error('[report] post-save report failed', error)
       toast('Could not build the report', 'error')
     } finally {
       setReportBusy(null)
