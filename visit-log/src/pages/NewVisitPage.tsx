@@ -340,6 +340,7 @@ export function NewVisitPage() {
         onClose={finishFlow}
         excludeIds={visitedIds}
         onStartVisit={startNextVisit}
+        savedVisitId={savedVisitRef.current}
       />
     </Page>
   )

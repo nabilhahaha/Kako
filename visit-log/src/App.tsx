@@ -24,6 +24,8 @@ import { SettingsPage } from '@/pages/SettingsPage'
 
 // Leaflet + clustering is heavy; keep the map off the initial bundle.
 const MapPage = lazy(() => import('@/pages/MapPage').then((m) => ({ default: m.MapPage })))
+// The report engine pulls in jsPDF; keep it lazy so it stays out of startup.
+const ReportsPage = lazy(() => import('@/pages/ReportsPage').then((m) => ({ default: m.ReportsPage })))
 
 function Splash() {
   return (
@@ -97,6 +99,14 @@ export default function App() {
                   element={
                     <Suspense fallback={<Splash />}>
                       <MapPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/reports"
+                  element={
+                    <Suspense fallback={<Splash />}>
+                      <ReportsPage />
                     </Suspense>
                   }
                 />

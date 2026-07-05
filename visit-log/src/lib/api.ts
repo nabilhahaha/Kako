@@ -572,3 +572,36 @@ export async function fetchImageDataUrl(path: string): Promise<string | null> {
     return null
   }
 }
+
+// -------------------------------------------------------------- report data
+
+/** Fetches every visit matching a report scope (customers and/or date window). */
+export async function fetchReportVisits(opts: {
+  visitId?: string
+  customerIds?: string[]
+  from?: string
+  to?: string
+}): Promise<VisitWithMeta[]> {
+  if (opts.visitId) {
+    const visit = await fetchVisit(opts.visitId)
+    return [visit]
+  }
+  const all: VisitWithMeta[] = []
+  const PAGE = 200
+  for (let page = 0; page < 500; page++) {
+    let query = supabase
+      .from('visits')
+      .select(VISIT_SELECT)
+      .order('visited_at', { ascending: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1)
+    if (opts.customerIds && opts.customerIds.length > 0) query = query.in('customer_id', opts.customerIds)
+    if (opts.from) query = query.gte('visited_at', opts.from)
+    if (opts.to) query = query.lte('visited_at', opts.to)
+    const { data, error } = await query
+    if (error) throw error
+    const rows = (data as unknown as VisitWithMeta[]).map(sortPhotos)
+    all.push(...rows)
+    if (rows.length < PAGE) break
+  }
+  return all
+}

@@ -12,6 +12,7 @@ import { PhotoImg } from '@/components/photos/PhotoImg'
 import { Lightbox } from '@/components/photos/Lightbox'
 import { StaticMap } from '@/components/map/StaticMap'
 import { NavigateButton } from '@/components/nav/NavigateButton'
+import { GenerateReportButton } from '@/components/report/GenerateReportButton'
 import { useSignedUrls, useVisit } from '@/hooks/queries'
 import { useDeleteVisit } from '@/hooks/mutations'
 import { storefrontOf } from '@/lib/storefront'
@@ -169,6 +170,10 @@ export function VisitDetailPage() {
           <NavigateButton latitude={data.latitude} longitude={data.longitude} className="w-full" />
         </div>
       )}
+
+      <div className="mt-4">
+        <GenerateReportButton scope={{ type: 'single_visit', visitId: data.id }} label="Share Visit Report" />
+      </div>
 
       {lightboxIndex !== null && (
         <Lightbox

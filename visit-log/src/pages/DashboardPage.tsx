@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import {
   CalendarDays,
   CalendarRange,
+  FileText,
   Plus,
   Search,
   Settings,
@@ -38,6 +39,9 @@ export function DashboardPage() {
         <>
           <HeaderIconButton onClick={() => navigate('/search')} label="Search">
             <Search size={19} />
+          </HeaderIconButton>
+          <HeaderIconButton onClick={() => navigate('/reports')} label="Reports">
+            <FileText size={19} />
           </HeaderIconButton>
           <HeaderIconButton onClick={() => navigate('/settings')} label="Settings">
             <Settings size={19} />

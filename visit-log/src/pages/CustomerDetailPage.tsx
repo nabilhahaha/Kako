@@ -25,6 +25,7 @@ import { CustomerForm } from '@/components/customers/CustomerForm'
 import { CategoryBadge } from '@/components/customers/CategoryBadge'
 import { NavigateButton } from '@/components/nav/NavigateButton'
 import { VisitCard, useVisitThumbs } from '@/components/visits/VisitCard'
+import { GenerateReportButton } from '@/components/report/GenerateReportButton'
 import { PhotoImg } from '@/components/photos/PhotoImg'
 import { StaticMap } from '@/components/map/StaticMap'
 import { useCustomer, useSignedUrls, useVisits } from '@/hooks/queries'
@@ -246,6 +247,13 @@ export function CustomerDetailPage() {
             className="h-[52px] shrink-0 rounded-2xl px-5"
           />
         )}
+      </div>
+
+      <div className="mb-6">
+        <GenerateReportButton
+          scope={{ type: 'single_customer', customerIds: [customer.id] }}
+          label="Professional Report"
+        />
       </div>
 
       <div className="mb-3 flex items-center justify-between px-1">
