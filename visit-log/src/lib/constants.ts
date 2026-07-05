@@ -9,7 +9,7 @@ import {
   ClipboardList,
   type LucideIcon,
 } from 'lucide-react'
-import type { Customer, CustomerCategory, CustomerRef, VisitStatus, VisitType } from '@/types'
+import type { Customer, CustomerCategory, CustomerRef, Distributor, VisitStatus, VisitType } from '@/types'
 
 export const STORAGE_BUCKET = 'visit-images'
 export const MIN_PHOTOS = 1
@@ -56,20 +56,28 @@ export const visitTypeLabel = (type: VisitType) => VISIT_TYPE_META[type].label
 export const visitStatusLabel = (status: VisitStatus) => VISIT_STATUS_META[status].label
 
 export const CUSTOMER_CATEGORY_LABELS: Record<CustomerCategory, string> = {
-  wholesale: 'Wholesale',
   grocery: 'Grocery',
-  sweets: 'Sweets',
+  sweet_shop: 'Sweet Shop',
   roastery: 'Roastery',
   discounter: 'Discounter',
-  shop_5_115: '5 / 11.5 Shop',
-  mini_market: 'Mini Market',
-  supermarket: 'Supermarket',
-  hypermarket: 'Hypermarket',
-  convenience: 'Convenience Store',
-  bakery: 'Bakery',
-  pharmacy: 'Pharmacy',
+  wholesale: 'Wholesale',
+  store_5: '5 SAR Store',
+  store_11_5: '11.5 SAR Store',
   other: 'Other',
 }
+
+export const DISTRIBUTOR_LABELS: Record<Distributor, string> = {
+  gcc: 'GCC',
+  relia: 'Relia',
+  tofla: 'Tofla',
+  tala: 'Tala',
+  other: 'Other',
+}
+
+export const distributorLabel = (d: Distributor | null | undefined) =>
+  d ? DISTRIBUTOR_LABELS[d] : DISTRIBUTOR_LABELS.other
+
+export const roshenAvailableLabel = (value: boolean | null | undefined) => (value ? 'Yes' : 'No')
 
 export const CATEGORY_NOT_SET_LABEL = 'Category Not Set'
 

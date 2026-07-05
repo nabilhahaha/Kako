@@ -14,29 +14,69 @@ import { CustomerAvatar, useCustomerThumbUrls } from '@/components/customers/Cus
 import { ImportSheet } from '@/components/customers/ImportSheet'
 import { filterCustomers } from '@/components/customers/CustomerPicker'
 import { useCustomers } from '@/hooks/queries'
-import { CUSTOMER_CATEGORY_LABELS } from '@/lib/constants'
+import { CUSTOMER_CATEGORY_LABELS, DISTRIBUTOR_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
-import { CUSTOMER_CATEGORIES, type CustomerCategory } from '@/types'
+import { CUSTOMER_CATEGORIES, DISTRIBUTORS, type CustomerCategory, type Distributor } from '@/types'
 
 const categoryOptions = CUSTOMER_CATEGORIES.map((value) => ({
   value,
   label: CUSTOMER_CATEGORY_LABELS[value],
 }))
+const distributorOptions = DISTRIBUTORS.map((value) => ({ value, label: DISTRIBUTOR_LABELS[value] }))
+const roshenOptions = [
+  { value: 'yes' as const, label: 'Yes' },
+  { value: 'no' as const, label: 'No' },
+]
+
+/** A compact filter chip that opens an OptionSheet. */
+function FilterChip({
+  active,
+  label,
+  onOpen,
+  onClear,
+}: {
+  active: boolean
+  label: string
+  onOpen: () => void
+  onClear: () => void
+}) {
+  return (
+    <div
+      className={cn(
+        'flex shrink-0 items-center overflow-hidden rounded-full text-[13px] font-semibold',
+        active ? 'bg-accent text-white' : 'bg-surface text-ink-2 shadow-card',
+      )}
+    >
+      <button onClick={onOpen} className="flex items-center gap-1.5 py-2 pl-3.5 pr-2">
+        {label}
+        {!active && <ChevronDown size={13} />}
+      </button>
+      {active && (
+        <button onClick={onClear} aria-label={`Clear ${label} filter`} className="py-2 pl-0.5 pr-3">
+          <X size={14} />
+        </button>
+      )}
+    </div>
+  )
+}
 
 export function CustomersPage() {
   const customers = useCustomers()
   const [term, setTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<CustomerCategory | undefined>()
-  const [categoryOpen, setCategoryOpen] = useState(false)
+  const [roshenFilter, setRoshenFilter] = useState<'yes' | 'no' | undefined>()
+  const [distributorFilter, setDistributorFilter] = useState<Distributor | undefined>()
+  const [sheet, setSheet] = useState<null | 'category' | 'roshen' | 'distributor'>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
 
   const filtered = useMemo(() => {
-    const byCategory = categoryFilter
-      ? (customers.data ?? []).filter((c) => c.customer_category === categoryFilter)
-      : customers.data ?? []
-    return filterCustomers(byCategory, term)
-  }, [customers.data, term, categoryFilter])
+    let list = customers.data ?? []
+    if (categoryFilter) list = list.filter((c) => c.customer_category === categoryFilter)
+    if (roshenFilter) list = list.filter((c) => (c.roshen_available ? 'yes' : 'no') === roshenFilter)
+    if (distributorFilter) list = list.filter((c) => c.distributor === distributorFilter)
+    return filterCustomers(list, term)
+  }, [customers.data, term, categoryFilter, roshenFilter, distributorFilter])
 
   const filteredIds = useMemo(() => filtered.map((c) => c.id), [filtered])
   const resolveThumb = useCustomerThumbUrls(filteredIds)
@@ -61,27 +101,25 @@ export function CustomersPage() {
         placeholder="Search name, code, city, category…"
         className="mb-3"
       />
-      <div className="mb-4 flex items-center gap-2">
-        <div
-          className={cn(
-            'flex items-center overflow-hidden rounded-full text-[13px] font-semibold',
-            categoryFilter ? 'bg-accent text-white' : 'bg-surface text-ink-2 shadow-card',
-          )}
-        >
-          <button onClick={() => setCategoryOpen(true)} className="flex items-center gap-1.5 py-2 pl-3.5 pr-2">
-            {categoryFilter ? CUSTOMER_CATEGORY_LABELS[categoryFilter] : 'Category'}
-            {!categoryFilter && <ChevronDown size={13} />}
-          </button>
-          {categoryFilter && (
-            <button
-              onClick={() => setCategoryFilter(undefined)}
-              aria-label="Clear category filter"
-              className="py-2 pl-0.5 pr-3"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
+      <div className="no-scrollbar mb-4 flex items-center gap-2 overflow-x-auto pb-0.5">
+        <FilterChip
+          active={!!categoryFilter}
+          label={categoryFilter ? CUSTOMER_CATEGORY_LABELS[categoryFilter] : 'Category'}
+          onOpen={() => setSheet('category')}
+          onClear={() => setCategoryFilter(undefined)}
+        />
+        <FilterChip
+          active={!!roshenFilter}
+          label={roshenFilter ? `Roshen: ${roshenFilter === 'yes' ? 'Yes' : 'No'}` : 'Roshen'}
+          onOpen={() => setSheet('roshen')}
+          onClear={() => setRoshenFilter(undefined)}
+        />
+        <FilterChip
+          active={!!distributorFilter}
+          label={distributorFilter ? DISTRIBUTOR_LABELS[distributorFilter] : 'Distributor'}
+          onOpen={() => setSheet('distributor')}
+          onClear={() => setDistributorFilter(undefined)}
+        />
       </div>
 
       {customers.isLoading ? (
@@ -158,13 +196,31 @@ export function CustomersPage() {
       <CustomerForm open={formOpen} onClose={() => setFormOpen(false)} />
       <ImportSheet open={importOpen} onClose={() => setImportOpen(false)} />
       <OptionSheet
-        open={categoryOpen}
-        onClose={() => setCategoryOpen(false)}
+        open={sheet === 'category'}
+        onClose={() => setSheet(null)}
         title="Filter by Category"
         options={categoryOptions}
         value={categoryFilter}
         onSelect={setCategoryFilter}
         allowClear="All Categories"
+      />
+      <OptionSheet
+        open={sheet === 'roshen'}
+        onClose={() => setSheet(null)}
+        title="Filter by Roshen Available"
+        options={roshenOptions}
+        value={roshenFilter}
+        onSelect={setRoshenFilter}
+        allowClear="All"
+      />
+      <OptionSheet
+        open={sheet === 'distributor'}
+        onClose={() => setSheet(null)}
+        title="Filter by Distributor"
+        options={distributorOptions}
+        value={distributorFilter}
+        onSelect={setDistributorFilter}
+        allowClear="All Distributors"
       />
     </Page>
   )

@@ -32,6 +32,7 @@ import { useCustomer, useSignedUrls, useVisits } from '@/hooks/queries'
 import { useDeleteCustomer } from '@/hooks/mutations'
 import { useLocation } from '@/hooks/useLocation'
 import { fetchAllVisits, fetchImageDataUrl } from '@/lib/api'
+import { distributorLabel, roshenAvailableLabel } from '@/lib/constants'
 import { storefrontOf } from '@/lib/storefront'
 import { distanceMeters, formatDistance, formatDriveTime, hasCoords } from '@/lib/geo'
 import { slugify } from '@/lib/utils'
@@ -160,6 +161,8 @@ export function CustomerDetailPage() {
           <span className="shrink-0 font-medium text-ink-2">Category</span>
           <CategoryBadge customer={customer} size="md" />
         </div>
+        <InfoRow label="Roshen Available" value={roshenAvailableLabel(customer.roshen_available)} />
+        <InfoRow label="Distributor" value={distributorLabel(customer.distributor)} />
         {customer.code && <InfoRow label="Code" value={customer.code} />}
         {(customer.city || customer.area) && (
           <InfoRow

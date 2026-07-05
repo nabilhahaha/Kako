@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { format } from 'date-fns'
-import { categoryLabel, visitStatusLabel, visitTypeLabel } from '@/lib/constants'
+import { categoryLabel, distributorLabel, visitStatusLabel, visitTypeLabel } from '@/lib/constants'
 import { googleMapsUrl } from '@/lib/utils'
 import { loadReportImages } from '@/lib/report/images'
 import type { ReportCustomerSection, ReportData } from '@/lib/report/build'
@@ -236,6 +236,14 @@ class Report {
       Object.entries(data.categoryBreakdown).sort((a, b) => b[1] - a[1]),
     )
     this.bars(
+      'Distributor Breakdown',
+      Object.entries(data.distributorBreakdown).sort((a, b) => b[1] - a[1]),
+    )
+    this.bars('Roshen Availability', [
+      ['Available (Yes)', data.roshenAvailable.yes, [52, 199, 89]],
+      ['Not Available (No)', data.roshenAvailable.no, [142, 142, 147]],
+    ])
+    this.bars(
       'Cities',
       Object.entries(data.cityBreakdown).sort((a, b) => b[1] - a[1]).slice(0, 10),
     )
@@ -322,8 +330,8 @@ class Report {
     const c = section.customer
     let h = 68 // header band + gap
     if (section.storefront) h += this.contentW * heroAspect + 14
-    // Info rows
-    let infoCount = 2 // Created + Last Visit are always present
+    // Info rows: Category, Roshen Available, Distributor, Created, Last Visit
+    let infoCount = 5
     if (c.address) infoCount++
     if (c.city || c.area) infoCount++
     const hasCoords = c.latitude != null && c.longitude != null
@@ -417,6 +425,9 @@ class Report {
 
     // Info rows
     const info: [string, string][] = []
+    info.push(['Category', categoryLabel(c)])
+    info.push(['Roshen Available', c.roshen_available ? 'Yes' : 'No'])
+    info.push(['Distributor', distributorLabel(c.distributor)])
     if (c.address) info.push(['Address', c.address])
     if (c.city || c.area) info.push(['City', [c.city, c.area].filter(Boolean).join(' · ')])
     if (c.latitude != null && c.longitude != null) {

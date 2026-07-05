@@ -12,24 +12,22 @@ export const VISIT_TYPES = [
 export const VISIT_STATUSES = ['excellent', 'good', 'needs_follow_up', 'urgent'] as const
 
 export const CUSTOMER_CATEGORIES = [
-  'wholesale',
   'grocery',
-  'sweets',
+  'sweet_shop',
   'roastery',
   'discounter',
-  'shop_5_115',
-  'mini_market',
-  'supermarket',
-  'hypermarket',
-  'convenience',
-  'bakery',
-  'pharmacy',
+  'wholesale',
+  'store_5',
+  'store_11_5',
   'other',
 ] as const
+
+export const DISTRIBUTORS = ['gcc', 'relia', 'tofla', 'tala', 'other'] as const
 
 export type VisitType = (typeof VISIT_TYPES)[number]
 export type VisitStatus = (typeof VISIT_STATUSES)[number]
 export type CustomerCategory = (typeof CUSTOMER_CATEGORIES)[number]
+export type Distributor = (typeof DISTRIBUTORS)[number]
 
 export interface Customer {
   id: string
@@ -44,6 +42,8 @@ export interface Customer {
   longitude: number | null
   customer_category: CustomerCategory | null
   custom_category: string | null
+  roshen_available: boolean
+  distributor: Distributor
   created_at: string
   updated_at: string
 }
@@ -80,6 +80,8 @@ export interface CustomerRef {
   city: string | null
   customer_category: CustomerCategory | null
   custom_category: string | null
+  roshen_available: boolean
+  distributor: Distributor
 }
 
 export interface VisitWithMeta extends Visit {
@@ -99,6 +101,8 @@ export interface CustomerInput {
   longitude?: number | null
   customer_category: CustomerCategory | null
   custom_category?: string | null
+  roshen_available: boolean
+  distributor: Distributor
 }
 
 export interface VisitInput {

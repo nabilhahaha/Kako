@@ -13,7 +13,7 @@ import {
 import { fetchCustomers, fetchReportVisits } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { storefrontOf, type StorefrontRef } from '@/lib/storefront'
-import { categoryLabel } from '@/lib/constants'
+import { categoryLabel, distributorLabel } from '@/lib/constants'
 import type { Customer, VisitStatus, VisitType, VisitWithMeta } from '@/types'
 
 export type ReportType =
@@ -64,6 +64,8 @@ export interface ReportData {
   statusBreakdown: Record<string, number>
   typeBreakdown: Record<string, number>
   categoryBreakdown: Record<string, number>
+  distributorBreakdown: Record<string, number>
+  roshenAvailable: { yes: number; no: number }
   cityBreakdown: Record<string, number>
   avgVisitsPerCustomer: number
   avgPhotosPerVisit: number
@@ -212,6 +214,8 @@ export async function buildReport(
   const statusBreakdown: Record<string, number> = {}
   const typeBreakdown: Record<string, number> = {}
   const categoryBreakdown: Record<string, number> = {}
+  const distributorBreakdown: Record<string, number> = {}
+  const roshenAvailable = { yes: 0, no: 0 }
   const cityBreakdown: Record<string, number> = {}
   let totalPhotos = 0
   let gpsVerified = 0
@@ -229,6 +233,10 @@ export async function buildReport(
   for (const section of sections) {
     const cat = categoryLabel(section.customer)
     categoryBreakdown[cat] = (categoryBreakdown[cat] ?? 0) + 1
+    const dist = distributorLabel(section.customer.distributor)
+    distributorBreakdown[dist] = (distributorBreakdown[dist] ?? 0) + 1
+    if (section.customer.roshen_available) roshenAvailable.yes += 1
+    else roshenAvailable.no += 1
     const city = section.customer.city?.trim() || 'Unknown'
     cityBreakdown[city] = (cityBreakdown[city] ?? 0) + 1
   }
@@ -248,6 +256,8 @@ export async function buildReport(
     statusBreakdown,
     typeBreakdown,
     categoryBreakdown,
+    distributorBreakdown,
+    roshenAvailable,
     cityBreakdown,
     avgVisitsPerCustomer: totalCustomers ? totalVisits / totalCustomers : 0,
     avgPhotosPerVisit: totalVisits ? totalPhotos / totalVisits : 0,

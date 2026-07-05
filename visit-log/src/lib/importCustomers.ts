@@ -59,9 +59,15 @@ export async function parseCustomerFile(file: File): Promise<ImportPreview> {
       }
     }
     if (typeof row.name === 'string' && row.name) {
-      // Imported customers start with no category ("Category Not Set") — the user
-      // assigns one later from Edit Customer.
-      rows.push({ ...(row as unknown as CustomerInput), customer_category: null, custom_category: null })
+      // Imported customers start with the "Other" defaults for the required
+      // profile fields; the user refines them later from Edit Customer.
+      rows.push({
+        ...(row as unknown as CustomerInput),
+        customer_category: 'other',
+        custom_category: null,
+        roshen_available: false,
+        distributor: 'other',
+      })
     } else {
       skipped++
     }

@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { useLocation } from '@/hooks/useLocation'
 import { NavigateButton } from '@/components/nav/NavigateButton'
 import { distanceMeters, formatDistance, hasCoords } from '@/lib/geo'
-import { categoryLabel } from '@/lib/constants'
+import { categoryLabel, distributorLabel } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { Customer } from '@/types'
 
@@ -14,7 +14,16 @@ export function filterCustomers(customers: Customer[], term: string): Customer[]
   const query = term.trim().toLowerCase()
   if (!query) return customers
   return customers.filter((customer) =>
-    [customer.name, customer.code, customer.city, customer.area, customer.phone, categoryLabel(customer)]
+    [
+      customer.name,
+      customer.code,
+      customer.city,
+      customer.area,
+      customer.phone,
+      categoryLabel(customer),
+      distributorLabel(customer.distributor),
+      customer.roshen_available ? 'roshen available yes' : 'roshen no',
+    ]
       .filter(Boolean)
       .some((field) => field!.toLowerCase().includes(query)),
   )

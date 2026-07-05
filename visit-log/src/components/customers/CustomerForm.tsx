@@ -9,9 +9,16 @@ import { Field, Input, Textarea } from '@/components/ui/Input'
 import { OptionSheet } from '@/components/ui/OptionSheet'
 import { toast } from '@/components/ui/toast'
 import { useSaveCustomer } from '@/hooks/mutations'
-import { CUSTOMER_CATEGORY_LABELS } from '@/lib/constants'
+import { CUSTOMER_CATEGORY_LABELS, DISTRIBUTOR_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
-import { CUSTOMER_CATEGORIES, type Customer, type CustomerCategory, type CustomerInput } from '@/types'
+import {
+  CUSTOMER_CATEGORIES,
+  DISTRIBUTORS,
+  type Customer,
+  type CustomerCategory,
+  type CustomerInput,
+  type Distributor,
+} from '@/types'
 
 const coordinate = (min: number, max: number, label: string) =>
   z
@@ -23,32 +30,35 @@ const coordinate = (min: number, max: number, label: string) =>
       return Number.isFinite(num) && num >= min && num <= max
     }, `Invalid ${label}`)
 
-const schema = z
-  .object({
-    name: z.string().trim().min(1, 'Customer name is required'),
-    code: z.string().trim(),
-    city: z.string().trim(),
-    area: z.string().trim(),
-    address: z.string().trim(),
-    phone: z.string().trim(),
-    notes: z.string().trim(),
-    latitude: coordinate(-90, 90, 'latitude'),
-    longitude: coordinate(-180, 180, 'longitude'),
-    // '' until the user picks — required on both create and edit.
-    customer_category: z.enum(CUSTOMER_CATEGORIES, {
-      errorMap: () => ({ message: 'Customer category is required' }),
-    }),
-    custom_category: z.string().trim(),
-  })
-  .refine((v) => v.customer_category !== 'other' || v.custom_category.length > 0, {
-    message: 'Please specify the category',
-    path: ['custom_category'],
-  })
+const schema = z.object({
+  name: z.string().trim().min(1, 'Customer name is required'),
+  // '' until the user picks — all three are required on create and edit.
+  customer_category: z.enum(CUSTOMER_CATEGORIES, {
+    errorMap: () => ({ message: 'Customer category is required' }),
+  }),
+  roshen_available: z.enum(['yes', 'no'], {
+    errorMap: () => ({ message: 'Roshen availability is required' }),
+  }),
+  distributor: z.enum(DISTRIBUTORS, {
+    errorMap: () => ({ message: 'Distributor is required' }),
+  }),
+  code: z.string().trim(),
+  city: z.string().trim(),
+  area: z.string().trim(),
+  address: z.string().trim(),
+  phone: z.string().trim(),
+  notes: z.string().trim(),
+  latitude: coordinate(-90, 90, 'latitude'),
+  longitude: coordinate(-180, 180, 'longitude'),
+})
 
 type FormValues = z.infer<typeof schema>
 
 const emptyValues = {
   name: '',
+  customer_category: '' as CustomerCategory,
+  roshen_available: '' as 'yes' | 'no',
+  distributor: '' as Distributor,
   code: '',
   city: '',
   area: '',
@@ -57,13 +67,14 @@ const emptyValues = {
   notes: '',
   latitude: '',
   longitude: '',
-  customer_category: '' as CustomerCategory,
-  custom_category: '',
 }
 
-function toFormValues(customer: Customer) {
+function toFormValues(customer: Customer): FormValues {
   return {
     name: customer.name,
+    customer_category: customer.customer_category ?? ('' as CustomerCategory),
+    roshen_available: customer.roshen_available ? 'yes' : 'no',
+    distributor: customer.distributor ?? ('' as Distributor),
     code: customer.code ?? '',
     city: customer.city ?? '',
     area: customer.area ?? '',
@@ -72,16 +83,43 @@ function toFormValues(customer: Customer) {
     notes: customer.notes ?? '',
     latitude: customer.latitude?.toString() ?? '',
     longitude: customer.longitude?.toString() ?? '',
-    // Null category loads empty, so saving an existing customer forces a choice.
-    customer_category: customer.customer_category ?? ('' as CustomerCategory),
-    custom_category: customer.custom_category ?? '',
   }
 }
 
-const categoryOptions = CUSTOMER_CATEGORIES.map((value) => ({
+const categoryOptions = CUSTOMER_CATEGORIES.map((value) => ({ value, label: CUSTOMER_CATEGORY_LABELS[value] }))
+const roshenOptions = [
+  { value: 'yes' as const, label: 'Yes' },
+  { value: 'no' as const, label: 'No' },
+]
+const distributorOptions = DISTRIBUTORS.map((value) => ({ value, label: DISTRIBUTOR_LABELS[value] }))
+
+/** A tappable dropdown row that opens an OptionSheet — matches the app style. */
+function DropdownField({
+  label,
+  error,
   value,
-  label: CUSTOMER_CATEGORY_LABELS[value],
-}))
+  placeholder,
+  onOpen,
+}: {
+  label: string
+  error?: string
+  value: string | null
+  placeholder: string
+  onOpen: () => void
+}) {
+  return (
+    <Field label={label} error={error}>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex h-12 w-full items-center justify-between rounded-2xl bg-surface-2 px-4 text-left text-[16px] transition-colors focus:ring-4 focus:ring-accent/10"
+      >
+        <span className={cn(value ? 'text-ink' : 'text-ink-3')}>{value ?? placeholder}</span>
+        <ChevronRight size={18} className="text-ink-3" />
+      </button>
+    </Field>
+  )
+}
 
 export function CustomerForm({
   open,
@@ -95,7 +133,7 @@ export function CustomerForm({
   onSaved?: (customer: Customer) => void
 }) {
   const save = useSaveCustomer()
-  const [categoryOpen, setCategoryOpen] = useState(false)
+  const [sheet, setSheet] = useState<null | 'category' | 'roshen' | 'distributor'>(null)
   const {
     register,
     handleSubmit,
@@ -106,6 +144,8 @@ export function CustomerForm({
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: emptyValues })
 
   const category = watch('customer_category')
+  const roshen = watch('roshen_available')
+  const distributor = watch('distributor')
 
   useEffect(() => {
     if (open) reset(customer ? toFormValues(customer) : emptyValues)
@@ -130,6 +170,10 @@ export function CustomerForm({
   const onSubmit = handleSubmit(async (values) => {
     const input: CustomerInput = {
       name: values.name,
+      customer_category: values.customer_category,
+      custom_category: null,
+      roshen_available: values.roshen_available === 'yes',
+      distributor: values.distributor,
       code: values.code || null,
       city: values.city || null,
       area: values.area || null,
@@ -138,8 +182,6 @@ export function CustomerForm({
       notes: values.notes || null,
       latitude: values.latitude ? parseFloat(values.latitude) : null,
       longitude: values.longitude ? parseFloat(values.longitude) : null,
-      customer_category: values.customer_category,
-      custom_category: values.customer_category === 'other' ? values.custom_category : null,
     }
     try {
       const saved = await save.mutateAsync({ id: customer?.id, input })
@@ -152,34 +194,35 @@ export function CustomerForm({
   })
 
   return (
-    <Sheet open={open} onClose={onClose} title={customer ? 'Edit Customer' : 'New Customer'}>
+    <Sheet open={open} onClose={onClose} title={customer ? 'Edit Customer' : 'New Customer'} tall>
       <form onSubmit={onSubmit} className="space-y-4 pt-1">
         <Field label="Customer Name" error={errors.name?.message}>
           <Input placeholder="ABC Market" autoComplete="off" {...register('name')} />
         </Field>
 
-        <Field label="Customer Category" error={errors.customer_category?.message}>
-          <button
-            type="button"
-            onClick={() => setCategoryOpen(true)}
-            className="flex h-12 w-full items-center justify-between rounded-2xl bg-surface-2 px-4 text-left text-[16px] transition-colors focus:ring-4 focus:ring-accent/10"
-          >
-            <span className={cn(category ? 'text-ink' : 'text-ink-3')}>
-              {category ? CUSTOMER_CATEGORY_LABELS[category] : 'Select category'}
-            </span>
-            <ChevronRight size={18} className="text-ink-3" />
-          </button>
-          {customer && !category && !errors.customer_category && (
-            <span className="mt-1 block px-1 text-[13px] font-medium text-ios-orange">
-              This customer has no category yet — please choose one.
-            </span>
-          )}
-        </Field>
-        {category === 'other' && (
-          <Field label="Specify Category" error={errors.custom_category?.message}>
-            <Input placeholder="e.g. Cafeteria" autoComplete="off" {...register('custom_category')} />
-          </Field>
-        )}
+        <DropdownField
+          label="Customer Category"
+          error={errors.customer_category?.message}
+          value={category ? CUSTOMER_CATEGORY_LABELS[category] : null}
+          placeholder="Select category"
+          onOpen={() => setSheet('category')}
+        />
+
+        <DropdownField
+          label="Roshen Available"
+          error={errors.roshen_available?.message}
+          value={roshen ? (roshen === 'yes' ? 'Yes' : 'No') : null}
+          placeholder="Select availability"
+          onOpen={() => setSheet('roshen')}
+        />
+
+        <DropdownField
+          label="Distributor"
+          error={errors.distributor?.message}
+          value={distributor ? DISTRIBUTOR_LABELS[distributor] : null}
+          placeholder="Select distributor"
+          onOpen={() => setSheet('distributor')}
+        />
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Customer Code" optional>
@@ -242,16 +285,28 @@ export function CustomerForm({
       </form>
 
       <OptionSheet
-        open={categoryOpen}
-        onClose={() => setCategoryOpen(false)}
+        open={sheet === 'category'}
+        onClose={() => setSheet(null)}
         title="Customer Category"
         options={categoryOptions}
         value={category || undefined}
-        onSelect={(next) => {
-          if (!next) return
-          setValue('customer_category', next, { shouldValidate: true })
-          if (next !== 'other') setValue('custom_category', '', { shouldValidate: true })
-        }}
+        onSelect={(next) => next && setValue('customer_category', next, { shouldValidate: true })}
+      />
+      <OptionSheet
+        open={sheet === 'roshen'}
+        onClose={() => setSheet(null)}
+        title="Roshen Available"
+        options={roshenOptions}
+        value={roshen || undefined}
+        onSelect={(next) => next && setValue('roshen_available', next, { shouldValidate: true })}
+      />
+      <OptionSheet
+        open={sheet === 'distributor'}
+        onClose={() => setSheet(null)}
+        title="Distributor"
+        options={distributorOptions}
+        value={distributor || undefined}
+        onSelect={(next) => next && setValue('distributor', next, { shouldValidate: true })}
       />
     </Sheet>
   )

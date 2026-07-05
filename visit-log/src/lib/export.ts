@@ -2,7 +2,13 @@ import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { format } from 'date-fns'
-import { categoryLabel, visitStatusLabel, visitTypeLabel } from '@/lib/constants'
+import {
+  categoryLabel,
+  distributorLabel,
+  roshenAvailableLabel,
+  visitStatusLabel,
+  visitTypeLabel,
+} from '@/lib/constants'
 import { downloadBlob, formatDate, formatTime, googleMapsUrl, slugify } from '@/lib/utils'
 import type { Customer, VisitWithMeta } from '@/types'
 
@@ -14,6 +20,9 @@ function visitsToRows(visits: VisitWithMeta[]): Row[] {
     Time: formatTime(visit.visited_at),
     Customer: visit.customer?.name ?? '—',
     'Customer Code': visit.customer?.code ?? '',
+    Category: categoryLabel(visit.customer),
+    'Roshen Available': visit.customer ? roshenAvailableLabel(visit.customer.roshen_available) : '',
+    Distributor: visit.customer ? distributorLabel(visit.customer.distributor) : '',
     City: visit.customer?.city ?? '',
     'Visit Type': visitTypeLabel(visit.visit_type),
     Status: visitStatusLabel(visit.status),
@@ -30,6 +39,8 @@ function customersToRows(customers: Customer[]): Row[] {
   return customers.map((c) => ({
     Name: c.name,
     Category: categoryLabel(c),
+    'Roshen Available': roshenAvailableLabel(c.roshen_available),
+    Distributor: distributorLabel(c.distributor),
     Code: c.code ?? '',
     City: c.city ?? '',
     Area: c.area ?? '',
@@ -119,6 +130,7 @@ export function exportCustomerHistoryPdf(
   doc.setFontSize(10)
   doc.setTextColor(110, 110, 120)
   const details = [
+    `Category: ${categoryLabel(customer)}  ·  Roshen: ${roshenAvailableLabel(customer.roshen_available)}  ·  Distributor: ${distributorLabel(customer.distributor)}`,
     customer.code ? `Code: ${customer.code}` : null,
     [customer.city, customer.area].filter(Boolean).join(' · ') || null,
     customer.address,
