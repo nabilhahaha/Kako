@@ -88,6 +88,8 @@ export interface VisitFilters {
   status?: string
   from?: string
   to?: string
+  /** Chronological order. Defaults to newest-first when omitted. */
+  sort?: 'newest' | 'oldest'
 }
 
 function applyVisitFilters(query: any, filters: VisitFilters): any {
@@ -107,7 +109,7 @@ export async function fetchVisits(
   let query = supabase
     .from('visits')
     .select(VISIT_SELECT)
-    .order('visited_at', { ascending: false })
+    .order('visited_at', { ascending: filters.sort === 'oldest' })
     .range(from, from + VISIT_PAGE_SIZE - 1)
   query = applyVisitFilters(query, filters)
   const { data, error } = await query

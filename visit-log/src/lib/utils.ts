@@ -1,6 +1,12 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { format, isToday, isYesterday } from 'date-fns'
+import {
+  format,
+  isToday,
+  isYesterday,
+  differenceInCalendarDays,
+  differenceInCalendarMonths,
+} from 'date-fns'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -15,6 +21,24 @@ export function formatDay(iso: string) {
 
 export function formatDate(iso: string) {
   return format(new Date(iso), 'd MMM yyyy')
+}
+
+/**
+ * Human "visit age" relative to now: Today, Yesterday, N days/weeks/months/years
+ * ago. Used by the customer visit timeline.
+ */
+export function relativeAge(iso: string, now = new Date()) {
+  const date = new Date(iso)
+  const days = differenceInCalendarDays(now, date)
+  if (days <= 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days} days ago`
+  if (days < 14) return 'Last week'
+  if (days < 30) return `${Math.floor(days / 7)} weeks ago`
+  const months = differenceInCalendarMonths(now, date)
+  if (months < 12) return `${Math.max(1, months)} month${months === 1 ? '' : 's'} ago`
+  const years = Math.floor(months / 12)
+  return `${years} year${years === 1 ? '' : 's'} ago`
 }
 
 export function formatTime(iso: string) {

@@ -19,12 +19,11 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Spinner'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { LoadMore } from '@/components/ui/LoadMore'
 import { toast } from '@/components/ui/toast'
 import { CustomerForm } from '@/components/customers/CustomerForm'
 import { CategoryBadge } from '@/components/customers/CategoryBadge'
 import { NavigateButton } from '@/components/nav/NavigateButton'
-import { VisitCard, useVisitThumbs } from '@/components/visits/VisitCard'
+import { CustomerTimeline } from '@/components/visits/CustomerTimeline'
 import { GenerateReportButton } from '@/components/report/GenerateReportButton'
 import { PhotoImg } from '@/components/photos/PhotoImg'
 import { StaticMap } from '@/components/map/StaticMap'
@@ -54,7 +53,6 @@ export function CustomerDetailPage() {
   const { location, status: locationStatus } = useLocation()
   const visits = useVisits({ customerId: id })
   const allVisits = visits.data?.pages.flatMap((page) => page.visits) ?? []
-  const thumbs = useVisitThumbs(allVisits)
   // Cover = the newest visit's storefront (falls back to its first gallery photo).
   const cover = useMemo(() => (allVisits[0] ? storefrontOf(allVisits[0]) : null), [allVisits])
   const { data: coverUrls } = useSignedUrls(cover ? [cover.full] : [])
@@ -277,35 +275,7 @@ export function CustomerDetailPage() {
         </div>
       </div>
 
-      {visits.isLoading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-[100px] rounded-card" />
-          <Skeleton className="h-[100px] rounded-card" />
-        </div>
-      ) : allVisits.length === 0 ? (
-        <EmptyState
-          icon={MapPinned}
-          title="No visits yet"
-          message={`Your visit timeline for ${customer.name} will appear here, newest first.`}
-        />
-      ) : (
-        <div className="space-y-3">
-          {allVisits.map((visit, index) => (
-            <VisitCard
-              key={visit.id}
-              visit={visit}
-              index={index}
-              hideCustomer
-              thumbUrl={thumbs(visit.id)}
-            />
-          ))}
-          <LoadMore
-            hasMore={!!visits.hasNextPage}
-            loading={visits.isFetchingNextPage}
-            onMore={() => visits.fetchNextPage()}
-          />
-        </div>
-      )}
+      <CustomerTimeline customer={customer} />
 
       <CustomerForm open={editOpen} onClose={() => setEditOpen(false)} customer={customer} />
       <ConfirmDialog
