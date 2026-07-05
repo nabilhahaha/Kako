@@ -245,17 +245,19 @@ class Report {
 
   photoGroups(section: ReportCustomerSection): { label: string; paths: string[] }[] {
     const groups = new Map<string, string[]>()
+    // Seed the "seen" set with the hero image so it is never repeated here, and
+    // so no photo is ever shown twice across groups.
+    const seen = new Set<string>(section.storefront ? [section.storefront.full] : [])
     const push = (label: string, path: string) => {
+      if (!path || seen.has(path)) return
+      seen.add(path)
       const arr = groups.get(label) ?? []
       arr.push(path)
       groups.set(label, arr)
     }
-    const sfSeen = new Set<string>()
+    // Additional store fronts only — those that differ from the hero image.
     for (const v of section.visits) {
-      if (v.storefront_photo_url && !sfSeen.has(v.storefront_photo_url)) {
-        sfSeen.add(v.storefront_photo_url)
-        push('Store Front Photos', v.storefront_photo_url)
-      }
+      if (v.storefront_photo_url) push('Additional Store Fronts', v.storefront_photo_url)
     }
     for (const v of section.visits) {
       const label =
@@ -267,7 +269,7 @@ class Report {
       for (const p of v.photos) push(label, p.storage_path)
     }
     const order = [
-      'Store Front Photos',
+      'Additional Store Fronts',
       'Display Photos',
       'Promotion Photos',
       'Availability Photos',
@@ -287,8 +289,7 @@ class Report {
     return out
   }
 
-  photoGrid(paths: string[]) {
-    const cols = 3
+  photoGrid(paths: string[], cols = 3) {
     const gap = 8
     const cellW = (this.contentW - gap * (cols - 1)) / cols
     const cellH = cellW * 0.72
@@ -311,10 +312,72 @@ class Report {
     }
   }
 
+  /** Estimated rendered height of a customer with the given hero/grid layout. */
+  measureCustomer(
+    section: ReportCustomerSection,
+    groups: { label: string; paths: string[] }[],
+    heroAspect: number,
+    cols: number,
+  ): number {
+    const c = section.customer
+    let h = 68 // header band + gap
+    if (section.storefront) h += this.contentW * heroAspect + 14
+    // Info rows
+    let infoCount = 2 // Created + Last Visit are always present
+    if (c.address) infoCount++
+    if (c.city || c.area) infoCount++
+    const hasCoords = c.latitude != null && c.longitude != null
+    if (hasCoords) infoCount++
+    h += infoCount * 18 + 6
+    if (hasCoords) h += 22 // Google Maps link row
+    // Timeline
+    if (section.visits.length > 0) {
+      h += 18
+      for (const v of section.visits) h += 18 + (v.notes ? 3 : 2) * 12 + 6
+      h += 4
+    }
+    // Photo groups
+    const gap = 8
+    const cellW = (this.contentW - gap * (cols - 1)) / cols
+    const cellH = cellW * 0.72
+    for (const g of groups) {
+      const n = g.paths.length
+      if (n === 0) continue
+      h += 16 + Math.ceil(n / cols) * (cellH + gap) + 4
+    }
+    // Customer summary
+    h += 90 + 10
+    return h
+  }
+
   customerSection(section: ReportCustomerSection, index: number) {
     this.newPage()
     const d = this.doc
     const c = section.customer
+
+    // Photo groups (hero already excluded, deduplicated), image-filtered.
+    const groups = this.photoGroups(section)
+      .map((g) => ({ label: g.label, paths: g.paths.filter((p) => this.images[p]) }))
+      .filter((g) => g.paths.length > 0)
+    const totalPhotos = groups.reduce((s, g) => s + g.paths.length, 0)
+
+    // Pick the least-compact layout that still keeps the whole customer on one
+    // page. Progressively smaller hero + more photo columns are tried; the first
+    // candidate that fits wins, otherwise the most compact one is used and the
+    // content is allowed to flow onto a second page.
+    const usable = this.H - this.M - 46
+    const candidates: { heroAspect: number; cols: number }[] = [
+      { heroAspect: 0.4, cols: totalPhotos > 6 ? 4 : 3 },
+      { heroAspect: 0.34, cols: 4 },
+      { heroAspect: 0.3, cols: 4 },
+      { heroAspect: 0.28, cols: 5 },
+    ]
+    let plan = candidates[0]
+    for (const cand of candidates) {
+      plan = cand
+      if (this.measureCustomer(section, groups, cand.heroAspect, cand.cols) <= usable) break
+    }
+    const { heroAspect, cols } = plan
 
     // Header band
     d.setFillColor(...RED)
@@ -332,7 +395,7 @@ class Report {
     // Hero storefront — render the photo when available, otherwise a labelled
     // placeholder so the layout stays intact even if the image failed to load.
     if (section.storefront) {
-      const heroH = this.contentW * 0.42
+      const heroH = this.contentW * heroAspect
       this.ensure(heroH + 12)
       const img = this.images[section.storefront.full]
       let drawn = false
@@ -418,15 +481,12 @@ class Report {
       this.y += 4
     }
 
-    // Grouped photo galleries
-    const groups = this.photoGroups(section)
+    // Grouped photo galleries — hero excluded, no duplicates, compact grid.
     for (const group of groups) {
-      const withImages = group.paths.filter((p) => this.images[p])
-      if (withImages.length === 0) continue
       this.ensure(24)
       this.text(group.label, this.M, this.y + 6, { size: 11, bold: true })
       this.y += 16
-      this.photoGrid(withImages)
+      this.photoGrid(group.paths, cols)
       this.y += 4
     }
 
