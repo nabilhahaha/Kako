@@ -378,3 +378,55 @@ export async function fetchAllVisits(filters: VisitFilters = {}): Promise<VisitW
   }
   return all
 }
+
+// -------------------------------------------------------- customer summaries
+
+export interface CustomerSummary {
+  lastVisitedAt: string | null
+  visitCount: number
+  hasFollowUp: boolean
+  types: string[]
+}
+
+/**
+ * Per-customer visit rollup for the map: last visit, count, follow-up flag and
+ * the set of visit types seen. One scan of the visit table, aggregated client
+ * side — fine for a single user's personal history.
+ */
+export async function fetchCustomerSummaries(): Promise<Record<string, CustomerSummary>> {
+  const summaries: Record<string, CustomerSummary> = {}
+  const PAGE = 1000
+  for (let page = 0; page < 50; page++) {
+    const from = page * PAGE
+    const { data, error } = await supabase
+      .from('visits')
+      .select('customer_id, visited_at, visit_type, status')
+      .order('visited_at', { ascending: false })
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    const rows = data as {
+      customer_id: string
+      visited_at: string
+      visit_type: string
+      status: string
+    }[]
+    for (const row of rows) {
+      const entry =
+        summaries[row.customer_id] ??
+        (summaries[row.customer_id] = {
+          lastVisitedAt: null,
+          visitCount: 0,
+          hasFollowUp: false,
+          types: [],
+        })
+      entry.visitCount += 1
+      if (!entry.lastVisitedAt || row.visited_at > entry.lastVisitedAt) {
+        entry.lastVisitedAt = row.visited_at
+      }
+      if (row.status === 'needs_follow_up' || row.status === 'urgent') entry.hasFollowUp = true
+      if (!entry.types.includes(row.visit_type)) entry.types.push(row.visit_type)
+    }
+    if (rows.length < PAGE) break
+  }
+  return summaries
+}

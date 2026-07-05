@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { useQueryClient } from '@tanstack/react-query'
@@ -7,6 +7,7 @@ import { PERSIST_MAX_AGE, persister, queryClient } from '@/lib/queryClient'
 import { syncOutbox } from '@/lib/sync'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
 import { ThemeProvider } from '@/hooks/useTheme'
+import { LocationProvider } from '@/hooks/useLocation'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Toaster } from '@/components/ui/toast'
 import { LoginPage } from '@/pages/LoginPage'
@@ -20,6 +21,9 @@ import { GalleryPage } from '@/pages/GalleryPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { StatsPage } from '@/pages/StatsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+
+// Leaflet + clustering is heavy; keep the map off the initial bundle.
+const MapPage = lazy(() => import('@/pages/MapPage').then((m) => ({ default: m.MapPage })))
 
 function Splash() {
   return (
@@ -69,6 +73,7 @@ export default function App() {
     >
       <ThemeProvider>
         <AuthProvider>
+          <LocationProvider>
           <BrowserRouter>
             <SyncManager />
             <Routes>
@@ -87,6 +92,14 @@ export default function App() {
                 <Route path="/visits/:id" element={<VisitDetailPage />} />
                 <Route path="/visits/:id/edit" element={<EditVisitPage />} />
                 <Route path="/gallery" element={<GalleryPage />} />
+                <Route
+                  path="/map"
+                  element={
+                    <Suspense fallback={<Splash />}>
+                      <MapPage />
+                    </Suspense>
+                  }
+                />
                 <Route path="/search" element={<SearchPage />} />
                 <Route path="/stats" element={<StatsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
@@ -95,6 +108,7 @@ export default function App() {
             </Routes>
             <Toaster />
           </BrowserRouter>
+          </LocationProvider>
         </AuthProvider>
       </ThemeProvider>
     </PersistQueryClientProvider>

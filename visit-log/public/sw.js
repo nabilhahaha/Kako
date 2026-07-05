@@ -1,9 +1,11 @@
-/* Roshen Visit Log service worker: app-shell + image caching for offline use. */
-const VERSION = 'v1'
+/* Roshen Visit Log service worker: app-shell + image + map-tile caching for offline use. */
+const VERSION = 'v2'
 const SHELL_CACHE = `shell-${VERSION}`
 const RUNTIME_CACHE = `runtime-${VERSION}`
 const IMAGE_CACHE = `images-${VERSION}`
+const TILE_CACHE = `tiles-${VERSION}`
 const IMAGE_LIMIT = 400
+const TILE_LIMIT = 1500
 
 const SHELL_URLS = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png']
 
@@ -23,7 +25,7 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => ![SHELL_CACHE, RUNTIME_CACHE, IMAGE_CACHE].includes(key))
+            .filter((key) => ![SHELL_CACHE, RUNTIME_CACHE, IMAGE_CACHE, TILE_CACHE].includes(key))
             .map((key) => caches.delete(key)),
         ),
       )
@@ -50,6 +52,10 @@ function isStorageImage(url) {
   return url.pathname.includes('/storage/v1/object/') && url.pathname.includes('/visit-images/')
 }
 
+function isMapTile(url) {
+  return /(^|\.)tile\.openstreetmap\.org$/.test(url.hostname)
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event
   if (request.method !== 'GET') return
@@ -64,6 +70,27 @@ self.addEventListener('fetch', (event) => {
           return response
         })
         .catch(() => caches.match('/index.html')),
+    )
+    return
+  }
+
+  // Map tiles: cache-first so the customer map renders offline.
+  if (isMapTile(url)) {
+    event.respondWith(
+      caches.open(TILE_CACHE).then(async (cache) => {
+        const cached = await cache.match(request)
+        if (cached) return cached
+        try {
+          const response = await fetch(request)
+          if (response.ok) {
+            cache.put(request, response.clone())
+            trimCache(TILE_CACHE, TILE_LIMIT)
+          }
+          return response
+        } catch {
+          return cached || Response.error()
+        }
+      }),
     )
     return
   }

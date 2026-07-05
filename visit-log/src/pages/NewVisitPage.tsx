@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Calendar,
@@ -16,6 +16,7 @@ import { toast } from '@/components/ui/toast'
 import { CustomerPicker } from '@/components/customers/CustomerPicker'
 import { CustomerForm } from '@/components/customers/CustomerForm'
 import { PhotoPicker, releaseDraftPhotos, type DraftPhoto } from '@/components/visits/PhotoPicker'
+import { NextCustomerSheet } from '@/components/visits/NextCustomerSheet'
 import { useCustomers } from '@/hooks/queries'
 import { useCreateVisit } from '@/hooks/mutations'
 import { useGeolocation } from '@/hooks/useGeolocation'
@@ -101,6 +102,9 @@ export function NewVisitPage() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [typeOpen, setTypeOpen] = useState(false)
   const [newCustomerOpen, setNewCustomerOpen] = useState(false)
+  const [nextOpen, setNextOpen] = useState(false)
+  const [visitedIds, setVisitedIds] = useState<string[]>([])
+  const savedVisitRef = useRef<string | null>(null)
 
   // Preselect the customer when arriving from a customer page.
   useEffect(() => {
@@ -136,16 +140,38 @@ export function NewVisitPage() {
         photos: photos.map((photo) => photo.blob),
       })
       releaseDraftPhotos(photos)
-      if (result.status === 'saved') {
-        toast('Visit saved')
-        navigate(`/visits/${result.visitId}`, { replace: true })
-      } else {
-        toast('Saved offline — will sync automatically', 'info')
-        navigate('/', { replace: true })
-      }
+      savedVisitRef.current = result.status === 'saved' ? result.visitId : null
+      setVisitedIds((ids) => (customer ? [...ids, customer.id] : ids))
+      setPhotos([])
+      toast(
+        result.status === 'saved' ? 'Visit saved' : 'Saved offline — will sync automatically',
+        result.status === 'saved' ? 'success' : 'info',
+      )
+      // Feature 9: offer the next nearest customer instead of leaving the flow.
+      setNextOpen(true)
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Could not save visit', 'error')
     }
+  }
+
+  const startNextVisit = (customerId: string) => {
+    const found = customers.find((c) => c.id === customerId)
+    if (!found) return
+    releaseDraftPhotos(photos)
+    setCustomer(found)
+    setPhotos([])
+    setNotes('')
+    setVisitType('general_visit')
+    setStatus('good')
+    setVisitedAt(toLocalInputValue(new Date().toISOString()))
+    setNextOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const finishFlow = () => {
+    setNextOpen(false)
+    if (savedVisitRef.current) navigate(`/visits/${savedVisitRef.current}`, { replace: true })
+    else navigate('/', { replace: true })
   }
 
   const TypeIcon = VISIT_TYPE_META[visitType].icon
@@ -280,6 +306,12 @@ export function NewVisitPage() {
         options={typeOptions}
         value={visitType}
         onSelect={(next) => next && setVisitType(next)}
+      />
+      <NextCustomerSheet
+        open={nextOpen}
+        onClose={finishFlow}
+        excludeIds={visitedIds}
+        onStartVisit={startNextVisit}
       />
     </Page>
   )

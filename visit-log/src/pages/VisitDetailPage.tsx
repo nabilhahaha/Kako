@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/toast'
 import { PhotoImg } from '@/components/photos/PhotoImg'
 import { Lightbox } from '@/components/photos/Lightbox'
 import { StaticMap } from '@/components/map/StaticMap'
+import { NavigateButton } from '@/components/nav/NavigateButton'
 import { useSignedUrls, useVisit } from '@/hooks/queries'
 import { useDeleteVisit } from '@/hooks/mutations'
 import { formatDay, formatTime } from '@/lib/utils'
@@ -137,7 +138,10 @@ export function VisitDetailPage() {
       )}
 
       {data.latitude != null && data.longitude != null && (
-        <StaticMap latitude={data.latitude} longitude={data.longitude} />
+        <div className="space-y-3">
+          <StaticMap latitude={data.latitude} longitude={data.longitude} />
+          <NavigateButton latitude={data.latitude} longitude={data.longitude} className="w-full" />
+        </div>
       )}
 
       {lightboxIndex !== null && (

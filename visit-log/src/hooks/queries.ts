@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   fetchCustomers,
+  fetchCustomerSummaries,
   fetchGalleryPhotos,
   fetchSignedUrls,
   fetchStats,
@@ -123,4 +124,12 @@ export function useDebouncedValue<T>(value: T, delay = 250): T {
     return () => clearTimeout(timer)
   }, [value, delay])
   return debounced
+}
+
+export function useCustomerSummaries() {
+  return useQuery({
+    queryKey: ['customer-summaries'],
+    queryFn: fetchCustomerSummaries,
+    staleTime: 30 * 1000,
+  })
 }

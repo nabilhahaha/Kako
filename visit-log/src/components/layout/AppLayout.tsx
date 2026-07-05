@@ -14,6 +14,8 @@ export function AppLayout() {
   const pendingCount = pending.data?.length ?? 0
 
   const hideTabBar = /^\/visits\/(new|[^/]+\/edit)/.test(location.pathname)
+  // The map owns the full viewport and handles its own drag gestures.
+  const isMap = location.pathname === '/map'
 
   return (
     <div className="min-h-dvh">
@@ -41,9 +43,13 @@ export function AppLayout() {
           </motion.div>
         )}
       </AnimatePresence>
-      <PullToRefresh onRefresh={() => queryClient.invalidateQueries()}>
+      {isMap ? (
         <Outlet />
-      </PullToRefresh>
+      ) : (
+        <PullToRefresh onRefresh={() => queryClient.invalidateQueries()}>
+          <Outlet />
+        </PullToRefresh>
+      )}
       {!hideTabBar && <TabBar />}
     </div>
   )

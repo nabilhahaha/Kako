@@ -1,0 +1,46 @@
+/* Map surface + custom marker styling. The default MarkerCluster.Default.css is
+   intentionally NOT imported — we render our own cluster/marker icons. */
+
+.leaflet-container {
+  font: inherit;
+  background: rgb(var(--c-surface-2));
+}
+
+.dark .leaflet-tile {
+  /* Soften OSM tiles for the dark theme without a separate dark tile source. */
+  filter: brightness(0.78) contrast(1.05) saturate(0.9);
+}
+
+.vl-marker,
+.vl-cluster,
+.vl-me {
+  background: transparent;
+  border: 0;
+}
+
+.leaflet-marker-icon.vl-cluster {
+  transition: transform 0.15s ease-out;
+}
+.leaflet-marker-icon.vl-cluster:hover {
+  transform: scale(1.06);
+}
+
+/* Keep Leaflet's own controls/attribution below app sheets and the tab bar. */
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 400;
+}
+
+.leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.7) !important;
+  font-size: 9px;
+  padding: 0 4px;
+}
+.dark .leaflet-control-attribution {
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: rgb(var(--c-ink-2)) !important;
+}
+.dark .leaflet-control-attribution a {
+  color: rgb(var(--c-ink-2)) !important;
+}

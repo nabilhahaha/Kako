@@ -1,11 +1,13 @@
-import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   FileDown,
   Loader2,
   FileSpreadsheet,
   FileText,
+  LocateFixed,
   MapPinned,
+  Navigation2,
   Pencil,
   Phone,
   Plus,
@@ -20,11 +22,14 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadMore } from '@/components/ui/LoadMore'
 import { toast } from '@/components/ui/toast'
 import { CustomerForm } from '@/components/customers/CustomerForm'
+import { NavigateButton } from '@/components/nav/NavigateButton'
 import { VisitCard, useVisitThumbs } from '@/components/visits/VisitCard'
 import { StaticMap } from '@/components/map/StaticMap'
 import { useCustomer, useVisits } from '@/hooks/queries'
 import { useDeleteCustomer } from '@/hooks/mutations'
+import { useLocation } from '@/hooks/useLocation'
 import { fetchAllVisits } from '@/lib/api'
+import { distanceMeters, formatDistance, formatDriveTime, hasCoords } from '@/lib/geo'
 import { slugify } from '@/lib/utils'
 import type { Customer } from '@/types'
 
@@ -40,7 +45,9 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { customer, isLoading } = useCustomer(id)
+  const { location, status: locationStatus } = useLocation()
   const visits = useVisits({ customerId: id })
   const allVisits = visits.data?.pages.flatMap((page) => page.visits) ?? []
   const thumbs = useVisitThumbs(allVisits)
@@ -48,6 +55,20 @@ export function CustomerDetailPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [exporting, setExporting] = useState<string | null>(null)
+
+  // Deep link from the map card ("Edit") opens the form directly.
+  useEffect(() => {
+    if (searchParams.get('edit') === '1' && customer) {
+      setEditOpen(true)
+      searchParams.delete('edit')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [searchParams, customer, setSearchParams])
+
+  const distance = useMemo(() => {
+    if (!customer || !location || !hasCoords(customer)) return null
+    return distanceMeters(location, customer)
+  }, [customer, location])
 
   const runExport = async (kind: 'pdf' | 'excel' | 'csv', target: Customer) => {
     setExporting(kind)
@@ -147,21 +168,63 @@ export function CustomerDetailPage() {
           )}
       </Card>
 
+      {hasCoords(customer) && (
+        <Card className="mb-4 flex items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-ios-blue/12 text-ios-blue">
+            <LocateFixed size={20} />
+          </span>
+          <div className="min-w-0 flex-1">
+            {distance != null ? (
+              <>
+                <p className="text-[16px] font-bold">
+                  {formatDistance(distance)}
+                  <span className="ml-2 text-[14px] font-medium text-ink-2">
+                    ~{formatDriveTime(distance)} drive
+                  </span>
+                </p>
+                <p className="text-[12px] font-medium text-ink-3">
+                  {locationStatus === 'granted' ? 'From your live location' : 'From last known location'}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-[15px] font-semibold text-ink-2">Distance unavailable</p>
+                <p className="text-[12px] font-medium text-ink-3">
+                  {locationStatus === 'denied'
+                    ? 'Enable location to see distance'
+                    : 'Getting your location…'}
+                </p>
+              </>
+            )}
+          </div>
+          <Navigation2 size={18} className="shrink-0 text-ink-3" />
+        </Card>
+      )}
+
       {customer.latitude != null && customer.longitude != null && (
         <div className="mb-4">
           <StaticMap latitude={customer.latitude} longitude={customer.longitude} />
         </div>
       )}
 
-      <Button
-        size="lg"
-        full
-        className="mb-6"
-        onClick={() => navigate(`/visits/new?customer=${customer.id}`)}
-      >
-        <Plus size={20} strokeWidth={2.4} />
-        New Visit
-      </Button>
+      <div className="mb-6 flex gap-2.5">
+        <Button
+          size="lg"
+          full
+          onClick={() => navigate(`/visits/new?customer=${customer.id}`)}
+        >
+          <Plus size={20} strokeWidth={2.4} />
+          New Visit
+        </Button>
+        {hasCoords(customer) && (
+          <NavigateButton
+            latitude={customer.latitude}
+            longitude={customer.longitude}
+            variant="soft"
+            className="h-[52px] shrink-0 rounded-2xl px-5"
+          />
+        )}
+      </div>
 
       <div className="mb-3 flex items-center justify-between px-1">
         <h3 className="text-[19px] font-bold">Visit History</h3>
