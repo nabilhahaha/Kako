@@ -15,6 +15,7 @@ import { OptionSheet } from '@/components/ui/OptionSheet'
 import { toast } from '@/components/ui/toast'
 import { CustomerPicker } from '@/components/customers/CustomerPicker'
 import { CustomerForm } from '@/components/customers/CustomerForm'
+import { CustomerProfileFields } from '@/components/customers/CustomerProfileFields'
 import { PhotoPicker, releaseDraftPhotos, type DraftPhoto } from '@/components/visits/PhotoPicker'
 import { StorefrontPicker, type DraftStorefront } from '@/components/visits/StorefrontPicker'
 import { NextCustomerSheet } from '@/components/visits/NextCustomerSheet'
@@ -230,11 +231,17 @@ export function NewVisitPage() {
           )}
         </Section>
 
-        <Section step={2} title="Store Front Photo">
+        {customer && (
+          <Section step={2} title="Customer Profile">
+            <CustomerProfileFields customer={customer} onUpdated={setCustomer} />
+          </Section>
+        )}
+
+        <Section step={3} title="Store Front Photo">
           <StorefrontPicker value={storefront} onChange={setStorefront} />
         </Section>
 
-        <Section step={3} title="Date & Time">
+        <Section step={4} title="Date & Time">
           <label className="flex items-center gap-3 rounded-card bg-surface p-4 shadow-card">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-ios-blue/12 text-ios-blue">
               <Calendar size={20} />
@@ -248,12 +255,12 @@ export function NewVisitPage() {
           </label>
         </Section>
 
-        <Section step={4} title="Visit Photos">
+        <Section step={5} title="Visit Photos">
           <PhotoPicker photos={photos} onChange={setPhotos} />
           <p className="mt-1.5 px-1 text-[12px] text-ink-3">Optional — separate from the store front photo.</p>
         </Section>
 
-        <Section step={5} title="Visit Type">
+        <Section step={6} title="Visit Type">
           <button
             type="button"
             onClick={() => setTypeOpen(true)}
@@ -267,11 +274,11 @@ export function NewVisitPage() {
           </button>
         </Section>
 
-        <Section step={6} title="Visit Status">
+        <Section step={7} title="Visit Status">
           <StatusGrid value={status} onChange={setStatus} />
         </Section>
 
-        <Section step={7} title="Notes">
+        <Section step={8} title="Notes">
           <Textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}

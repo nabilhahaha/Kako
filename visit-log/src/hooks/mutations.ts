@@ -6,12 +6,13 @@ import {
   deleteVisit,
   importCustomers,
   updateCustomer,
+  updateCustomerProfile,
   updateVisit,
 } from '@/lib/api'
 import type { StorefrontInput } from '@/lib/api'
 import { addPendingVisit } from '@/lib/outbox'
 import { isNetworkError } from '@/lib/utils'
-import type { CustomerInput, VisitInput, VisitPhoto, VisitWithMeta } from '@/types'
+import type { Customer, CustomerInput, VisitInput, VisitPhoto, VisitWithMeta } from '@/types'
 
 function useInvalidateVisitData() {
   const queryClient = useQueryClient()
@@ -32,6 +33,24 @@ export function useSaveCustomer() {
     mutationFn: ({ id, input }: { id?: string; input: CustomerInput }) =>
       id ? updateCustomer(id, input) : createCustomer(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['customers'] }),
+  })
+}
+
+/** Patches a customer's profile fields and keeps the caches in sync. */
+export function useUpdateCustomerProfile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      fields,
+    }: {
+      id: string
+      fields: Partial<Pick<Customer, 'customer_category' | 'roshen_available' | 'distributor'>>
+    }) => updateCustomerProfile(id, fields),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      queryClient.invalidateQueries({ queryKey: ['customer-summaries'] })
+    },
   })
 }
 

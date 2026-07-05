@@ -69,6 +69,25 @@ export async function updateCustomer(id: string, input: CustomerInput): Promise<
   return data as Customer
 }
 
+/**
+ * Patches just the customer profile fields (category, Roshen availability,
+ * distributor). Used from the New Visit flow so a visit edits the customer
+ * master record directly instead of duplicating the values on the visit.
+ */
+export async function updateCustomerProfile(
+  id: string,
+  fields: Partial<Pick<Customer, 'customer_category' | 'roshen_available' | 'distributor'>>,
+): Promise<Customer> {
+  const { data, error } = await supabase
+    .from('customers')
+    .update(fields)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as Customer
+}
+
 export async function deleteCustomer(id: string): Promise<void> {
   // Rows cascade, but storage objects must be removed explicitly.
   const { data: photos, error: photosError } = await supabase
