@@ -1,0 +1,36 @@
+name: Visit Log CI
+
+on:
+  pull_request:
+    paths:
+      - 'visit-log/**'
+      - '.github/workflows/visit-log-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'visit-log/**'
+
+jobs:
+  verify:
+    name: Typecheck & build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: visit-log
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: visit-log/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build

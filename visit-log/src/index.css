@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* iOS system grouped background palette */
+  --c-bg: 242 242 247;
+  --c-surface: 255 255 255;
+  --c-surface-2: 242 242 247;
+  --c-ink: 12 12 18;
+  --c-ink-2: 100 100 112;
+  --c-ink-3: 158 158 168;
+  --c-separator: 226 226 232;
+  --c-accent-soft: 254 233 234;
+  color-scheme: light;
+}
+
+.dark {
+  --c-bg: 0 0 0;
+  --c-surface: 28 28 30;
+  --c-surface-2: 44 44 46;
+  --c-ink: 245 245 247;
+  --c-ink-2: 174 174 178;
+  --c-ink-3: 122 122 130;
+  --c-separator: 54 54 58;
+  --c-accent-soft: 64 18 21;
+  color-scheme: dark;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  @apply bg-bg font-sans text-ink antialiased;
+  overscroll-behavior-y: none;
+  text-rendering: optimizeLegibility;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+/* iOS zooms the page when focused inputs are under 16px */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+@layer utilities {
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .glass {
+    @apply border-b border-separator/60 bg-bg/80 backdrop-blur-xl;
+  }
+  .glass-bottom {
+    @apply border-t border-separator/60 bg-surface/85 backdrop-blur-xl;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .press {
+    @apply transition-transform duration-150 ease-out active:scale-[0.97];
+  }
+}

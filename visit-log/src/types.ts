@@ -1,0 +1,102 @@
+export const VISIT_TYPES = [
+  'display_check',
+  'promotion',
+  'shelf_check',
+  'availability',
+  'new_product',
+  'follow_up',
+  'collection',
+  'general_visit',
+] as const
+
+export const VISIT_STATUSES = ['excellent', 'good', 'needs_follow_up', 'urgent'] as const
+
+export type VisitType = (typeof VISIT_TYPES)[number]
+export type VisitStatus = (typeof VISIT_STATUSES)[number]
+
+export interface Customer {
+  id: string
+  name: string
+  code: string | null
+  city: string | null
+  area: string | null
+  address: string | null
+  phone: string | null
+  notes: string | null
+  latitude: number | null
+  longitude: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Visit {
+  id: string
+  customer_id: string
+  visited_at: string
+  visit_type: VisitType
+  status: VisitStatus
+  notes: string | null
+  latitude: number | null
+  longitude: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface VisitPhoto {
+  id: string
+  visit_id: string
+  storage_path: string
+  position: number
+  created_at: string
+}
+
+export interface CustomerRef {
+  id: string
+  name: string
+  code: string | null
+  city: string | null
+}
+
+export interface VisitWithMeta extends Visit {
+  customer: CustomerRef | null
+  photos: VisitPhoto[]
+}
+
+export interface CustomerInput {
+  name: string
+  code?: string | null
+  city?: string | null
+  area?: string | null
+  address?: string | null
+  phone?: string | null
+  notes?: string | null
+  latitude?: number | null
+  longitude?: number | null
+}
+
+export interface VisitInput {
+  customer_id: string
+  visited_at: string
+  visit_type: VisitType
+  status: VisitStatus
+  notes: string | null
+  latitude: number | null
+  longitude: number | null
+}
+
+/** A visit captured while offline, waiting in the IndexedDB outbox. */
+export interface PendingVisit extends VisitInput {
+  localId: string
+  photos: Blob[]
+  queued_at: string
+}
+
+export interface GalleryPhoto extends VisitPhoto {
+  visit: {
+    id: string
+    visited_at: string
+    visit_type: VisitType
+    status: VisitStatus
+    customer: CustomerRef | null
+  }
+}
