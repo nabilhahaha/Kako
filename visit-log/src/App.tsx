@@ -18,7 +18,6 @@ import { CustomerDetailPage } from '@/pages/CustomerDetailPage'
 import { NewVisitPage } from '@/pages/NewVisitPage'
 import { VisitDetailPage } from '@/pages/VisitDetailPage'
 import { EditVisitPage } from '@/pages/EditVisitPage'
-import { GalleryPage } from '@/pages/GalleryPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { StatsPage } from '@/pages/StatsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -96,7 +95,6 @@ export default function App() {
                 <Route path="/visits/new" element={<NewVisitPage />} />
                 <Route path="/visits/:id" element={<VisitDetailPage />} />
                 <Route path="/visits/:id/edit" element={<EditVisitPage />} />
-                <Route path="/gallery" element={<GalleryPage />} />
                 <Route
                   path="/map"
                   element={

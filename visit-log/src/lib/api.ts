@@ -5,7 +5,6 @@ import { storefrontOf, type StorefrontRef } from '@/lib/storefront'
 import type {
   Customer,
   CustomerInput,
-  GalleryPhoto,
   Visit,
   VisitInput,
   VisitPhoto,
@@ -13,7 +12,6 @@ import type {
 } from '@/types'
 
 export const VISIT_PAGE_SIZE = 30
-export const GALLERY_PAGE_SIZE = 60
 
 const VISIT_SELECT =
   '*, customer:customers(id,name,code,city,customer_category,custom_category,roshen_available,distributor), photos:visit_photos(id,visit_id,storage_path,position,type,created_at)'
@@ -315,46 +313,6 @@ async function removeStorageObjects(paths: string[]): Promise<void> {
     const { error } = await supabase.storage.from(STORAGE_BUCKET).remove(paths.slice(i, i + CHUNK))
     if (error) throw error
   }
-}
-
-// ------------------------------------------------------------------ gallery
-
-export interface GalleryFilters {
-  customerId?: string
-  visitType?: string
-  status?: string
-  date?: string // yyyy-MM-dd
-  /** Admin-only: narrow to a single salesperson's photos. */
-  scopeUserId?: string
-}
-
-export async function fetchGalleryPhotos(
-  filters: GalleryFilters,
-  page: number,
-): Promise<{ photos: GalleryPhoto[]; hasMore: boolean }> {
-  const from = page * GALLERY_PAGE_SIZE
-  let query = supabase
-    .from('visit_photos')
-    .select(
-      'id,visit_id,storage_path,position,created_at, visit:visits!inner(id,visited_at,visit_type,status,customer_id, customer:customers(id,name,code,city,customer_category,custom_category,roshen_available,distributor))',
-    )
-    .order('created_at', { ascending: false })
-    .range(from, from + GALLERY_PAGE_SIZE - 1)
-  if (filters.scopeUserId) query = query.eq('user_id', filters.scopeUserId)
-  if (filters.customerId) query = query.eq('visit.customer_id', filters.customerId)
-  if (filters.visitType) query = query.eq('visit.visit_type', filters.visitType)
-  if (filters.status) query = query.eq('visit.status', filters.status)
-  if (filters.date) {
-    const start = new Date(`${filters.date}T00:00:00`)
-    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
-    query = query
-      .gte('visit.visited_at', start.toISOString())
-      .lt('visit.visited_at', end.toISOString())
-  }
-  const { data, error } = await query
-  if (error) throw error
-  const photos = data as unknown as GalleryPhoto[]
-  return { photos, hasMore: photos.length === GALLERY_PAGE_SIZE }
 }
 
 // ------------------------------------------------------------------- photos

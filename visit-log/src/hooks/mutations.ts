@@ -19,7 +19,6 @@ function useInvalidateVisitData() {
   return (visitId?: string) => {
     queryClient.invalidateQueries({ queryKey: ['visits'] })
     queryClient.invalidateQueries({ queryKey: ['stats'] })
-    queryClient.invalidateQueries({ queryKey: ['gallery'] })
     queryClient.invalidateQueries({ queryKey: ['customer-covers'] })
     if (visitId) queryClient.invalidateQueries({ queryKey: ['visit', visitId] })
   }

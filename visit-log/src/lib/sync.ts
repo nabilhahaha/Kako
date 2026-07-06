@@ -43,7 +43,6 @@ export async function syncOutbox(queryClient: QueryClient): Promise<number> {
   if (synced > 0) {
     queryClient.invalidateQueries({ queryKey: ['visits'] })
     queryClient.invalidateQueries({ queryKey: ['stats'] })
-    queryClient.invalidateQueries({ queryKey: ['gallery'] })
   }
   return synced
 }

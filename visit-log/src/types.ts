@@ -123,13 +123,3 @@ export interface PendingVisit extends VisitInput {
   photos: Blob[]
   queued_at: string
 }
-
-export interface GalleryPhoto extends VisitPhoto {
-  visit: {
-    id: string
-    visited_at: string
-    visit_type: VisitType
-    status: VisitStatus
-    customer: CustomerRef | null
-  }
-}

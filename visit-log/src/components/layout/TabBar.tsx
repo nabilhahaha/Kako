@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { BarChart3, House, Images, Map, Plus, Users } from 'lucide-react'
+import { BarChart3, House, Map, Plus, Users } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
@@ -8,7 +8,6 @@ const leftTabs = [
   { to: '/customers', label: 'Customers', icon: Users },
 ]
 const rightTabs = [
-  { to: '/gallery', label: 'Gallery', icon: Images },
   { to: '/map', label: 'Map', icon: Map },
   { to: '/stats', label: 'Stats', icon: BarChart3 },
 ]

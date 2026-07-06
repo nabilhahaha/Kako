@@ -4,13 +4,11 @@ import {
   fetchCustomers,
   fetchCustomerSummaries,
   fetchCustomerCovers,
-  fetchGalleryPhotos,
   fetchSignedUrls,
   fetchStats,
   fetchVisit,
   fetchVisits,
   searchEverything,
-  type GalleryFilters,
   type VisitFilters,
 } from '@/lib/api'
 import { listPendingVisits, OUTBOX_EVENT } from '@/lib/outbox'
@@ -47,17 +45,6 @@ export function useVisit(id: string | undefined) {
     queryKey: ['visit', id],
     queryFn: () => fetchVisit(id!),
     enabled: !!id,
-  })
-}
-
-export function useGallery(filters: GalleryFilters = {}) {
-  const { scopeParam } = useAdminScope()
-  const scoped: GalleryFilters = { ...filters, scopeUserId: scopeParam }
-  return useInfiniteQuery({
-    queryKey: ['gallery', scoped],
-    queryFn: ({ pageParam }) => fetchGalleryPhotos(scoped, pageParam),
-    initialPageParam: 0,
-    getNextPageParam: (last, pages) => (last.hasMore ? pages.length : undefined),
   })
 }
 
