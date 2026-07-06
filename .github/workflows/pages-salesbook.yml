@@ -1,0 +1,62 @@
+name: Deploy SalesBook to GitHub Pages
+
+# Publishes the SalesBook app as a fully static, publicly accessible site at
+# https://nabilhahaha.github.io/Kako/ — independent of the Vercel deployment
+# (which is gated behind Vercel Authentication). The client seeds all its data
+# from src/lib/seed, so the optional /api routes are dropped for the static
+# export.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'salesbook/**'
+      - '.github/workflows/pages-salesbook.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: salesbook
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: salesbook/package-lock.json
+      - run: npm ci
+      # The static export cannot build the force-dynamic route handlers; the
+      # client tolerates their absence (all /api calls are optional), so drop
+      # them before exporting.
+      - run: rm -rf src/app/api
+      - run: npm run build
+        env:
+          PAGES_EXPORT: '1'
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: salesbook/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
