@@ -1,0 +1,96 @@
+/* ============================================================
+   SalesBook — global styles
+   Enterprise design system: Inter-first typography, blue palette
+   (primary #1F4ED8), 8px spacing grid, 20px radius, soft shadows.
+   Light tokens on [data-slk], dark overrides on [data-th="dark"].
+   Token NAMES are stable — every screen styles itself from them.
+   ============================================================ */
+
+/* Fonts are self-hosted — see fonts.css (imported in layout.tsx) and public/fonts/. */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: #F8FAFC;
+  font-family: 'Inter', 'IBM Plex Sans Arabic', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+}
+
+/* ---- design tokens: light ---- */
+[data-slk] {
+  --bg:#F8FAFC; --card:#FFFFFF; --bd:#E2E8F0; --dv:#EEF2F7;
+  --tx:#0F172A; --sub:#64748B; --fnt:#94A3B8;
+  --pri:#1F4ED8; --priD:#1A42B8; --onPri:#FFFFFF; --priT:#EDF2FE; --lnk:#2563EB;
+  --sec:#2563EB; --acc:#0EA5E9; --accT:#E0F2FE;
+  --grn:#059669; --grnT:#ECFDF5; --grnTx:#047857;
+  --amb:#D97706; --ambT:#FFFBEB; --ambTx:#B45309;
+  --red:#DC2626; --redT:#FEF2F2; --redTx:#B91C1C;
+  --org:#EA580C; --orgT:#FFF7ED; --orgTx:#C2410C;
+  --chip:#F1F5F9; --sh:rgba(15,23,42,.06); --ov:rgba(15,23,42,.48);
+  --r:20px;
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
+  --shadow-md: 0 4px 12px rgba(15,23,42,.06), 0 1px 3px rgba(15,23,42,.05);
+  --shadow-lg: 0 12px 32px rgba(15,23,42,.10), 0 2px 8px rgba(15,23,42,.05);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ---- design tokens: dark ---- */
+[data-slk][data-th="dark"] {
+  --bg:#0B1220; --card:#111A2C; --bd:#1E293B; --dv:#1A2438;
+  --tx:#F1F5F9; --sub:#94A3B8; --fnt:#64748B;
+  --pri:#3B6EF5; --priD:#2D5AE0; --onPri:#FFFFFF; --priT:rgba(59,110,245,.14); --lnk:#60A5FA;
+  --sec:#3B82F6; --acc:#38BDF8; --accT:rgba(56,189,248,.12);
+  --grn:#34D399; --grnT:rgba(52,211,153,.12); --grnTx:#6EE7B7;
+  --amb:#FBBF24; --ambT:rgba(251,191,36,.12); --ambTx:#FCD34D;
+  --red:#F87171; --redT:rgba(248,113,113,.12); --redTx:#FCA5A5;
+  --org:#FB923C; --orgT:rgba(251,146,60,.12); --orgTx:#FDBA74;
+  --chip:#182238; --sh:rgba(0,0,0,.4); --ov:rgba(2,6,14,.66);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.3);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.3);
+}
+
+[data-slk] input, [data-slk] textarea, [data-slk] select {
+  font-family: 'Inter', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+}
+[data-slk] input::placeholder, [data-slk] textarea::placeholder { color: var(--fnt); }
+
+/* keyboard focus visibility (a11y) */
+[data-slk] :focus-visible {
+  outline: 2.5px solid var(--pri);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+[data-slk] button { font-family: inherit; }
+
+/* hide scrollbars on marked scroll areas */
+[data-scroll] { scrollbar-width: none; }
+[data-scroll]::-webkit-scrollbar { display: none; }
+
+/* ---- keyframes ---- */
+@keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+@keyframes pop { 0%{opacity:0;transform:translateY(-8px) scale(.92);} 60%{transform:translateY(2px) scale(1.02);} 100%{opacity:1;transform:translateY(0) scale(1);} }
+@keyframes shimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+@keyframes ringPop { from { opacity:0; transform:scale(.7); } to { opacity:1; transform:scale(1); } }
+@keyframes drawCheck { from { stroke-dashoffset:48; } to { stroke-dashoffset:0; } }
+@keyframes pulseSoft { 0%,100%{transform:scale(1);opacity:.5;} 50%{transform:scale(1.18);opacity:0;} }
+@keyframes recPulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }
+@keyframes shake { 0%,100%{transform:translateX(0);} 20%{transform:translateX(-7px);} 40%{transform:translateX(6px);} 60%{transform:translateX(-4px);} 80%{transform:translateX(3px);} }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
