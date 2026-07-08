@@ -83,5 +83,5 @@ Admin boots from cloud v1 (net sales exact to the SAR) → imports merge → v2 
 
 - The embedded dataset inside the HTML is now only the pre-auth scaffold + offline fallback; the cloud version always replaces it before first render. It can be stripped later to shrink the file (~11 MB) once offline mode is no longer wanted.
 - Stock Report snapshots are still embedded (they have no import pipeline yet) — candidate for the same versioned-blob treatment.
-- Temp passwords for the seeded demo accounts should be rotated (Supabase → Authentication → Users).
+- **Demo/test accounts** all share the unified test password `test.123` (per-role: `dash.super@` / `dash.admin@` / `dash.manager@` / `dash.viewer@roshen.test`, plus the platform test accounts `admin@` / `manager@roshen.test`). Real user accounts are untouched. Because the URL is publicly reachable, disable or re-rotate these demo accounts once real users are onboarded (Supabase → Authentication → Users).
 - Supabase security advisors: the `dash_*` security-definer RPCs are intentionally executable by `authenticated` (they enforce roles internally) — this is the standard Supabase RPC pattern; remaining advisor warnings predate this work and belong to the platform app.
