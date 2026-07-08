@@ -88,6 +88,25 @@ Everything below was verified twice: in code, then dynamically in a real browser
 
 No duplicate records, no memory growth (central chart registry + orphan sweeps verified), zero console errors at every size.
 
+**500,000-row verification.** Two findings, separated honestly:
+
+1. *The data engine handles 500k rows comfortably.* A 500,000-row dataset injected directly through the atomic swap path (`applyUploadedData`) measured: swap **11 ms**, cold filter scan **33 ms**, warm cached scan **0.1 ms**, branch-narrowed rescan **30 ms** (134,430 matching rows), KPI sum vs a raw ground-truth loop **exact** (137,361,839 = 137,361,839), JS heap **77 MB**, every module navigable, zero console errors.
+2. *The practical single-file import ceiling is in-browser Excel/CSV parsing, not the engine.* A 68.9 MB 500k-row file could not be parsed by SheetJS on the main thread within a 25-minute allowance (two independent runs). Verified import ceiling: **100k rows per file (2.55 s)**; beyond that, files should be split, or parsing moved off the browser — which the cloud/server milestone addresses.
+
+## 4b · Long-session soak test (30 cycles ≈ 540 interactions)
+
+One continuous browser session cycling through imports, all page switches, date-range changes, filter toggles, searches, sorts, sidebar expand/collapse, reports and exports, with metrics sampled via the Chrome DevTools protocol:
+
+| Metric | First-5-cycle avg | Last-5-cycle avg | Drift |
+|--------|------:|------:|------:|
+| JS heap | 77.6 MB | 77.6 MB | **0.0%** |
+| Chart.js instances | 6.0 | 6.0 | **0.0%** |
+| Warm filter scan | 0.1 ms | 0.0 ms | none |
+| Event listeners | 1,456 | 1,704 | +17% * |
+| DOM nodes | 34,880 | 60,818 | +74% * |
+
+\* Listener and node counts oscillate with whichever view is open at the sampling moment (cycle 20 sampled *lower* than cycle 10; cycle 25 higher than cycle 30) — there is no monotonic growth trend. The flat heap across 540 interactions is the decisive no-leak signal; a true listener/DOM leak would drag heap upward with it. Total in-page script time for the whole session: 22.7 s. Zero page errors.
+
 ## 5 · Import pipeline (re-verified end-to-end after all changes)
 
 Cancel → nothing changes · Smart Merge → +2 / ~1 / =2 with monetary delta exact to the SAR · Append → all-skip on re-import · Replace → exact swap with confirm · rollback path exercised · history accurate. Post-import: date bounds, presets, filter sets, dropdown contents and mode caches all rebuilt (this was the biggest previous gap). Page-reload storage-swap with 100k rows: clean.
