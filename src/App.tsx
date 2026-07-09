@@ -14,11 +14,15 @@ import { ApprovalsPage } from '@/pages/trade-spend/ApprovalsPage';
 import { ErrorBoundary } from '@/components/trade-spend/ErrorBoundary';
 import { SettingsPage } from '@/pages/trade-spend/SettingsPage';
 import { ChangePasswordPage } from '@/pages/trade-spend/ChangePasswordPage';
+import { SupplyChainApp } from '@/supply-chain/SupplyChainApp';
 
 function App() {
   return (
     <>
       <Routes>
+        {/* Supply Chain Validation Platform */}
+        <Route path="/supply-chain/*" element={<SupplyChainApp />} />
+
         {/* Trade Spend Platform */}
         <Route path="/trade-spend/login" element={<TradeSpendLoginPage />} />
         <Route path="/trade-spend" element={<TradeSpendShell />}>
