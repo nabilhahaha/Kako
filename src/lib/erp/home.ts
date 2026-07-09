@@ -8,6 +8,23 @@ import type { BranchRole } from './types';
  * so a receptionist opens the front desk, a doctor opens their queue, and a
  * restaurant opens its floor, instead of a generic dashboard.
  */
+/**
+ * Role-aware landing INSIDE the Route Planner experience. Managers/planners open the planning
+ * workspace; supervisors open live tracking; reps open their assigned missions; viewers open
+ * read-only tracking. Most-senior role wins (a multi-role user gets the manager view). Pure.
+ */
+export function routePlannerHome(roles: ReadonlyArray<BranchRole>): string {
+  const has = (...rs: BranchRole[]) => rs.some((r) => roles.includes(r));
+  if (has('admin', 'manager', 'branch_manager', 'area_manager', 'regional_manager', 'national_sales_manager', 'sales_director')) {
+    return '/distribution/route-planner';
+  }
+  if (has('supervisor')) return '/distribution/route-planner/tracking';
+  if (has('salesman', 'driver')) return '/distribution/route-planner/my-missions';
+  if (has('viewer', 'auditor')) return '/distribution/route-planner/tracking';
+  // No recognised role → the planner workspace (also the demo/no-membership default).
+  return '/distribution/route-planner';
+}
+
 export function resolveHomePath(ctx: {
   isPlatformOwner?: boolean;
   /** The tenant company the user belongs to. A vendor-tier user (platform owner
@@ -35,8 +52,11 @@ export function resolveHomePath(ctx: {
    *  full company). Wins over `company.business_type` when provided. */
   businessType?: string | null;
 }): string {
-  // Route Planner experience: a single-screen product — always land on the planner.
-  if (ctx.isRoutePlannerExperience) return '/distribution/route-planner';
+  // Route Planner experience: land each role on the screen they use first — managers/planners on
+  // the planner workspace, supervisors on tracking, reps on their missions, viewers on read-only
+  // tracking. (Detection now also covers business_type=route_planner and RP-centric
+  // route_management, not just the plan key.)
+  if (ctx.isRoutePlannerExperience) return routePlannerHome((ctx.memberships ?? []).map((m) => m.role));
   // Route Planner Admin: the limited product admin console (no full platform).
   if (ctx.isRoutePlannerAdmin) return '/planner-admin';
 
