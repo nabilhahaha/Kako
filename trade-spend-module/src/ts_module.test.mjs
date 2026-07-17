@@ -67,12 +67,13 @@ eq('rental6 pre start', p6.preStartDateStr, '2025-08-01');
 eq('rental6 post end', p6.postEndDateStr, '2026-07-31');
 eq('rental6 months', p6.rentalMonths, 6);
 
-// 4) calcSalesForRange — multi-entry acct + category filter
-eq('sales pre window (both name variants)', T.calcSalesForRange('10-001495', ['Bonny Fruit'], [], '2025-11-01', '2026-01-31'), { amount: 1000, cases: 10 });
-eq('sales post window', T.calcSalesForRange('10-001495', ['Bonny Fruit'], [], '2026-02-01', '2026-04-30'), { amount: 1600, cases: 16 });
-eq('sales ALL categories includes Roshetto row', T.calcSalesForRange('10-001495', ['ALL'], [], '2026-02-01', '2026-04-30'), { amount: 2599, cases: 25 });
-eq('sales SKU filter', T.calcSalesForRange('10-001495', ['ALL'], ['Roshetto Dark'], '2026-02-01', '2026-04-30'), { amount: 999, cases: 9 });
-eq('sales unknown acct', T.calcSalesForRange('nope', ['ALL'], [], '2025-01-01', '2027-01-01'), { amount: 0, cases: 0 });
+// 4) calcSalesForRange — multi-entry acct + category filter (subset match: v2 adds discount/gross fields)
+const sub = (name, got, want) => eq(name, Object.fromEntries(Object.keys(want).map(k => [k, got[k]])), want);
+sub('sales pre window (both name variants)', T.calcSalesForRange('10-001495', ['Bonny Fruit'], [], '2025-11-01', '2026-01-31'), { amount: 1000, cases: 10 });
+sub('sales post window', T.calcSalesForRange('10-001495', ['Bonny Fruit'], [], '2026-02-01', '2026-04-30'), { amount: 1600, cases: 16 });
+sub('sales ALL categories includes Roshetto row', T.calcSalesForRange('10-001495', ['ALL'], [], '2026-02-01', '2026-04-30'), { amount: 2599, cases: 25 });
+sub('sales SKU filter', T.calcSalesForRange('10-001495', ['ALL'], ['Roshetto Dark'], '2026-02-01', '2026-04-30'), { amount: 999, cases: 9 });
+sub('sales unknown acct', T.calcSalesForRange('nope', ['ALL'], [], '2025-01-01', '2027-01-01'), { amount: 0, cases: 0 });
 
 // 5) uplift / roi / verdict — DAY-NORMALIZED, coverage-aware business math
 // windows: pre Nov1–Jan31 = 92d, post Feb1–Apr30 = 89d; pre=1000, post=1600
@@ -149,6 +150,68 @@ if (T.displayPerf) {
   eq('display fallback flag', dpGhost.live, false);
   eq('display fallback keeps stored pre', dpGhost.pre, 111);
   eq('display fallback keeps stored verdict', dpGhost.verdict, 'Successful');
+}
+
+// 6) ENGINE V2 — ROTS, Trade Spend %, After window, retention, baseline floor, overlaps
+// base case: pre=1000/92d, during=1600/89d, spend=500 -> incremental=632.6086956521739
+{
+  const v = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '2026-02-01', null, 500);
+  approx('v2 ROTS = incremental/spend', v.rots, 632.6086956521739 / 500, 1e-9);
+  approx('v2 Trade Spend % = spend/during', v.spendPct, 500 / 1600, 1e-9);
+  // after window: during ends 2026-04-30 (89d) -> after = 2026-05-01..2026-07-28, dataset ends 2026-05-31 in stub META
+  eq('v2 after window start', v.periods.afterStartDateStr, '2026-05-01');
+}
+// after-window measurement with full coverage: widen META, place a sale in the after window
+{
+  const M0 = global.META;
+  global.META = { dateMin: '2025-01-01', dateMax: '2026-12-31' };
+  const v = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '2026-02-01', null, 500);
+  eq('v2 after days covered = during length', v.afterDaysCovered, 89);
+  // no dataset rows fall in May-Jul -> after amount 0, retention 0
+  eq('v2 after amount (no rows)', v.afterAmount, 0);
+  approx('v2 retention 0 when after empty', v.retention, 0, 1e-9);
+  global.META = M0;
+}
+// after window blocked by an immediately-following activity
+{
+  TS._setActivitiesForTest([{ id: 'NEXT-IMMEDIATE', custCode: '10-001495', categories: ['Bonny Fruit'], activityDate: '2026-03-01' }]);
+  const v = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '2026-02-01', 'CUR', 500);
+  eq('v2 after blocked by next activity', [v.periods.afterBlocked, v.periods.afterStartDateStr, v.afterDaysCovered], [true, null, 0]);
+  TS._setActivitiesForTest([]);
+}
+// overlap detection: same-day activity for same customer + overlapping cats
+{
+  TS._setActivitiesForTest([{ id: 'SAME-DAY', custCode: '10-001495', categories: ['ALL'], actType: 'Floor Display', activityDate: '2026-02-01' }]);
+  const v = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '2026-02-01', 'CUR', 500);
+  eq('v2 same-day overlap detected', v.overlaps, ['SAME-DAY']);
+  TS._setActivitiesForTest([]);
+}
+// consecutive (not simultaneous) activities are NOT flagged as overlap (truncation handles them)
+{
+  TS._setActivitiesForTest([{ id: 'LATER', custCode: '10-001495', categories: ['Bonny Fruit'], actType: 'Floor Display', activityDate: '2026-03-01' }]);
+  const v = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '2026-02-01', 'CUR', 500);
+  eq('v2 consecutive not flagged as overlap', v.overlaps, []);
+  TS._setActivitiesForTest([]);
+}
+// discount accounting: gross = net + discount, discountPct = discount/gross
+{
+  const r = T.calcSalesForRange('10-001495', ['Bonny Fruit'], [], '2025-11-01', '2026-01-31');
+  eq('v2 gross = net + discount', r.gross, r.amount + r.discount);
+}
+// baseline floor: returns-heavy pre period must not produce a negative baseline
+{
+  const M0 = global.META, D0 = global.D;
+  // craft a tiny dataset: one big return before, one sale during
+  global.D = { cu: [1, 1], sk: [11, 11], d: [global.dateToInt('2026-01-10'), global.dateToInt('2026-02-10')], s: [-500, 300], qx: [100, 100], di: [0, 0] };
+  global.QC = (i) => global.D.qx[i] / 100;
+  global.META = { dateMin: '2025-01-01', dateMax: '2026-12-31' };
+  TS._setActivitiesForTest([]);
+  TS._resetSalesIndexForTest && TS._resetSalesIndexForTest();
+  const v = T.computePerf('10-001495', ['ALL'], [], 'Floor Display', '2026-02-01', null, 100);
+  eq('v2 baseline floored at 0', [v.baselineAmount, v.baselineFloored], [0, true]);
+  approx('v2 incremental = during when floored', v.incremental, 300, 1e-9);
+  global.D = D0; global.META = M0;
+  TS._resetSalesIndexForTest && TS._resetSalesIndexForTest();
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
