@@ -844,6 +844,11 @@ window.TS = (function () {
     var cats = salesCategories();
     var custOptions = custs.map(function (c) { return '<option value="' + esc(c.acct + ' — ' + c.name) + '"></option>'; }).join('');
     var pct = a.reliaPct != null ? a.reliaPct : 50;
+    // Historical-value protection: when editing a record that already carries
+    // saved performance figures, the user chooses between preserving them
+    // (default — protects historical reporting) and recalculating from the
+    // live Dashboard dataset.
+    var hasStoredPerf = !!state.editingId && (a.preAmount != null || a.postAmount != null || a.uplift != null || a.roi != null);
     state.formCats = getCats(a);
     state.formSkus = (a.skus || []).slice();
     state.formPhotos = (a.execPhotos || []).slice();
@@ -882,6 +887,14 @@ window.TS = (function () {
       '<div class="ts-field"><label>Credit Note</label><input type="file" id="tsFCn" accept="image/*,.pdf" onchange="TS.onCreditNote(this)"><div id="tsFCnName" style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + esc(a.creditNoteFilename || '') + '</div></div>' +
       '</div>' +
       '<div class="ts-field" style="margin-top:10px;"><label>Notes</label><textarea id="tsFNotes" rows="3" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);padding:9px 12px;font:inherit;">' + esc(a.notes || '') + '</textarea></div>' +
+      (hasStoredPerf ?
+        '<div class="ts-field" style="margin-top:14px;"><label>Performance Values</label>' +
+        '<select id="tsFPerfMode" onchange="TS.recalc()">' +
+        '<option value="keep" selected>Keep original (as saved at approval time)</option>' +
+        '<option value="recalc">Recalculate from latest sales data</option>' +
+        '</select>' +
+        '<div class="ts-split-note" style="margin-top:4px;"><span>“Keep original” freezes Sales Before/After, Uplift, ROI and Verdict for historical reporting. “Recalculate” refreshes them from the live Dashboard dataset.</span></div></div>'
+        : '') +
       '<div class="ts-perf-box" id="tsPerfBox">' +
       '<div class="ts-perf-item"><div class="ts-view-k">Sales Before</div><div id="tsPerfPre" class="ts-perf-v">—</div></div>' +
       '<div class="ts-perf-item"><div class="ts-view-k">Sales After</div><div id="tsPerfPost" class="ts-perf-v">—</div></div>' +
@@ -978,6 +991,11 @@ window.TS = (function () {
     return sel.value;
   }
 
+  function perfMode() {
+    var el = byId('tsFPerfMode');
+    return el ? el.value : 'recalc'; // no selector = new activity = always calculate
+  }
+
   var _recalcT = null;
   function recalc() {
     clearTimeout(_recalcT);
@@ -988,6 +1006,17 @@ window.TS = (function () {
       var dateStr = byId('tsFDate') && byId('tsFDate').value;
       var total = num(byId('tsFAmount') && byId('tsFAmount').value);
       var set = function (id, v) { var el = byId(id); if (el) el.textContent = v; };
+      if (state.editingId && perfMode() === 'keep') {
+        // Preview shows exactly what will be saved: the original figures.
+        var a0 = findAct(state.editingId) || {};
+        set('tsPerfPre', fmtSAR(a0.preAmount));
+        set('tsPerfPost', fmtSAR(a0.postAmount));
+        set('tsPerfUplift', fmtPct(a0.uplift));
+        set('tsPerfRoi', fmtPct(a0.roi));
+        set('tsPerfVerdict', a0.verdict || 'Pending');
+        set('tsPerfWin', (a0.postStartDate || '—') + ' → ' + (a0.postEndDate || '—') + ' · 🔒 original preserved');
+        return;
+      }
       if (!custCode || !cats.length || !dateStr) {
         ['tsPerfPre', 'tsPerfPost', 'tsPerfUplift', 'tsPerfRoi', 'tsPerfVerdict', 'tsPerfWin'].forEach(function (id) { set(id, '—'); });
         return;
@@ -1076,7 +1105,12 @@ window.TS = (function () {
     }
 
     var pct = parseInt(byId('tsFSplit').value, 10);
-    var perf = datasetReady() ? computePerf(custCode, state.formCats, state.formSkus, actType, dateStr, state.editingId, total) : null;
+    // Historical-value protection: 'keep' preserves the saved performance
+    // figures (Sales Before/After, Uplift, ROI, Verdict, period windows)
+    // exactly as they were at approval time; 'recalc' refreshes them from
+    // the live Dashboard dataset (always the case for NEW activities).
+    var keepPerf = !!editing && perfMode() === 'keep';
+    var perf = (!keepPerf && datasetReady()) ? computePerf(custCode, state.formCats, state.formSkus, actType, dateStr, state.editingId, total) : null;
 
     a.custCode = custCode;
     a.custName = custName;
@@ -1113,6 +1147,12 @@ window.TS = (function () {
       a.postAmount = perf.postAmount; a.postCases = perf.postCases;
       a.incremental = perf.incremental;
       a.uplift = perf.uplift; a.roi = perf.roi; a.verdict = perf.verdict;
+      // provenance stamp for audit: when and by whom figures were (re)computed
+      a.perfSource = 'dashboard-dataset';
+      a.perfCalculatedAt = new Date().toISOString();
+      a.perfCalculatedBy = currentUserEmail();
+    } else if (keepPerf) {
+      a.perfPreserved = true; // original approval-time figures intentionally kept
     }
     a.overallStatus = computeOverall(a);
     a.updatedBy = currentUserEmail();
