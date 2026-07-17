@@ -1,0 +1,631 @@
+{
+ "errors": [],
+ "blockedExternal": [
+  "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css",
+  "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js",
+  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+  "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css",
+  "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js",
+  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+ ],
+ "console": [],
+ "checks": [
+  {
+   "name": "new dataset applied (no error)",
+   "pass": true,
+   "detail": "true"
+  },
+  {
+   "name": "net changed from old dataset",
+   "pass": true,
+   "detail": "0 -> 2422992"
+  },
+  {
+   "name": "rows = expected",
+   "pass": true,
+   "detail": "2600 vs 2600"
+  },
+  {
+   "name": "Net Sales exact",
+   "pass": true,
+   "detail": "2422992 vs 2422992"
+  },
+  {
+   "name": "Cases exact",
+   "pass": true,
+   "detail": "23639 vs 23639"
+  },
+  {
+   "name": "Returns exact",
+   "pass": true,
+   "detail": "198014 vs 198014"
+  },
+  {
+   "name": "Discount exact",
+   "pass": true,
+   "detail": "79960 vs 79960"
+  },
+  {
+   "name": "Tons exact",
+   "pass": true,
+   "detail": "61.1 vs 61.1"
+  },
+  {
+   "name": "net = gross - returns (consistency)",
+   "pass": true,
+   "detail": "2422992 == 2621006-198014"
+  },
+  {
+   "name": "customers propagated",
+   "pass": true,
+   "detail": "40"
+  },
+  {
+   "name": "SKUs propagated",
+   "pass": true,
+   "detail": "15"
+  },
+  {
+   "name": "salesmen propagated",
+   "pass": true,
+   "detail": "8"
+  },
+  {
+   "name": "categories propagated",
+   "pass": true,
+   "detail": "6"
+  },
+  {
+   "name": "months propagated",
+   "pass": true,
+   "detail": "6"
+  },
+  {
+   "name": "regions propagated",
+   "pass": true,
+   "detail": "4"
+  },
+  {
+   "name": "supervisors propagated",
+   "pass": true,
+   "detail": "5"
+  },
+  {
+   "name": "date range propagated",
+   "pass": true,
+   "detail": "2024-08-01..2025-01-31"
+  },
+  {
+   "name": "desktop mode:analytics",
+   "pass": true,
+   "detail": "view=view-analytics canvases=5 tables=0 rows=0 err=0"
+  },
+  {
+   "name": "desktop mode:profiles",
+   "pass": true,
+   "detail": "view=view-profiles canvases=0 tables=0 rows=0 err=0"
+  },
+  {
+   "name": "desktop mode:lost",
+   "pass": true,
+   "detail": "view=view-lost canvases=0 tables=0 rows=0 err=0"
+  },
+  {
+   "name": "desktop mode:journey",
+   "pass": true,
+   "detail": "view=view-journey canvases=0 tables=0 rows=0 err=0"
+  },
+  {
+   "name": "desktop mode:daily",
+   "pass": true,
+   "detail": "view=view-daily canvases=0 tables=1 rows=8 err=0"
+  },
+  {
+   "name": "desktop mode:promo",
+   "pass": true,
+   "detail": "view=view-promo canvases=0 tables=0 rows=0 err=0"
+  },
+  {
+   "name": "desktop mode:returns",
+   "pass": true,
+   "detail": "view=view-returns canvases=1 tables=3 rows=36 err=0"
+  },
+  {
+   "name": "desktop mode:stockreport",
+   "pass": true,
+   "detail": "view=view-stockreport canvases=0 tables=3 rows=217 err=0"
+  },
+  {
+   "name": "desktop mode:tradespend",
+   "pass": true,
+   "detail": "view=view-tradespend canvases=0 tables=1 rows=3 err=0"
+  },
+  {
+   "name": "desktop analytics.tab:overview",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop analytics.tab:sales",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop analytics.tab:region",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop analytics.tab:customers",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop analytics.tab:products",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop analytics.tab:skumatrix",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop analytics.tab:customermatrix",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop analytics.tab:salesteam",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop analytics.tab:risks",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop profile:salesman",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop profile:customer",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop profile:invoice",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop profile:category",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop profile:sku",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop profile:month",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "desktop TS log renders",
+   "pass": true,
+   "detail": "rows=3 kpiActivities=3 actionBtns=9"
+  },
+  {
+   "name": "desktop TS search filters",
+   "pass": true,
+   "detail": "rows=1"
+  },
+  {
+   "name": "desktop TS view modal opens (live perf)",
+   "pass": true,
+   "detail": "open=true live=true"
+  },
+  {
+   "name": "desktop TS edit form opens",
+   "pass": true,
+   "detail": "tab=new"
+  },
+  {
+   "name": "desktop TS analysis charts",
+   "pass": true,
+   "detail": "canvases=4"
+  },
+  {
+   "name": "desktop TS excel export runs",
+   "pass": true,
+   "detail": "called"
+  },
+  {
+   "name": "desktop TS errors during flows",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mode switching stable (24x, no runaway charts)",
+   "pass": true,
+   "detail": "charts=18 avg=79ms heap=69MB"
+  },
+  {
+   "name": "mobile mode:analytics",
+   "pass": true,
+   "detail": "view=view-analytics canvases=5 tables=0 rows=0 err=0"
+  },
+  {
+   "name": "mobile mode:profiles",
+   "pass": true,
+   "detail": "view=view-profiles canvases=0 tables=0 rows=0 err=0"
+  },
+  {
+   "name": "mobile mode:lost",
+   "pass": true,
+   "detail": "view=view-lost canvases=0 tables=0 rows=0 err=0"
+  },
+  {
+   "name": "mobile mode:journey",
+   "pass": true,
+   "detail": "view=view-journey canvases=0 tables=0 rows=0 err=0"
+  },
+  {
+   "name": "mobile mode:daily",
+   "pass": true,
+   "detail": "view=view-daily canvases=0 tables=1 rows=8 err=0"
+  },
+  {
+   "name": "mobile mode:promo",
+   "pass": true,
+   "detail": "view=view-promo canvases=0 tables=0 rows=0 err=0"
+  },
+  {
+   "name": "mobile mode:returns",
+   "pass": true,
+   "detail": "view=view-returns canvases=1 tables=3 rows=36 err=0"
+  },
+  {
+   "name": "mobile mode:stockreport",
+   "pass": true,
+   "detail": "view=view-stockreport canvases=0 tables=3 rows=217 err=0"
+  },
+  {
+   "name": "mobile mode:tradespend",
+   "pass": true,
+   "detail": "view=view-tradespend canvases=0 tables=1 rows=3 err=0"
+  },
+  {
+   "name": "mobile analytics.tab:overview",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile analytics.tab:sales",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile analytics.tab:region",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile analytics.tab:customers",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile analytics.tab:products",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile analytics.tab:skumatrix",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile analytics.tab:customermatrix",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile analytics.tab:salesteam",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile analytics.tab:risks",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile profile:salesman",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile profile:customer",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile profile:invoice",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile profile:category",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile profile:sku",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile profile:month",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile TS log renders",
+   "pass": true,
+   "detail": "rows=3 kpiActivities=3 actionBtns=9"
+  },
+  {
+   "name": "mobile TS search filters",
+   "pass": true,
+   "detail": "rows=1"
+  },
+  {
+   "name": "mobile TS view modal opens (live perf)",
+   "pass": true,
+   "detail": "open=true live=true"
+  },
+  {
+   "name": "mobile TS edit form opens",
+   "pass": true,
+   "detail": "tab=new"
+  },
+  {
+   "name": "mobile TS analysis charts",
+   "pass": true,
+   "detail": "canvases=4"
+  },
+  {
+   "name": "mobile TS excel export runs",
+   "pass": true,
+   "detail": "called"
+  },
+  {
+   "name": "mobile TS errors during flows",
+   "pass": true,
+   "detail": "err=0"
+  },
+  {
+   "name": "mobile TOUCH tap View opens modal",
+   "pass": true,
+   "detail": "open=true"
+  }
+ ],
+ "modes": {
+  "desktop:analytics": {
+   "switch": "ok",
+   "active": "view-analytics",
+   "charts": 5,
+   "canvases": 5,
+   "tables": 0,
+   "rows": 0,
+   "kpis": 16,
+   "errs": 0,
+   "cons": 0
+  },
+  "desktop:profiles": {
+   "switch": "ok",
+   "active": "view-profiles",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 0,
+   "rows": 0,
+   "kpis": 0,
+   "errs": 0,
+   "cons": 0
+  },
+  "desktop:lost": {
+   "switch": "ok",
+   "active": "view-lost",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 0,
+   "rows": 0,
+   "kpis": 14,
+   "errs": 0,
+   "cons": 0
+  },
+  "desktop:journey": {
+   "switch": "ok",
+   "active": "view-journey",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 0,
+   "rows": 0,
+   "kpis": 14,
+   "errs": 0,
+   "cons": 0
+  },
+  "desktop:daily": {
+   "switch": "ok",
+   "active": "view-daily",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 1,
+   "rows": 8,
+   "kpis": 8,
+   "errs": 0,
+   "cons": 0
+  },
+  "desktop:promo": {
+   "switch": "ok",
+   "active": "view-promo",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 0,
+   "rows": 0,
+   "kpis": 0,
+   "errs": 0,
+   "cons": 0
+  },
+  "desktop:returns": {
+   "switch": "ok",
+   "active": "view-returns",
+   "charts": 5,
+   "canvases": 1,
+   "tables": 3,
+   "rows": 36,
+   "kpis": 8,
+   "errs": 0,
+   "cons": 0
+  },
+  "desktop:stockreport": {
+   "switch": "ok",
+   "active": "view-stockreport",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 3,
+   "rows": 217,
+   "kpis": 5,
+   "errs": 0,
+   "cons": 0
+  },
+  "desktop:tradespend": {
+   "switch": "ok",
+   "active": "view-tradespend",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 1,
+   "rows": 3,
+   "kpis": 8,
+   "errs": 0,
+   "cons": 0
+  },
+  "mobile:analytics": {
+   "switch": "ok",
+   "active": "view-analytics",
+   "charts": 5,
+   "canvases": 5,
+   "tables": 0,
+   "rows": 0,
+   "kpis": 16,
+   "errs": 0,
+   "cons": 0
+  },
+  "mobile:profiles": {
+   "switch": "ok",
+   "active": "view-profiles",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 0,
+   "rows": 0,
+   "kpis": 0,
+   "errs": 0,
+   "cons": 0
+  },
+  "mobile:lost": {
+   "switch": "ok",
+   "active": "view-lost",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 0,
+   "rows": 0,
+   "kpis": 14,
+   "errs": 0,
+   "cons": 0
+  },
+  "mobile:journey": {
+   "switch": "ok",
+   "active": "view-journey",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 0,
+   "rows": 0,
+   "kpis": 14,
+   "errs": 0,
+   "cons": 0
+  },
+  "mobile:daily": {
+   "switch": "ok",
+   "active": "view-daily",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 1,
+   "rows": 8,
+   "kpis": 8,
+   "errs": 0,
+   "cons": 0
+  },
+  "mobile:promo": {
+   "switch": "ok",
+   "active": "view-promo",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 0,
+   "rows": 0,
+   "kpis": 0,
+   "errs": 0,
+   "cons": 0
+  },
+  "mobile:returns": {
+   "switch": "ok",
+   "active": "view-returns",
+   "charts": 5,
+   "canvases": 1,
+   "tables": 3,
+   "rows": 36,
+   "kpis": 8,
+   "errs": 0,
+   "cons": 0
+  },
+  "mobile:stockreport": {
+   "switch": "ok",
+   "active": "view-stockreport",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 3,
+   "rows": 217,
+   "kpis": 5,
+   "errs": 0,
+   "cons": 0
+  },
+  "mobile:tradespend": {
+   "switch": "ok",
+   "active": "view-tradespend",
+   "charts": 5,
+   "canvases": 0,
+   "tables": 1,
+   "rows": 3,
+   "kpis": 8,
+   "errs": 0,
+   "cons": 0
+  }
+ },
+ "perf": {
+  "avgSwitchMs": 79,
+  "heapMB": 69,
+  "charts": 18
+ },
+ "summary": {
+  "passed": 81,
+  "total": 81,
+  "errors": 0,
+  "consoleErrors": 0,
+  "blockedExternal": 3
+ }
+}
