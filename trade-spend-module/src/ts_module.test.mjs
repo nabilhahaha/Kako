@@ -202,6 +202,7 @@ if (T.displayPerf) {
 {
   const M0 = global.META, D0 = global.D;
   // craft a tiny dataset: one big return before, one sale during
+  const QC0 = global.QC;
   global.D = { cu: [1, 1], sk: [11, 11], d: [global.dateToInt('2026-01-10'), global.dateToInt('2026-02-10')], s: [-500, 300], qx: [100, 100], di: [0, 0] };
   global.QC = (i) => global.D.qx[i] / 100;
   global.META = { dateMin: '2025-01-01', dateMax: '2026-12-31' };
@@ -210,8 +211,27 @@ if (T.displayPerf) {
   const v = T.computePerf('10-001495', ['ALL'], [], 'Floor Display', '2026-02-01', null, 100);
   eq('v2 baseline floored at 0', [v.baselineAmount, v.baselineFloored], [0, true]);
   approx('v2 incremental = during when floored', v.incremental, 300, 1e-9);
-  global.D = D0; global.META = M0;
+  global.D = D0; global.META = M0; global.QC = QC0;
   TS._resetSalesIndexForTest && TS._resetSalesIndexForTest();
+}
+
+// 7) PRODUCTION-BUG REGRESSIONS (found in authenticated live session)
+// 7a. legacy photo objects {name,data} must render (src = .data)
+{
+  const row = T.activityToRow({ id: 'TS-P1', custCode: 'x', custName: 'x', categories: ['ALL'], skus: [], actType: 'T', activityDate: '2026-01-01', totalAmount: 1, execPhotos: [{ name: 'a.jpg', data: 'data:image/jpeg;base64,AAA' }], creditNoteImage: '', creditNoteFilename: '', roshenStatus: 'Pending Approval', reliaStatus: 'Pending Approval', finalApproved: 'No', createdBy: 'a@b.c', createdAt: 'z' });
+  const back = T.rowToActivity(row);
+  eq('photo object survives roundtrip', back.execPhotos[0].data, 'data:image/jpeg;base64,AAA');
+}
+// 7b. dataset swap with SAME lengths but different ids must invalidate the sales index
+{
+  const before = T.calcSalesForRange('10-001495', ['ALL'], [], '2026-01-01', '2026-03-01');
+  // swap: remap in place — same array lengths, different customer ids
+  const oldCu = global.D.cu.slice();
+  global.CUSTOMERS[0].id = 91; global.CUSTOMERS[1].id = 92; // acct 10-001495 now ids 91/92
+  global.D.cu = global.D.cu.map(v => (v === 1 ? 91 : v === 2 ? 92 : v));
+  const after = T.calcSalesForRange('10-001495', ['ALL'], [], '2026-01-01', '2026-03-01');
+  eq('stale-index guard: same-size swap recomputes correctly', Math.round(after.amount), Math.round(before.amount));
+  global.CUSTOMERS[0].id = 1; global.CUSTOMERS[1].id = 2; global.D.cu = oldCu;
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

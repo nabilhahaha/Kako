@@ -169,6 +169,12 @@ window.TS = (function () {
     if (isAllCats(a) || isAllCats(b)) return true;
     return a.some(function (c) { return b.indexOf(c) >= 0; });
   }
+  // Photos: the legacy app stores execution photos as { name, data } objects
+  // (data = base64 data-URI); the module also accepts plain strings. Render
+  // both; save in the legacy object shape so the parallel-run app keeps working.
+  function photoSrc(p) { return typeof p === 'string' ? p : ((p && (p.data || p.src)) || ''); }
+  function photoObj(p) { return typeof p === 'string' ? { name: 'photo', data: p } : p; }
+
   function getClaim(a) { return a && a.claimReceived === 'Yes' ? 'Yes' : 'No'; }
   function getFinal(a) { return (a && (a.finalApproved === 'Yes' || a.finalApproved === 'Rejected')) ? a.finalApproved : 'No'; }
   function finalState(a) { return getFinal(a); }
@@ -280,9 +286,20 @@ window.TS = (function () {
     return typeof D !== 'undefined' && D && D.s && typeof CUSTOMERS !== 'undefined' && CUSTOMERS.length > 0;
   }
 
+  // Content fingerprint, not just lengths: at cloud login the dashboard swaps
+  // the embedded dataset for the downloaded active version — SAME sizes — and
+  // an index built mid-swap would otherwise be memoized for the whole session
+  // (stale customer-id mappings → wrong or zero sales for every activity).
+  function datasetSig() {
+    var n = D.s.length, m = CUSTOMERS.length;
+    var c0 = CUSTOMERS[0] || {}, cL = CUSTOMERS[m - 1] || {};
+    return m + ':' + n + ':' + ((typeof META !== 'undefined' && META && META.generated) || '') +
+      ':' + c0.id + '.' + c0.acct + ':' + cL.id + '.' + cL.acct +
+      ':' + D.cu[0] + ':' + D.cu[n - 1] + ':' + D.s[0] + ':' + D.s[n - 1] + ':' + D.sk[0];
+  }
   function salesIndex() {
     if (!datasetReady()) return null;
-    var sig = CUSTOMERS.length + ':' + D.s.length;
+    var sig = datasetSig();
     if (state.salesIdx && state.salesIdxSig === sig) return state.salesIdx;
     // acct -> Set(customer ids); then customer id -> rows in one pass.
     var idByAcct = new Map();
@@ -954,7 +971,7 @@ window.TS = (function () {
       '<tr><td>Trade Spend %</td><td>' + fmtPct(dp.spendPct) + '</td>' + muted('spend ÷ during net sales') + '</tr>' +
       covNote + overlapNote;
     var photos = (a.execPhotos || []).map(function (p, i) {
-      return '<img src="' + p + '" alt="Execution photo ' + (i + 1) + '" class="ts-photo" onclick="TS.zoomPhoto(' + i + ')">';
+      return '<img src="' + photoSrc(p) + '" alt="Execution photo ' + (i + 1) + '" class="ts-photo" onclick="TS.zoomPhoto(' + i + ')">';
     }).join('');
     var tl = [
       timelineRow('📝', 'Created', a.createdBy, a.createdAt),
@@ -998,7 +1015,7 @@ window.TS = (function () {
   function zoomPhoto(i) {
     var a = findAct(state.viewId); if (!a || !a.execPhotos || !a.execPhotos[i]) return;
     var w = window.open('', '_blank');
-    if (w) { w.document.write('<title>Photo</title><body style="margin:0;background:#111;display:grid;place-items:center;min-height:100vh;"><img src="' + a.execPhotos[i] + '" style="max-width:100%;max-height:100vh;">'); }
+    if (w) { w.document.write('<title>Photo</title><body style="margin:0;background:#111;display:grid;place-items:center;min-height:100vh;"><img src="' + photoSrc(a.execPhotos[i]) + '" style="max-width:100%;max-height:100vh;">'); }
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1184,7 +1201,7 @@ window.TS = (function () {
   function renderFormPhotos() {
     var el = byId('tsFPhotoList'); if (!el) return;
     el.innerHTML = state.formPhotos.map(function (p, i) {
-      return '<span style="position:relative;display:inline-block;"><img src="' + p + '" class="ts-photo"><button class="ts-photo-x" title="Remove" onclick="TS.removePhoto(' + i + ')">✕</button></span>';
+      return '<span style="position:relative;display:inline-block;"><img src="' + photoSrc(p) + '" class="ts-photo"><button class="ts-photo-x" title="Remove" onclick="TS.removePhoto(' + i + ')">✕</button></span>';
     }).join('');
   }
 
@@ -1376,7 +1393,7 @@ window.TS = (function () {
   function onPhotos(input) {
     Array.prototype.slice.call(input.files || []).forEach(function (f) {
       readFileScaled(f, 1400, function (dataUrl) {
-        state.formPhotos.push(dataUrl);
+        state.formPhotos.push({ name: f.name, data: dataUrl }); // legacy shape
         renderFormPhotos();
       });
     });
@@ -1477,7 +1494,7 @@ window.TS = (function () {
     a.metersValue = byId('tsFMeters').value ? num(byId('tsFMeters').value) : null;
     a.numBranches = byId('tsFNumBr').value ? num(byId('tsFNumBr').value) : null;
     a.notes = byId('tsFNotes').value;
-    a.execPhotos = state.formPhotos.slice();
+    a.execPhotos = state.formPhotos.map(photoObj); // legacy {name,data} shape
     a.execPhotoCount = a.execPhotos.length;
     a.creditNoteImage = state.formCreditNote.image;
     a.creditNoteFilename = state.formCreditNote.filename;
