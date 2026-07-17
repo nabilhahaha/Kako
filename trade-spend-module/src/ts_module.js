@@ -15,6 +15,10 @@
 window.TS = (function () {
   'use strict';
 
+  // Visible build stamp — lets anyone confirm which build a browser is running.
+  var TS_BUILD = 'Engine V2 · 2026-07-17';
+  try { console.info('[Roshen Trade Spend] ' + TS_BUILD); } catch (e) {}
+
   var TABS = ['log', 'new', 'analysis'];
   var ALL_CATEGORIES = 'ALL';
 
@@ -862,7 +866,7 @@ window.TS = (function () {
       var el = byId(id); if (el) el.textContent = v;
       if (sub) { var s = byId(id + 'Sub'); if (s) s.textContent = sub; }
     };
-    set('tsKpiActivities', String(acts.length), state.cloudError === 'offline' ? 'Cloud sign-in required' : 'Live from cloud');
+    set('tsKpiActivities', String(acts.length), state.cloudError === 'offline' ? 'Cloud sign-in required' : 'Live from cloud · ' + TS_BUILD);
     set('tsKpiSpend', acts.length ? Math.round(spend).toLocaleString('en-US') : '—', 'Total committed');
     set('tsKpiApproved', String(approved), finalYes + ' final-approved');
     set('tsKpiPending', String(pending), 'Awaiting decision');
@@ -1045,7 +1049,8 @@ window.TS = (function () {
     };
     host.innerHTML =
       '<div class="card">' +
-      '<div class="card-header"><div class="card-title"><span class="icon-bullet"></span> ' + (state.editingId ? 'Edit Activity — ' + esc(state.editingId) : 'New Activity') + '</div>' +
+      '<div class="card-header"><div class="card-title"><span class="icon-bullet"></span> ' + (state.editingId ? 'Edit Activity — ' + esc(state.editingId) : 'New Activity') +
+      ' <span class="ts-build-badge" title="Trade Spend build running in this browser">' + TS_BUILD + '</span></div>' +
       (state.editingId ? '<button class="btn" onclick="TS.cancelEdit()">✕ Cancel Edit</button>' : '') + '</div>' +
 
       sec(1, 'Customer &amp; Scope',
@@ -1797,6 +1802,42 @@ window.TS = (function () {
       formHost.addEventListener('change', onFormChange);
     }
     injectStylesV2();
+    startFreshnessWatch();
+  }
+
+  // ── Stale-tab detection ────────────────────────────────────────────────────
+  // A dashboard tab left open across a deployment keeps running the OLD code
+  // until reloaded — users then report "the new version isn't live". Compare
+  // the server's ETag against the one this tab booted with (checked every
+  // 5 minutes and whenever the tab regains focus) and offer a one-click
+  // refresh when a newer build is on the server.
+  var _bootEtag = null, _freshTimer = null;
+  function checkFreshness() {
+    if (typeof location === 'undefined' || typeof fetch === 'undefined' ||
+        location.protocol.indexOf('http') !== 0) return; // file:// and test rigs
+    try {
+      fetch(location.pathname || '/', { method: 'HEAD', cache: 'no-store' }).then(function (r) {
+        var e = r.headers.get('etag');
+        if (!e) return;
+        if (_bootEtag === null) { _bootEtag = e; return; }
+        if (e !== _bootEtag) showUpdateBanner();
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  function showUpdateBanner() {
+    if (byId('tsUpdateBanner')) return;
+    var el = document.createElement('div');
+    el.id = 'tsUpdateBanner';
+    el.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;display:flex;gap:12px;align-items:center;padding:11px 16px;border-radius:12px;background:#1A2942;color:#F1F4FA;border:1px solid rgba(255,255,255,0.15);box-shadow:0 10px 40px rgba(0,0,0,0.45);font:600 12.5px/1.4 Calibri,system-ui,sans-serif;';
+    el.innerHTML = '⬆️ A newer version of the dashboard has been deployed.' +
+      '<button style="all:unset;cursor:pointer;background:#C2263B;color:#fff;font-weight:800;padding:6px 14px;border-radius:8px;" onclick="location.reload()">Refresh now</button>';
+    document.body.appendChild(el);
+  }
+  function startFreshnessWatch() {
+    if (_freshTimer) return;
+    checkFreshness(); // records the boot ETag
+    _freshTimer = setInterval(checkFreshness, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) checkFreshness(); });
   }
 
   function injectStylesV2() {
@@ -1834,6 +1875,7 @@ window.TS = (function () {
       '#view-tradespend .ts-perf-note{grid-column:1/-1;font-size:11px;color:var(--text-muted);line-height:1.5;}' +
       '#view-tradespend .ts-perf-note .warn{color:var(--amber);font-weight:600;}' +
       '#view-tradespend .ts-live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;box-shadow:0 0 0 3px rgba(43,182,115,0.2);}' +
+      '#view-tradespend .ts-build-badge{display:inline-block;margin-left:8px;padding:2px 9px;border-radius:100px;border:1px solid var(--green);color:var(--green);font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle;}' +
       '@media (max-width:768px){#view-tradespend .ts-sec{padding:12px;}#view-tradespend .ts-sku-list{max-height:220px;}}';
     var el = document.createElement('style');
     el.id = 'tsStylesV2';
@@ -1849,6 +1891,7 @@ window.TS = (function () {
 
   // Public surface (used by inline handlers + shell integration)
   return {
+    build: TS_BUILD,
     render: render,
     switchTab: switchTab,
     activeTab: activeTab,
