@@ -445,6 +445,39 @@ window.TS = (function () {
     };
   }
 
+  // LIVE PERFORMANCE — every display (log, detail view, analysis, exports)
+  // computes Sales Before/After, Uplift, ROI and Verdict from the CURRENT
+  // Dashboard sales dataset. Stored figures are only a fallback for records
+  // whose customer code cannot be resolved in the dataset (e.g. malformed
+  // codes) or before the dataset has loaded. Memoized per dataset version.
+  var _livePerfCache = new Map();
+  function livePerf(a) {
+    if (!datasetReady() || !a || !a.custCode || !a.activityDate) return null;
+    var idx = salesIndex();
+    if (!idx || !(idx.idByAcct.get(a.custCode) || []).length) return null;
+    var sig = state.salesIdxSig + '|' + state.activities.length;
+    var hit = _livePerfCache.get(a.id);
+    if (hit && hit.sig === sig) return hit.perf;
+    var perf = computePerf(a.custCode, getCats(a), a.skus || [], a.actType, a.activityDate, a.id, num(a.totalAmount));
+    _livePerfCache.set(a.id, { sig: sig, perf: perf });
+    return perf;
+  }
+  // Unified view-model: live figures when computable, stored snapshot otherwise.
+  function displayPerf(a) {
+    var p = livePerf(a);
+    if (!p) {
+      return { pre: a.preAmount, post: a.postAmount, preCases: a.preCases, postCases: a.postCases,
+               inc: a.incremental, uplift: a.uplift, roi: a.roi, verdict: a.verdict || 'Pending',
+               postStart: a.postStartDate, postEnd: a.postEndDate, days: a.duration,
+               trunc: a.truncatedBy, live: false };
+    }
+    return { pre: p.preAmount, post: p.postAmount, preCases: p.preCases, postCases: p.postCases,
+             inc: p.incremental, uplift: p.uplift, roi: p.roi,
+             verdict: (num(a.totalAmount) > 0 ? p.verdict : 'Pending'),
+             postStart: p.periods.postStartDateStr, postEnd: p.periods.postEndDateStr,
+             days: p.periods.postDays, trunc: p.periods.truncatedBy, live: true };
+  }
+
   // ───────────────────────────────────────────────────────────────────────────
   // DATA — activities CRUD + realtime + polling on the shared cloud client
   // ───────────────────────────────────────────────────────────────────────────
@@ -460,6 +493,7 @@ window.TS = (function () {
       var res = await sb.from('activities').select('*').order('created_at', { ascending: true });
       if (res.error) throw res.error;
       state.activities = (res.data || []).map(rowToActivity);
+      _livePerfCache.clear(); // activity set changed → truncation windows may shift
       // custom activity types persisted on activities themselves
       var known = {};
       state.activities.forEach(function (a) { if (a.actType) known[a.actType] = true; });
@@ -730,7 +764,8 @@ window.TS = (function () {
     }
     var rows = acts.map(function (a) {
       var st = a.overallStatus || computeOverall(a);
-      var period = (a.activityDate || '—') + ' → ' + (a.postEndDate || '—');
+      var dp = displayPerf(a); // live figures from the current dataset
+      var period = (a.activityDate || '—') + ' → ' + (dp.postEnd || '—');
       var lock = finalState(a) === 'Yes' ? ' 🔒' : '';
       return '<tr>' +
         '<td style="font-weight:700;white-space:nowrap;">' + esc(a.id) + lock + '</td>' +
@@ -739,9 +774,9 @@ window.TS = (function () {
         '<td>' + esc(a.actType || '—') + '</td>' +
         '<td style="font-size:11px;white-space:nowrap;">' + esc(period) + '</td>' +
         '<td style="text-align:right;font-weight:700;white-space:nowrap;">' + (a.totalAmount != null ? Math.round(a.totalAmount).toLocaleString('en-US') : '—') + '</td>' +
-        '<td>' + fmtPct(a.uplift) + '</td>' +
-        '<td>' + fmtPct(a.roi) + '</td>' +
-        '<td>' + verdictBadge(a.verdict) + '</td>' +
+        '<td>' + fmtPct(dp.uplift) + '</td>' +
+        '<td>' + fmtPct(dp.roi) + '</td>' +
+        '<td>' + verdictBadge(dp.verdict) + '</td>' +
         '<td>' + esc(getClaim(a)) + '</td>' +
         '<td>' + approvalsCell(a) + '</td>' +
         '<td>' + statusBadge(st) + '</td>' +
@@ -766,12 +801,13 @@ window.TS = (function () {
     var a = findAct(id); if (!a) return;
     state.viewId = id;
     var fs = finalState(a);
+    var dp = displayPerf(a); // live figures from the current dataset
     var perfRows =
-      '<tr><td>Sales Before</td><td>' + fmtSAR(a.preAmount) + '</td><td>' + (a.preCases != null ? Math.round(a.preCases).toLocaleString() + ' cases' : '—') + '</td></tr>' +
-      '<tr><td>Sales After</td><td>' + fmtSAR(a.postAmount) + '</td><td>' + (a.postCases != null ? Math.round(a.postCases).toLocaleString() + ' cases' : '—') + '</td></tr>' +
-      '<tr><td>Incremental</td><td>' + fmtSAR(a.incremental) + '</td><td></td></tr>' +
-      '<tr><td>Uplift</td><td>' + fmtPct(a.uplift) + '</td><td></td></tr>' +
-      '<tr><td>ROI</td><td>' + fmtPct(a.roi) + '</td><td>' + verdictBadge(a.verdict) + '</td></tr>';
+      '<tr><td>Sales Before</td><td>' + fmtSAR(dp.pre) + '</td><td>' + (dp.preCases != null ? Math.round(dp.preCases).toLocaleString() + ' cases' : '—') + '</td></tr>' +
+      '<tr><td>Sales After</td><td>' + fmtSAR(dp.post) + '</td><td>' + (dp.postCases != null ? Math.round(dp.postCases).toLocaleString() + ' cases' : '—') + '</td></tr>' +
+      '<tr><td>Incremental</td><td>' + fmtSAR(dp.inc) + '</td><td></td></tr>' +
+      '<tr><td>Uplift</td><td>' + fmtPct(dp.uplift) + '</td><td></td></tr>' +
+      '<tr><td>ROI</td><td>' + fmtPct(dp.roi) + '</td><td>' + verdictBadge(dp.verdict) + '</td></tr>';
     var photos = (a.execPhotos || []).map(function (p, i) {
       return '<img src="' + p + '" alt="Execution photo ' + (i + 1) + '" class="ts-photo" onclick="TS.zoomPhoto(' + i + ')">';
     }).join('');
@@ -795,14 +831,14 @@ window.TS = (function () {
       '<div><div class="ts-view-k">Category</div><div class="ts-view-v">' + esc(catLabel(a)) + '</div></div>' +
       '<div><div class="ts-view-k">Activity Type</div><div class="ts-view-v">' + esc(a.actType || '—') + '</div></div>' +
       '<div><div class="ts-view-k">Activity Date</div><div class="ts-view-v">' + esc(a.activityDate || '—') + '</div></div>' +
-      '<div><div class="ts-view-k">Post Period</div><div class="ts-view-v">' + esc((a.postStartDate || '—') + ' → ' + (a.postEndDate || '—')) + (a.truncatedBy ? ' <span title="Truncated by next activity" style="color:var(--amber);">✂ ' + esc(a.truncatedBy) + '</span>' : '') + '</div></div>' +
+      '<div><div class="ts-view-k">Post Period</div><div class="ts-view-v">' + esc((dp.postStart || '—') + ' → ' + (dp.postEnd || '—')) + (dp.trunc ? ' <span title="Truncated by next activity" style="color:var(--amber);">✂ ' + esc(dp.trunc) + '</span>' : '') + '</div></div>' +
       '<div><div class="ts-view-k">Total Amount</div><div class="ts-view-v">' + fmtSAR(a.totalAmount) + '</div></div>' +
       '<div><div class="ts-view-k">Split</div><div class="ts-view-v">Relia ' + (a.reliaPct != null ? a.reliaPct : 50) + '% (' + fmtSAR(a.reliaAmount) + ') · Roshen ' + (a.roshenPct != null ? a.roshenPct : 50) + '% (' + fmtSAR(a.roshenAmount) + ')</div></div>' +
       '<div><div class="ts-view-k">Execution</div><div class="ts-view-v">' + esc(a.execStatus || '—') + '</div></div>' +
       '<div><div class="ts-view-k">Claim</div><div class="ts-view-v">' + esc(getClaim(a)) + (a.claimRef ? ' · ' + esc(a.claimRef) : '') + '</div></div>' +
       '</div>' +
       ((a.skus || []).length ? '<div class="ts-view-k" style="margin-top:12px;">SKUs</div><div style="font-size:12px;">' + esc((a.skus || []).join('; ')) + '</div>' : '') +
-      '<div class="ts-view-k" style="margin-top:14px;">Performance</div>' +
+      '<div class="ts-view-k" style="margin-top:14px;">Performance' + (dp.live ? ' <span style="color:var(--green);font-weight:600;">· live from current sales data</span>' : ' <span style="color:var(--text-muted);font-weight:600;">· stored snapshot (customer not in dataset)</span>') + '</div>' +
       '<table class="data-table" style="width:100%;"><tbody>' + perfRows + '</tbody></table>' +
       (fs === 'Rejected' && a.finalRejectReason ? '<div class="ts-reject-box">Final rejection reason: ' + esc(a.finalRejectReason) + '</div>' : '') +
       '<div class="ts-view-k" style="margin-top:14px;">Timeline</div>' + tl +
@@ -1076,6 +1112,8 @@ window.TS = (function () {
     }
 
     var pct = parseInt(byId('tsFSplit').value, 10);
+    // Performance is ALWAYS computed from the latest Dashboard sales dataset —
+    // stored figures are just the last-saved snapshot of that computation.
     var perf = datasetReady() ? computePerf(custCode, state.formCats, state.formSkus, actType, dateStr, state.editingId, total) : null;
 
     a.custCode = custCode;
@@ -1113,6 +1151,11 @@ window.TS = (function () {
       a.postAmount = perf.postAmount; a.postCases = perf.postCases;
       a.incremental = perf.incremental;
       a.uplift = perf.uplift; a.roi = perf.roi; a.verdict = perf.verdict;
+      // provenance stamp for audit: when and by whom figures were (re)computed
+      a.perfSource = 'dashboard-dataset';
+      a.perfCalculatedAt = new Date().toISOString();
+      a.perfCalculatedBy = currentUserEmail();
+      delete a.perfPreserved;
     }
     a.overallStatus = computeOverall(a);
     a.updatedBy = currentUserEmail();
@@ -1123,6 +1166,7 @@ window.TS = (function () {
     var ok = await persistActivity(a);
     if (!ok) return;
     if (!editing) state.activities.push(a);
+    _livePerfCache.clear(); // this activity may truncate neighbours' windows
     toast((editing ? 'Saved changes to ' : 'Created ') + a.id);
     state.editingId = null;
     switchTab('log');
@@ -1160,12 +1204,13 @@ window.TS = (function () {
     if (typeof Chart === 'undefined') return;
     var byCat = {}, roiByType = {}, verdicts = {}, splitTotals = { Relia: 0, Roshen: 0 };
     acts.forEach(function (a) {
+      var dp = displayPerf(a); // live figures from the current dataset
       var label = isAllCats(getCats(a)) ? 'All Categories' : getCats(a).join(', ');
       byCat[label] = (byCat[label] || 0) + num(a.totalAmount);
-      if (a.roi != null && a.actType) {
-        (roiByType[a.actType] = roiByType[a.actType] || []).push(a.roi);
+      if (dp.roi != null && a.actType) {
+        (roiByType[a.actType] = roiByType[a.actType] || []).push(dp.roi);
       }
-      var v = a.verdict || 'Pending';
+      var v = dp.verdict || 'Pending';
       verdicts[v] = (verdicts[v] || 0) + 1;
       splitTotals.Relia += num(a.reliaAmount);
       splitTotals.Roshen += num(a.roshenAmount);
@@ -1199,6 +1244,7 @@ window.TS = (function () {
     if (!state.activities.length) { toast('No activities to export.', true); return; }
     if (typeof XLSX === 'undefined') { toast('Excel library not loaded yet — try again in a moment.', true); return; }
     var data = state.activities.map(function (a) {
+      var dp = displayPerf(a); // live figures from the current dataset
       return {
         'Activity ID': a.id,
         'Customer Code': a.custCode,
@@ -1214,23 +1260,23 @@ window.TS = (function () {
         'Photos Count': a.execPhotoCount || (a.execPhotos ? a.execPhotos.length : 0),
         'Pre Period Start': a.preStartDate || '',
         'Pre Period End': a.preEndDate || '',
-        'Post Period Start': a.postStartDate || a.startDate,
-        'Post Period End': a.postEndDate || a.endDate,
-        'Post Duration (days)': a.duration,
-        'Truncated By Next Activity': a.truncatedBy || '',
+        'Post Period Start': dp.postStart || a.startDate,
+        'Post Period End': dp.postEnd || a.endDate,
+        'Post Duration (days)': dp.days,
+        'Truncated By Next Activity': dp.trunc || '',
         'Total Amount (SAR)': a.totalAmount,
         'Relia %': a.reliaPct,
         'Relia Amount (SAR)': a.reliaAmount,
         'Roshen %': a.roshenPct,
         'Roshen Amount (SAR)': a.roshenAmount,
-        'Sales Before (SAR)': a.preAmount,
-        'Sales After (SAR)': a.postAmount,
-        'Cases Before': a.preCases,
-        'Cases After': a.postCases,
-        'Incremental (SAR)': a.incremental,
-        'Uplift %': a.uplift != null ? (a.uplift * 100).toFixed(2) + '%' : '',
-        'ROI %': a.roi != null ? (a.roi * 100).toFixed(2) + '%' : '',
-        'Verdict': a.verdict,
+        'Sales Before (SAR)': dp.pre,
+        'Sales After (SAR)': dp.post,
+        'Cases Before': dp.preCases,
+        'Cases After': dp.postCases,
+        'Incremental (SAR)': dp.inc,
+        'Uplift %': dp.uplift != null ? (dp.uplift * 100).toFixed(2) + '%' : '',
+        'ROI %': dp.roi != null ? (dp.roi * 100).toFixed(2) + '%' : '',
+        'Verdict': dp.verdict,
         'Execution Status': a.execStatus,
         'Credit Note': a.creditNoteFilename || '',
         'Approval Email Subject': a.approvalEmailSubject || a.reliaEmailSubject || '',
@@ -1407,6 +1453,6 @@ window.TS = (function () {
     exportExcel: exportExcel,
     exportPdf: exportPdf,
     // exposed for validation tooling (M6 parity checks)
-    _internals: { computeOverall: computeOverall, computePerf: computePerf, calcSalesForRange: calcSalesForRange, getPeriodForActivity: getPeriodForActivity, activityToRow: activityToRow, rowToActivity: rowToActivity, can: can, auth: auth }
+    _internals: { computeOverall: computeOverall, computePerf: computePerf, calcSalesForRange: calcSalesForRange, getPeriodForActivity: getPeriodForActivity, activityToRow: activityToRow, rowToActivity: rowToActivity, displayPerf: displayPerf, livePerf: livePerf, can: can, auth: auth }
   };
 })();

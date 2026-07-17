@@ -97,5 +97,21 @@ eq('roundtrip photos restored', back.execPhotos.length, 1);
 eq('roundtrip credit note', back.creditNoteImage, 'data:y');
 eq('roundtrip roi', back.roi, 0.2);
 
+// 7) live display layer — always current dataset, stored fallback for unresolvable customers
+// (module must expose displayPerf/livePerf through _internals for this to run)
+if (T.displayPerf) {
+  const actLive = { id: 'TS-L1', custCode: '10-001495', custName: 'WOW', categories: ['Bonny Fruit'], actType: 'Floor Display', activityDate: '2026-02-01', totalAmount: 500, preAmount: 1, postAmount: 2, uplift: 9, roi: 9, verdict: 'Loss' };
+  const dpLive = T.displayPerf(actLive);
+  eq('display live flag', dpLive.live, true);
+  eq('display live ignores stored (pre)', dpLive.pre, 1000);
+  eq('display live roi', dpLive.roi, 0.2);
+  eq('display live verdict', dpLive.verdict, 'Successful');
+  const actGhost = { id: 'TS-L2', custCode: 'NO-SUCH', custName: 'X', categories: ['Bonny Fruit'], actType: 'Shelf', activityDate: '2026-02-01', totalAmount: 100, preAmount: 111, postAmount: 222, uplift: 1, roi: 0.5, verdict: 'Successful', postStartDate: '2026-02-01', postEndDate: '2026-04-30', duration: 89 };
+  const dpGhost = T.displayPerf(actGhost);
+  eq('display fallback flag', dpGhost.live, false);
+  eq('display fallback keeps stored pre', dpGhost.pre, 111);
+  eq('display fallback keeps stored verdict', dpGhost.verdict, 'Successful');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
