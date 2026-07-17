@@ -684,29 +684,45 @@ window.TS = (function () {
       apprPill('F', fstat, fwho) + '</div>';
   }
 
+  // Row actions use data attributes + ONE delegated listener (bound in init)
+  // instead of inline onclick — the reliable pattern for touch browsers
+  // (iOS Safari can swallow inline-handler clicks inside horizontal scrollers).
   function actionButtons(a) {
     var out = [];
-    var b = function (fn, label, cls, disabled, title) {
-      out.push('<button class="ts-act-btn ' + (cls || '') + '"' + (disabled ? ' disabled' : '') +
-        (title ? ' title="' + esc(title) + '"' : '') + ' onclick="' + fn + '">' + label + '</button>');
+    var b = function (act, label, cls, disabled, title) {
+      out.push('<button type="button" class="ts-act-btn ' + (cls || '') + '"' + (disabled ? ' disabled' : '') +
+        (title ? ' title="' + esc(title) + '"' : '') +
+        ' data-act="' + act + '" data-id="' + esc(a.id) + '">' + label + '</button>');
     };
-    b("TS.openView('" + a.id + "')", '👁 View', '');
-    if (canEditRow(a)) b("TS.editActivity('" + a.id + "')", '✏️ Edit', '');
+    b('view', '👁 View', '');
+    if (canEditRow(a)) b('edit', '✏️ Edit', '');
     if (can('ts.approve.roshen') && a.roshenStatus === 'Pending Approval') {
-      b("TS.roshenDecision('" + a.id + "','Approved')", '✓ Roshen', 'ok');
-      b("TS.roshenDecision('" + a.id + "','Rejected')", '✗ Roshen', 'bad');
+      b('roshen-ok', '✓ Roshen', 'ok');
+      b('roshen-no', '✗ Roshen', 'bad');
     }
     if (can('ts.approve.relia') && a.reliaStatus === 'Pending Approval') {
-      b("TS.reliaDecision('" + a.id + "','Approved')", '✓ Relia', 'ok');
-      b("TS.reliaDecision('" + a.id + "','Rejected')", '✗ Relia', 'bad');
+      b('relia-ok', '✓ Relia', 'ok');
+      b('relia-no', '✗ Relia', 'bad');
     }
     if (canFinalApprove() && finalState(a) === 'No') {
       var prereq = a.roshenStatus === 'Approved' && a.reliaStatus === 'Approved';
-      b("TS.finalApprove('" + a.id + "')", '✓ Final', 'ok', !prereq, prereq ? '' : 'Requires Roshen + Relia approved');
-      b("TS.finalReject('" + a.id + "')", '✗ Final', 'bad', !prereq, prereq ? '' : 'Requires Roshen + Relia approved');
+      b('final-ok', '✓ Final', 'ok', !prereq, prereq ? '' : 'Requires Roshen + Relia approved');
+      b('final-no', '✗ Final', 'bad', !prereq, prereq ? '' : 'Requires Roshen + Relia approved');
     }
-    if (canDeleteRow(a)) b("TS.deleteActivity('" + a.id + "')", '🗑', 'bad', false, 'Delete');
+    if (canDeleteRow(a)) b('delete', '🗑', 'bad', false, 'Delete');
     return '<div class="ts-actions">' + out.join('') + '</div>';
+  }
+
+  function handleAction(act, id) {
+    if (act === 'view') openView(id);
+    else if (act === 'edit') editActivity(id);
+    else if (act === 'delete') deleteActivity(id);
+    else if (act === 'roshen-ok') roshenDecision(id, 'Approved');
+    else if (act === 'roshen-no') roshenDecision(id, 'Rejected');
+    else if (act === 'relia-ok') reliaDecision(id, 'Approved');
+    else if (act === 'relia-no') reliaDecision(id, 'Rejected');
+    else if (act === 'final-ok') finalApprove(id);
+    else if (act === 'final-no') finalReject(id);
   }
 
   function filteredActivities() {
@@ -1403,6 +1419,18 @@ window.TS = (function () {
       tabsRoot.addEventListener('click', function (e) {
         var el = e.target && e.target.closest ? e.target.closest('[data-ts-tab]') : null;
         if (el) switchTab(el.getAttribute('data-ts-tab'));
+      });
+    }
+    // Delegated row-action handler — bound once on the static view container,
+    // survives table re-renders, reliable on touch browsers.
+    var view = byId('view-tradespend');
+    if (view && !view._tsActBound) {
+      view._tsActBound = true;
+      view.addEventListener('click', function (e) {
+        var btn = e.target && e.target.closest ? e.target.closest('.ts-act-btn[data-act]') : null;
+        if (!btn || btn.disabled) return;
+        e.preventDefault();
+        handleAction(btn.getAttribute('data-act'), btn.getAttribute('data-id'));
       });
     }
     var modal = byId('tsModal');
