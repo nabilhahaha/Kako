@@ -425,21 +425,58 @@ window.TS = (function () {
     };
   }
 
-  // pre/post → incremental, uplift, roi, verdict. Thresholds identical to legacy.
+  // Days of a window that carry sales-data coverage (clamped to the loaded
+  // dataset's date range). Falls back to the full window when bounds are
+  // unavailable. A window can also be partially or fully outside coverage —
+  // e.g. an activity newer than the last sales import.
+  function coveredDays(startStr, endStr) {
+    var from = dateToInt(startStr), to = dateToInt(endStr);
+    if (typeof META !== 'undefined' && META && META.dateMin && META.dateMax) {
+      from = Math.max(from, dateToInt(META.dateMin));
+      to = Math.min(to, dateToInt(META.dateMax));
+    }
+    return Math.max(0, to - from + 1);
+  }
+
+  // pre/post → baseline, incremental, uplift, ROI, verdict.
+  //
+  // BUSINESS-CORRECT (day-normalized, coverage-aware) methodology:
+  // pre and post windows can legitimately differ in length (calendar months,
+  // truncation by the next activity, or partial data coverage), so raw sums
+  // are never compared directly. Both windows are converted to AVERAGE DAILY
+  // sales over their COVERED days; the baseline is the pre-period daily rate
+  // pro-rated over the covered post days.
+  //   baseline    = preRate × postDaysCovered
+  //   incremental = postAmount − baseline
+  //   uplift      = (postRate − preRate) / preRate
+  //   ROI         = (incremental − spend) / spend        [revenue-based net ROI]
+  // If either window has ZERO covered days (e.g. the activity is newer than
+  // the last sales import), metrics are null and the verdict is 'Pending' —
+  // never a fake −100% Loss on missing data.
   function computePerf(custCode, cats, skus, actType, activityDateStr, currentId, totalAmount) {
     var periods = getPeriodForActivity(actType, activityDateStr, currentId, custCode, cats);
     var pre = calcSalesForRange(custCode, cats, skus, periods.preStartDateStr, periods.preEndDateStr);
     var post = calcSalesForRange(custCode, cats, skus, periods.postStartDateStr, periods.postEndDateStr);
-    var incremental = post.amount - pre.amount;
-    var uplift = pre.amount > 0 ? (post.amount - pre.amount) / pre.amount : (post.amount > 0 ? null : null);
-    var upliftNew = pre.amount <= 0 && post.amount > 0;
-    var roi = totalAmount > 0 ? (incremental - totalAmount) / totalAmount : null;
+    var preDays = coveredDays(periods.preStartDateStr, periods.preEndDateStr);
+    var postDays = coveredDays(periods.postStartDateStr, periods.postEndDateStr);
+
+    var baseline = null, incremental = null, uplift = null, upliftNew = false, roi = null;
+    if (preDays > 0 && postDays > 0) {
+      var preRate = pre.amount / preDays;
+      var postRate = post.amount / postDays;
+      baseline = preRate * postDays;
+      incremental = post.amount - baseline;
+      if (preRate > 0) uplift = (postRate - preRate) / preRate;
+      upliftNew = preRate <= 0 && postRate > 0;
+      roi = totalAmount > 0 ? (incremental - totalAmount) / totalAmount : null;
+    }
     var verdict = 'Pending';
     if (roi != null) verdict = roi >= 0.2 ? 'Successful' : (roi >= 0 ? 'Break-even' : 'Loss');
     return {
       periods: periods,
       preAmount: pre.amount, preCases: pre.cases,
       postAmount: post.amount, postCases: post.cases,
+      baselineAmount: baseline, preDaysCovered: preDays, postDaysCovered: postDays,
       incremental: incremental, uplift: uplift, upliftNew: upliftNew,
       roi: roi, verdict: verdict
     };
@@ -467,11 +504,14 @@ window.TS = (function () {
     var p = livePerf(a);
     if (!p) {
       return { pre: a.preAmount, post: a.postAmount, preCases: a.preCases, postCases: a.postCases,
+               baseline: a.baselineAmount != null ? a.baselineAmount : null,
+               preCov: a.preDaysCovered, postCov: a.postDaysCovered,
                inc: a.incremental, uplift: a.uplift, roi: a.roi, verdict: a.verdict || 'Pending',
                postStart: a.postStartDate, postEnd: a.postEndDate, days: a.duration,
                trunc: a.truncatedBy, live: false };
     }
     return { pre: p.preAmount, post: p.postAmount, preCases: p.preCases, postCases: p.postCases,
+             baseline: p.baselineAmount, preCov: p.preDaysCovered, postCov: p.postDaysCovered,
              inc: p.incremental, uplift: p.uplift, roi: p.roi,
              verdict: (num(a.totalAmount) > 0 ? p.verdict : 'Pending'),
              postStart: p.periods.postStartDateStr, postEnd: p.periods.postEndDateStr,
@@ -818,12 +858,16 @@ window.TS = (function () {
     state.viewId = id;
     var fs = finalState(a);
     var dp = displayPerf(a); // live figures from the current dataset
+    var covNote = (dp.preCov != null && dp.postCov != null)
+      ? '<tr><td>Data Coverage</td><td colspan="2" style="font-size:11px;color:var(--text-muted);">' + dp.preCov + ' pre-days · ' + dp.postCov + ' post-days with sales data' + (dp.postCov === 0 ? ' — awaiting sales import for the post period' : '') + '</td></tr>'
+      : '';
     var perfRows =
       '<tr><td>Sales Before</td><td>' + fmtSAR(dp.pre) + '</td><td>' + (dp.preCases != null ? Math.round(dp.preCases).toLocaleString() + ' cases' : '—') + '</td></tr>' +
       '<tr><td>Sales After</td><td>' + fmtSAR(dp.post) + '</td><td>' + (dp.postCases != null ? Math.round(dp.postCases).toLocaleString() + ' cases' : '—') + '</td></tr>' +
+      '<tr><td>Baseline (pro-rated)</td><td>' + fmtSAR(dp.baseline) + '</td><td style="font-size:11px;color:var(--text-muted);">pre-period daily rate × post days</td></tr>' +
       '<tr><td>Incremental</td><td>' + fmtSAR(dp.inc) + '</td><td></td></tr>' +
       '<tr><td>Uplift</td><td>' + fmtPct(dp.uplift) + '</td><td></td></tr>' +
-      '<tr><td>ROI</td><td>' + fmtPct(dp.roi) + '</td><td>' + verdictBadge(dp.verdict) + '</td></tr>';
+      '<tr><td>ROI</td><td>' + fmtPct(dp.roi) + '</td><td>' + verdictBadge(dp.verdict) + '</td></tr>' + covNote;
     var photos = (a.execPhotos || []).map(function (p, i) {
       return '<img src="' + p + '" alt="Execution photo ' + (i + 1) + '" class="ts-photo" onclick="TS.zoomPhoto(' + i + ')">';
     }).join('');
@@ -1051,7 +1095,10 @@ window.TS = (function () {
       set('tsPerfUplift', p.upliftNew ? 'New' : fmtPct(p.uplift));
       set('tsPerfRoi', fmtPct(p.roi));
       set('tsPerfVerdict', total > 0 ? p.verdict : 'Pending');
-      set('tsPerfWin', p.periods.postStartDateStr + ' → ' + p.periods.postEndDateStr + ' (' + p.periods.postDays + 'd)' + (p.periods.truncatedBy ? ' ✂ ' + p.periods.truncatedBy : ''));
+      set('tsPerfWin', p.periods.postStartDateStr + ' → ' + p.periods.postEndDateStr +
+        ' (' + p.postDaysCovered + '/' + p.periods.postDays + 'd data' + (p.baselineAmount != null ? ' · base ' + Math.round(p.baselineAmount).toLocaleString('en-US') : '') + ')' +
+        (p.periods.truncatedBy ? ' ✂ ' + p.periods.truncatedBy : '') +
+        (p.postDaysCovered === 0 ? ' · awaiting sales data' : ''));
     }, 150);
   }
 
@@ -1165,6 +1212,8 @@ window.TS = (function () {
       a.rentalMonths = perf.periods.rentalMonths;
       a.preAmount = perf.preAmount; a.preCases = perf.preCases;
       a.postAmount = perf.postAmount; a.postCases = perf.postCases;
+      a.baselineAmount = perf.baselineAmount;
+      a.preDaysCovered = perf.preDaysCovered; a.postDaysCovered = perf.postDaysCovered;
       a.incremental = perf.incremental;
       a.uplift = perf.uplift; a.roi = perf.roi; a.verdict = perf.verdict;
       // provenance stamp for audit: when and by whom figures were (re)computed
@@ -1306,7 +1355,10 @@ window.TS = (function () {
         'Final Approved At': a.finalApprovedAt || '',
         'Notes': a.notes,
         'Created': a.createdAt,
-        'Updated': a.updatedAt
+        'Updated': a.updatedAt,
+        'Baseline (SAR)': dp.baseline != null ? Math.round(dp.baseline) : '',
+        'Pre Days Covered': dp.preCov != null ? dp.preCov : '',
+        'Post Days Covered': dp.postCov != null ? dp.postCov : ''
       };
     });
     var ws = XLSX.utils.json_to_sheet(data);
@@ -1480,7 +1532,8 @@ window.TS = (function () {
     recalc: recalc,
     exportExcel: exportExcel,
     exportPdf: exportPdf,
-    // exposed for validation tooling (M6 parity checks)
+    // exposed for validation tooling (M6 parity checks + business audit)
+    _setActivitiesForTest: function (list) { state.activities = list || []; _livePerfCache.clear(); },
     _internals: { computeOverall: computeOverall, computePerf: computePerf, calcSalesForRange: calcSalesForRange, getPeriodForActivity: getPeriodForActivity, activityToRow: activityToRow, rowToActivity: rowToActivity, displayPerf: displayPerf, livePerf: livePerf, can: can, auth: auth }
   };
 })();
