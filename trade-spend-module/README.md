@@ -9,18 +9,18 @@ shared "Roshen" Supabase project (`wrkugzssuoxneftzappa`).
 > renamed, disabled, or deleted. The new module is built **beside** it and must
 > produce **identical** business results before anything is retired.
 
-> **No production changes.** All work is on branch `claude/trade-spend-native-module`.
-> Nothing is deployed. The DB migrations in `migrations/` are **authored but not
-> applied** — they run only after explicit approval.
+> Migrations 001–004 are **applied** to the Roshen project (full implementation
+> authority granted). dash_sku_master now carries category+brand for **75/75**
+> SKUs and is the single source of truth; ts.* permissions live in dash RBAC.
 
 ## Layout
 ```
 trade-spend-module/
-  migrations/   # Roshen-project SQL — AUTHORED, NOT APPLIED
-    001_dash_sku_master_taxonomy.sql        # + brand/category/sub_category/segment (nullable)
-    002_ts_permissions.sql                  # ts.* namespace in dash RBAC
-    003_sku_category_autopopulate.sql       # 6 unambiguous single-category items
-    004_sku_category_conflicts_RESOLUTION_TEMPLATE.sql  # 14 conflicts, await approval
+  migrations/   # Roshen-project SQL — ALL APPLIED (ts_module_001..004)
+    001_dash_sku_master_taxonomy.sql        # + brand/category/sub_category/segment
+    002_ts_permissions.sql                  # ts.* namespace + person overrides in dash RBAC
+    003_category_backfill.sql               # 74-SKU category+brand backfill from the sales dataset
+    004_category_completion.sql             # last 2 rows (spelling variant + new SKU) -> 75/75
   reports/
     SKU_Category_Conflict_Report.docx       # deliverable #8
     sku_category_mapping.csv                # raw item→category mapping (editable)
@@ -43,8 +43,8 @@ Attribution path: `sales_fact.item_code → dash_sku_master.sku → category`.
 `ts.view · ts.create · ts.edit · ts.delete · ts.approve.roshen · ts.approve.relia ·
 ts.approve.final · ts.export · ts.admin`
 
-Person-specific approval rights are granted via a **namespaced** override so
-parallel-run results match the legacy exact-email gating:
+Person-specific approval rights are granted via a **namespaced** override —
+the module contains **no hardcoded emails**; the DB is the only source:
 ```json
 dash_users.overrides = { "ts": { "grant": ["ts.approve.roshen"], "revoke": [] } }
 ```

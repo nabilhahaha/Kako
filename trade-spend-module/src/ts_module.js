@@ -89,17 +89,9 @@ window.TS = (function () {
     sales_rep: ['ts.view', 'ts.create', 'ts.edit'],
     supervisor: ['ts.view']
   };
-  // Legacy-parity person grants — EXACTLY the legacy hardcoded rights. This
-  // layer becomes redundant (and can be removed) once migration 002 populates
-  // dash_users.overrides.ts; DB overrides, when present, take precedence.
-  var LEGACY_GRANTS = {
-    'ahmed.nabil@roshen.trade': { grant: ['ts.approve.roshen'], revoke: [] },
-    'muhammad.zubair@relia-me.com': { grant: ['ts.approve.relia'], revoke: [] },
-    'dmytro.danylenko@roshen.trade': { grant: ['ts.approve.final'], revoke: ['ts.create', 'ts.edit', 'ts.delete'] },
-    'dmytro.test@roshen.trade': { grant: ['ts.approve.final'], revoke: ['ts.create', 'ts.edit', 'ts.delete'] },
-    'nabilismailia@gmail.com': { grant: ['ts.view', 'ts.create', 'ts.edit', 'ts.delete', 'ts.export', 'ts.admin'], revoke: [] }
-  };
-
+  // Person-specific rights (e.g. who approves the Roshen / Relia / Final
+  // stages) are NOT hardcoded here: they live in dash_users.overrides.ts,
+  // managed by the Dashboard RBAC (seeded by migration 002).
   var auth = {
     email: '',
     role: '',
@@ -124,22 +116,16 @@ window.TS = (function () {
           auth.role = (CLOUD.role || '').toLowerCase();
           applyCapList(ROLE_CAPS[auth.role] || [], true);
           // DB-backed per-user overrides (namespaced): dash_users.overrides.ts
-          // Written by migration 002 (unapplied yet) — tolerated if absent.
+          // — the single authorization source for person-specific rights.
           try {
             var r = await CLOUD.sb.from('dash_users').select('overrides').eq('email', auth.email).maybeSingle();
             var ov = r && r.data && r.data.overrides && r.data.overrides.ts;
             if (ov) {
               applyCapList(ov.grant, true);
               applyCapList(ov.revoke, false);
-            } else if (LEGACY_GRANTS[auth.email]) {
-              applyCapList(LEGACY_GRANTS[auth.email].grant, true);
-              applyCapList(LEGACY_GRANTS[auth.email].revoke, false);
             }
           } catch (e) {
-            if (LEGACY_GRANTS[auth.email]) {
-              applyCapList(LEGACY_GRANTS[auth.email].grant, true);
-              applyCapList(LEGACY_GRANTS[auth.email].revoke, false);
-            }
+            console.warn('TS overrides unavailable — using role defaults only', e);
           }
         } else if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) {
           // Legacy (file://) Dashboard session: local admin can look around,

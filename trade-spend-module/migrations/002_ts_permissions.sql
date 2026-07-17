@@ -5,8 +5,9 @@
 --          module authorises from dash_users / dash_roles instead of hardcoded
 --          email checks.
 --
--- STATUS: AUTHORED, NOT APPLIED. Additive only (new permission rows + array
---         appends). Reversible. Apply only after explicit approval.
+-- STATUS: APPLIED to the Roshen project as ts_module_002_ts_permissions
+--         (final approver accounts provisioned from their existing auth.users
+--         rows — dash_users.id is FK to auth.users).
 --
 -- Design goal: PARALLEL RUN with IDENTICAL results to the legacy app.
 --   Legacy gating (exact emails) is reproduced as:
@@ -65,10 +66,17 @@ set overrides = jsonb_set(coalesce(overrides,'{}'::jsonb), '{ts}',
 where lower(email) = 'muhammad.zubair@relia-me.com';
 
 -- Dmytro = Final approver, READ-ONLY (no create/edit), matching legacy behaviour.
--- NOTE: Dmytro is not yet in dash_users; add on approval, then run this.
--- insert into public.dash_users (id, email, full_name, role)
---   values (gen_random_uuid(), 'dmytro.danylenko@roshen.trade', 'Dmytro Danylenko', 'viewer')
---   on conflict (email) do nothing;
+-- Provisioned from the EXISTING auth accounts (dash_users.id is FK to auth.users):
+insert into public.dash_users (id, email, full_name, role)
+select u.id, lower(u.email),
+       case lower(u.email)
+         when 'dmytro.danylenko@roshen.trade' then 'Dmytro Danylenko'
+         else 'Dmytro (Final Approval Test)' end,
+       'viewer'
+from auth.users u
+where lower(u.email) in ('dmytro.danylenko@roshen.trade','dmytro.test@roshen.trade')
+  and not exists (select 1 from public.dash_users d where lower(d.email) = lower(u.email));
+
 update public.dash_users
 set overrides = jsonb_set(coalesce(overrides,'{}'::jsonb), '{ts}',
       '{"grant":["ts.approve.final"],"revoke":["ts.create","ts.edit","ts.delete"]}'::jsonb, true)
