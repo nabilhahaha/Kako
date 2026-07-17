@@ -1,0 +1,19 @@
+{
+ "rows": 2600,
+ "net_sales": 2422992,
+ "gross_sales": 2621006,
+ "returns": 198014,
+ "total_cases": 23639,
+ "discount": 79960,
+ "tons": 61.1,
+ "nCustomers": 40,
+ "nSKUs": 15,
+ "nSalesmen": 8,
+ "nCategories": 6,
+ "nMonths": 6,
+ "nRegions": 4,
+ "nBranches": 5,
+ "nSupervisors": 5,
+ "dateMin": "2024-08-01",
+ "dateMax": "2025-01-31"
+}

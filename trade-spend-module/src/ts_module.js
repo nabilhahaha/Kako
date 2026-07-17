@@ -324,7 +324,8 @@ window.TS = (function () {
       skuIdSet = new Set();
       SKUS.forEach(function (s) { if (skus.indexOf(s.d) >= 0) skuIdSet.add(s.id); });
     }
-    var amount = 0, cases = 0;
+    var amount = 0, cases = 0, discount = 0, returnsAmt = 0;
+    var hasDi = !!(D.di && D.di.length);
     for (var k = 0; k < ids.length; k++) {
       var rows = idx.rowsByCust.get(ids[k]) || [];
       for (var j = 0; j < rows.length; j++) {
@@ -338,9 +339,15 @@ window.TS = (function () {
         }
         amount += D.s[i];
         cases += QC(i);
+        if (hasDi) discount += D.di[i];
+        if (D.s[i] < 0) returnsAmt += -D.s[i];
       }
     }
-    return { amount: amount, cases: cases };
+    // amount is NET (after discounts, returns already netted as negative rows).
+    // gross = net + discount; discountPct = discount / gross.
+    var gross = amount + discount;
+    return { amount: amount, cases: cases, discount: discount, gross: gross,
+             discountPct: gross > 0 ? discount / gross : null, returnsAmount: returnsAmt };
   }
 
   function salesCustomers() {
@@ -413,35 +420,131 @@ window.TS = (function () {
 
     var fmt = function (d) { return d.toISOString().slice(0, 10); };
     var dayDiff = function (a, b) { return Math.round((a - b) / (1000 * 60 * 60 * 24)) + 1; };
+    var duringDays = dayDiff(actualPostEndDate, activityDate);
+
+    // AFTER window — the post-promotion period, same length as the actual
+    // during window, starting the day after it ends. Unmeasurable (0 days)
+    // when the next same-customer overlapping activity starts immediately:
+    // its promotion effect would contaminate the dip measurement.
+    var afterStartDate = new Date(actualPostEndDate);
+    afterStartDate.setDate(afterStartDate.getDate() + 1);
+    var afterEndDate = new Date(afterStartDate);
+    afterEndDate.setDate(afterEndDate.getDate() + duringDays - 1);
+    var afterBlocked = false;
+    if (futureActivities.length > 0) {
+      var blockDate = new Date(futureActivities[0].activityDate);
+      if (blockDate <= afterStartDate) afterBlocked = true;
+      else if (blockDate <= afterEndDate) { afterEndDate = new Date(blockDate); afterEndDate.setDate(afterEndDate.getDate() - 1); }
+    }
 
     return {
       preStartDateStr: fmt(preStartDate),
       preEndDateStr: fmt(preEndDate),
       postStartDateStr: activityDateStr,
       postEndDateStr: fmt(actualPostEndDate),
-      postDays: dayDiff(actualPostEndDate, activityDate),
+      postDays: duringDays,
+      afterStartDateStr: afterBlocked ? null : fmt(afterStartDate),
+      afterEndDateStr: afterBlocked ? null : fmt(afterEndDate),
+      afterBlocked: afterBlocked,
       truncatedBy: truncatedBy,
       rentalMonths: months
     };
   }
 
-  // pre/post → incremental, uplift, roi, verdict. Thresholds identical to legacy.
+  // Other activities for the same customer with overlapping categories whose
+  // DURING window intersects this activity's during window (same-day starts,
+  // simultaneous promotions). Consecutive activities are handled by window
+  // truncation; simultaneous ones share incremental sales, so the UI warns.
+  function overlappingActivities(custCode, cats, activityDateStr, postEndDateStr, currentId) {
+    var s1 = dateToInt(activityDateStr), e1 = dateToInt(postEndDateStr);
+    return state.activities.filter(function (x) {
+      if (x.id === currentId || x.custCode !== custCode || !x.activityDate) return false;
+      if (!catsOverlap(getCats(x), cats)) return false;
+      var p = getPeriodForActivity(x.actType, x.activityDate, x.id, x.custCode, getCats(x));
+      var s2 = dateToInt(p.postStartDateStr), e2 = dateToInt(p.postEndDateStr);
+      return s2 <= e1 && e2 >= s1 && !(s2 > s1); // starts on/before ours and overlaps
+    }).map(function (x) { return x.id; });
+  }
+
+  // Days of a window that carry sales-data coverage (clamped to the loaded
+  // dataset's date range). Falls back to the full window when bounds are
+  // unavailable. A window can also be partially or fully outside coverage —
+  // e.g. an activity newer than the last sales import.
+  function coveredDays(startStr, endStr) {
+    var from = dateToInt(startStr), to = dateToInt(endStr);
+    if (typeof META !== 'undefined' && META && META.dateMin && META.dateMax) {
+      from = Math.max(from, dateToInt(META.dateMin));
+      to = Math.min(to, dateToInt(META.dateMax));
+    }
+    return Math.max(0, to - from + 1);
+  }
+
+  // pre/post → baseline, incremental, uplift, ROI, verdict.
+  //
+  // BUSINESS-CORRECT (day-normalized, coverage-aware) methodology:
+  // pre and post windows can legitimately differ in length (calendar months,
+  // truncation by the next activity, or partial data coverage), so raw sums
+  // are never compared directly. Both windows are converted to AVERAGE DAILY
+  // sales over their COVERED days; the baseline is the pre-period daily rate
+  // pro-rated over the covered post days.
+  //   baseline    = preRate × postDaysCovered
+  //   incremental = postAmount − baseline
+  //   uplift      = (postRate − preRate) / preRate
+  //   ROI         = (incremental − spend) / spend        [revenue-based net ROI]
+  // If either window has ZERO covered days (e.g. the activity is newer than
+  // the last sales import), metrics are null and the verdict is 'Pending' —
+  // never a fake −100% Loss on missing data.
   function computePerf(custCode, cats, skus, actType, activityDateStr, currentId, totalAmount) {
     var periods = getPeriodForActivity(actType, activityDateStr, currentId, custCode, cats);
     var pre = calcSalesForRange(custCode, cats, skus, periods.preStartDateStr, periods.preEndDateStr);
     var post = calcSalesForRange(custCode, cats, skus, periods.postStartDateStr, periods.postEndDateStr);
-    var incremental = post.amount - pre.amount;
-    var uplift = pre.amount > 0 ? (post.amount - pre.amount) / pre.amount : (post.amount > 0 ? null : null);
-    var upliftNew = pre.amount <= 0 && post.amount > 0;
-    var roi = totalAmount > 0 ? (incremental - totalAmount) / totalAmount : null;
+    var preDays = coveredDays(periods.preStartDateStr, periods.preEndDateStr);
+    var postDays = coveredDays(periods.postStartDateStr, periods.postEndDateStr);
+
+    // AFTER (post-promotion) window — measured only when it exists and has data.
+    var after = { amount: null, cases: null }, afterDays = 0;
+    if (periods.afterStartDateStr) {
+      afterDays = coveredDays(periods.afterStartDateStr, periods.afterEndDateStr);
+      if (afterDays > 0) after = calcSalesForRange(custCode, cats, skus, periods.afterStartDateStr, periods.afterEndDateStr);
+    }
+
+    var baseline = null, baselineFloored = false, incremental = null, uplift = null, upliftNew = false;
+    var roi = null, rots = null, retention = null, afterVsBaseline = null;
+    if (preDays > 0 && postDays > 0) {
+      var preRate = pre.amount / preDays;
+      var postRate = post.amount / postDays;
+      baseline = preRate * postDays;
+      // A returns-heavy pre period can push the baseline negative, which would
+      // credit the activity with phantom incremental. Floor at zero.
+      if (baseline < 0) { baseline = 0; baselineFloored = true; }
+      incremental = post.amount - baseline;
+      if (preRate > 0) uplift = (postRate - preRate) / preRate;
+      upliftNew = preRate <= 0 && postRate > 0;
+      if (totalAmount > 0) {
+        roi = (incremental - totalAmount) / totalAmount;   // net ROI
+        rots = incremental / totalAmount;                  // return on trade spend (gross multiple)
+      }
+      if (afterDays > 0 && after.amount != null) {
+        var afterRate = after.amount / afterDays;
+        if (preRate > 0) retention = afterRate / preRate;  // post-promo retention vs baseline rate
+        afterVsBaseline = after.amount - (baselineFloored ? 0 : preRate * afterDays);
+      }
+    }
+    var spendPct = (totalAmount > 0 && post.amount > 0) ? totalAmount / post.amount : null; // trade spend as % of during net sales
     var verdict = 'Pending';
     if (roi != null) verdict = roi >= 0.2 ? 'Successful' : (roi >= 0 ? 'Break-even' : 'Loss');
     return {
       periods: periods,
-      preAmount: pre.amount, preCases: pre.cases,
-      postAmount: post.amount, postCases: post.cases,
+      preAmount: pre.amount, preCases: pre.cases, preDiscountPct: pre.discountPct,
+      postAmount: post.amount, postCases: post.cases, postDiscountPct: post.discountPct,
+      afterAmount: after.amount, afterCases: after.cases, afterDaysCovered: afterDays,
+      baselineAmount: baseline, baselineFloored: baselineFloored,
+      preDaysCovered: preDays, postDaysCovered: postDays,
       incremental: incremental, uplift: uplift, upliftNew: upliftNew,
-      roi: roi, verdict: verdict
+      roi: roi, rots: rots, spendPct: spendPct,
+      retention: retention, afterVsBaseline: afterVsBaseline,
+      overlaps: overlappingActivities(custCode, cats, activityDateStr, periods.postEndDateStr, currentId),
+      verdict: verdict
     };
   }
 
@@ -467,12 +570,21 @@ window.TS = (function () {
     var p = livePerf(a);
     if (!p) {
       return { pre: a.preAmount, post: a.postAmount, preCases: a.preCases, postCases: a.postCases,
+               baseline: a.baselineAmount != null ? a.baselineAmount : null,
+               preCov: a.preDaysCovered, postCov: a.postDaysCovered,
                inc: a.incremental, uplift: a.uplift, roi: a.roi, verdict: a.verdict || 'Pending',
                postStart: a.postStartDate, postEnd: a.postEndDate, days: a.duration,
                trunc: a.truncatedBy, live: false };
     }
     return { pre: p.preAmount, post: p.postAmount, preCases: p.preCases, postCases: p.postCases,
+             baseline: p.baselineAmount, baselineFloored: p.baselineFloored,
+             preCov: p.preDaysCovered, postCov: p.postDaysCovered,
+             after: p.afterAmount, afterCov: p.afterDaysCovered,
+             afterStart: p.periods.afterStartDateStr, afterEnd: p.periods.afterEndDateStr,
              inc: p.incremental, uplift: p.uplift, roi: p.roi,
+             rots: p.rots, spendPct: p.spendPct, retention: p.retention,
+             preDiscountPct: p.preDiscountPct, postDiscountPct: p.postDiscountPct,
+             overlaps: p.overlaps,
              verdict: (num(a.totalAmount) > 0 ? p.verdict : 'Pending'),
              postStart: p.periods.postStartDateStr, postEnd: p.periods.postEndDateStr,
              days: p.periods.postDays, trunc: p.periods.truncatedBy, live: true };
@@ -684,29 +796,45 @@ window.TS = (function () {
       apprPill('F', fstat, fwho) + '</div>';
   }
 
+  // Row actions use data attributes + ONE delegated listener (bound in init)
+  // instead of inline onclick — the reliable pattern for touch browsers
+  // (iOS Safari can swallow inline-handler clicks inside horizontal scrollers).
   function actionButtons(a) {
     var out = [];
-    var b = function (fn, label, cls, disabled, title) {
-      out.push('<button class="ts-act-btn ' + (cls || '') + '"' + (disabled ? ' disabled' : '') +
-        (title ? ' title="' + esc(title) + '"' : '') + ' onclick="' + fn + '">' + label + '</button>');
+    var b = function (act, label, cls, disabled, title) {
+      out.push('<button type="button" class="ts-act-btn ' + (cls || '') + '"' + (disabled ? ' disabled' : '') +
+        (title ? ' title="' + esc(title) + '"' : '') +
+        ' data-act="' + act + '" data-id="' + esc(a.id) + '">' + label + '</button>');
     };
-    b("TS.openView('" + a.id + "')", '👁 View', '');
-    if (canEditRow(a)) b("TS.editActivity('" + a.id + "')", '✏️ Edit', '');
+    b('view', '👁 View', '');
+    if (canEditRow(a)) b('edit', '✏️ Edit', '');
     if (can('ts.approve.roshen') && a.roshenStatus === 'Pending Approval') {
-      b("TS.roshenDecision('" + a.id + "','Approved')", '✓ Roshen', 'ok');
-      b("TS.roshenDecision('" + a.id + "','Rejected')", '✗ Roshen', 'bad');
+      b('roshen-ok', '✓ Roshen', 'ok');
+      b('roshen-no', '✗ Roshen', 'bad');
     }
     if (can('ts.approve.relia') && a.reliaStatus === 'Pending Approval') {
-      b("TS.reliaDecision('" + a.id + "','Approved')", '✓ Relia', 'ok');
-      b("TS.reliaDecision('" + a.id + "','Rejected')", '✗ Relia', 'bad');
+      b('relia-ok', '✓ Relia', 'ok');
+      b('relia-no', '✗ Relia', 'bad');
     }
     if (canFinalApprove() && finalState(a) === 'No') {
       var prereq = a.roshenStatus === 'Approved' && a.reliaStatus === 'Approved';
-      b("TS.finalApprove('" + a.id + "')", '✓ Final', 'ok', !prereq, prereq ? '' : 'Requires Roshen + Relia approved');
-      b("TS.finalReject('" + a.id + "')", '✗ Final', 'bad', !prereq, prereq ? '' : 'Requires Roshen + Relia approved');
+      b('final-ok', '✓ Final', 'ok', !prereq, prereq ? '' : 'Requires Roshen + Relia approved');
+      b('final-no', '✗ Final', 'bad', !prereq, prereq ? '' : 'Requires Roshen + Relia approved');
     }
-    if (canDeleteRow(a)) b("TS.deleteActivity('" + a.id + "')", '🗑', 'bad', false, 'Delete');
+    if (canDeleteRow(a)) b('delete', '🗑', 'bad', false, 'Delete');
     return '<div class="ts-actions">' + out.join('') + '</div>';
+  }
+
+  function handleAction(act, id) {
+    if (act === 'view') openView(id);
+    else if (act === 'edit') editActivity(id);
+    else if (act === 'delete') deleteActivity(id);
+    else if (act === 'roshen-ok') roshenDecision(id, 'Approved');
+    else if (act === 'roshen-no') roshenDecision(id, 'Rejected');
+    else if (act === 'relia-ok') reliaDecision(id, 'Approved');
+    else if (act === 'relia-no') reliaDecision(id, 'Rejected');
+    else if (act === 'final-ok') finalApprove(id);
+    else if (act === 'final-no') finalReject(id);
   }
 
   function filteredActivities() {
@@ -774,6 +902,7 @@ window.TS = (function () {
         '<td>' + esc(a.actType || '—') + '</td>' +
         '<td style="font-size:11px;white-space:nowrap;">' + esc(period) + '</td>' +
         '<td style="text-align:right;font-weight:700;white-space:nowrap;">' + (a.totalAmount != null ? Math.round(a.totalAmount).toLocaleString('en-US') : '—') + '</td>' +
+        '<td style="text-align:right;white-space:nowrap;' + (dp.inc != null && dp.inc < 0 ? 'color:var(--red);' : '') + '">' + (dp.inc != null && isFinite(dp.inc) ? Math.round(dp.inc).toLocaleString('en-US') : '—') + '</td>' +
         '<td>' + fmtPct(dp.uplift) + '</td>' +
         '<td>' + fmtPct(dp.roi) + '</td>' +
         '<td>' + verdictBadge(dp.verdict) + '</td>' +
@@ -786,7 +915,7 @@ window.TS = (function () {
     host.innerHTML =
       '<div style="overflow-x:auto;">' +
       '<table class="data-table ts-log-table" style="width:100%;">' +
-      '<thead><tr><th>Code</th><th>Customer</th><th>Category</th><th>Type</th><th>Period</th><th>Amount (SAR)</th><th>Uplift</th><th>ROI</th><th>Verdict</th><th>Claim</th><th>Approvals</th><th>Status</th><th>Actions</th></tr></thead>' +
+      '<thead><tr><th>Code</th><th>Customer</th><th>Category</th><th>Type</th><th>Period</th><th>Spend (SAR)</th><th>Incremental</th><th>Uplift</th><th>ROI</th><th>Verdict</th><th>Claim</th><th>Approvals</th><th>Status</th><th>Actions</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div>';
   }
 
@@ -802,12 +931,24 @@ window.TS = (function () {
     state.viewId = id;
     var fs = finalState(a);
     var dp = displayPerf(a); // live figures from the current dataset
+    var covNote = (dp.preCov != null && dp.postCov != null)
+      ? '<tr><td>Data Coverage</td><td colspan="2" style="font-size:11px;color:var(--text-muted);">' + dp.preCov + ' before-days · ' + dp.postCov + ' during-days' + (dp.afterCov ? ' · ' + dp.afterCov + ' after-days' : '') + ' with sales data' + (dp.postCov === 0 ? ' — awaiting sales import for the activity period' : '') + '</td></tr>'
+      : '';
+    var overlapNote = (dp.overlaps && dp.overlaps.length)
+      ? '<tr><td>⚠ Overlap</td><td colspan="2" style="font-size:11px;color:var(--amber);">Runs simultaneously with ' + esc(dp.overlaps.join(', ')) + ' for the same customer/categories — incremental sales are shared between them.</td></tr>'
+      : '';
+    var muted = function (t) { return '<td style="font-size:11px;color:var(--text-muted);">' + t + '</td>'; };
     var perfRows =
-      '<tr><td>Sales Before</td><td>' + fmtSAR(dp.pre) + '</td><td>' + (dp.preCases != null ? Math.round(dp.preCases).toLocaleString() + ' cases' : '—') + '</td></tr>' +
-      '<tr><td>Sales After</td><td>' + fmtSAR(dp.post) + '</td><td>' + (dp.postCases != null ? Math.round(dp.postCases).toLocaleString() + ' cases' : '—') + '</td></tr>' +
-      '<tr><td>Incremental</td><td>' + fmtSAR(dp.inc) + '</td><td></td></tr>' +
-      '<tr><td>Uplift</td><td>' + fmtPct(dp.uplift) + '</td><td></td></tr>' +
-      '<tr><td>ROI</td><td>' + fmtPct(dp.roi) + '</td><td>' + verdictBadge(dp.verdict) + '</td></tr>';
+      '<tr><td>Sales Before</td><td>' + fmtSAR(dp.pre) + '</td>' + muted((dp.preCases != null ? Math.round(dp.preCases).toLocaleString() + ' cases' : '') + (dp.preDiscountPct != null ? ' · ' + fmtPct(dp.preDiscountPct) + ' disc.' : '')) + '</tr>' +
+      '<tr><td>Baseline (pro-rated)</td><td>' + fmtSAR(dp.baseline) + '</td>' + muted('before-period daily rate × during days' + (dp.baselineFloored ? ' · floored at 0 (returns-heavy before-period)' : '')) + '</tr>' +
+      '<tr><td>Sales During</td><td>' + fmtSAR(dp.post) + '</td>' + muted((dp.postCases != null ? Math.round(dp.postCases).toLocaleString() + ' cases' : '') + (dp.postDiscountPct != null ? ' · ' + fmtPct(dp.postDiscountPct) + ' disc.' : '')) + '</tr>' +
+      '<tr><td>Sales After</td><td>' + (dp.afterCov ? fmtSAR(dp.after) : '—') + '</td>' + muted(dp.afterCov ? (dp.afterStart + ' → ' + dp.afterEnd + (dp.retention != null ? ' · ' + fmtPct(dp.retention) + ' retention vs baseline' : '')) : 'no measurable post-promotion window yet') + '</tr>' +
+      '<tr><td>Incremental</td><td>' + fmtSAR(dp.inc) + '</td>' + muted('during − baseline') + '</tr>' +
+      '<tr><td>Uplift</td><td>' + fmtPct(dp.uplift) + '</td>' + muted('daily-rate change vs before-period') + '</tr>' +
+      '<tr><td>ROI (net)</td><td>' + fmtPct(dp.roi) + '</td><td>' + verdictBadge(dp.verdict) + '</td></tr>' +
+      '<tr><td>ROTS</td><td>' + (dp.rots != null ? dp.rots.toFixed(2) + '×' : '—') + '</td>' + muted('incremental per SAR of spend') + '</tr>' +
+      '<tr><td>Trade Spend %</td><td>' + fmtPct(dp.spendPct) + '</td>' + muted('spend ÷ during net sales') + '</tr>' +
+      covNote + overlapNote;
     var photos = (a.execPhotos || []).map(function (p, i) {
       return '<img src="' + p + '" alt="Execution photo ' + (i + 1) + '" class="ts-photo" onclick="TS.zoomPhoto(' + i + ')">';
     }).join('');
@@ -868,6 +1009,11 @@ window.TS = (function () {
     return html;
   }
 
+  function perfCell(label, valId, subId) {
+    return '<div class="ts-perf-item"><div class="ts-view-k">' + label + '</div><div id="' + valId + '" class="ts-perf-v">—</div>' +
+      (subId ? '<div id="' + subId + '" class="ts-perf-sub"></div>' : '') + '</div>';
+  }
+
   function renderForm() {
     var host = byId('tsFormHost');
     if (!host) return;
@@ -876,74 +1022,158 @@ window.TS = (function () {
       return;
     }
     var a = state.editingId ? (findAct(state.editingId) || {}) : {};
+    // Draft-preserving render: the form is only (re)built and (re)seeded when
+    // the target record changes. Chip/SKU toggles and tab switches refresh the
+    // dynamic parts without wiping what the user has typed.
+    var seedKey = state.editingId || 'new';
+    if (state.formSeededFor === seedKey && byId('tsFCust')) {
+      renderCatChips(); renderSkuBox(); recalc();
+      return;
+    }
+    state.formSeededFor = seedKey;
     var custs = salesCustomers();
-    var cats = salesCategories();
     var custOptions = custs.map(function (c) { return '<option value="' + esc(c.acct + ' — ' + c.name) + '"></option>'; }).join('');
     var pct = a.reliaPct != null ? a.reliaPct : 50;
     state.formCats = getCats(a);
     state.formSkus = (a.skus || []).slice();
     state.formPhotos = (a.execPhotos || []).slice();
     state.formCreditNote = { image: a.creditNoteImage || '', filename: a.creditNoteFilename || '' };
-    var catChips = ['<label class="ts-chip' + (isAllCats(state.formCats) ? ' on' : '') + '"><input type="checkbox" ' + (isAllCats(state.formCats) ? 'checked' : '') + ' onchange="TS.toggleAllCats(this.checked)">⭐ All Categories</label>']
-      .concat(cats.map(function (c) {
-        var on = !isAllCats(state.formCats) && state.formCats.indexOf(c) >= 0;
-        return '<label class="ts-chip' + (on ? ' on' : '') + '"><input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="TS.toggleCat(' + JSON.stringify(c).replace(/"/g, '&quot;') + ', this.checked)">' + esc(c) + '</label>';
-      })).join('');
+    state.skuSearch = '';
+    state.skuShown = {};
+    var sec = function (n, title, inner) {
+      return '<div class="ts-sec"><div class="ts-sec-t"><span class="ts-sec-n">' + n + '</span>' + title + '</div>' + inner + '</div>';
+    };
     host.innerHTML =
       '<div class="card">' +
       '<div class="card-header"><div class="card-title"><span class="icon-bullet"></span> ' + (state.editingId ? 'Edit Activity — ' + esc(state.editingId) : 'New Activity') + '</div>' +
       (state.editingId ? '<button class="btn" onclick="TS.cancelEdit()">✕ Cancel Edit</button>' : '') + '</div>' +
-      '<div class="ts-form-grid">' +
-      '<div class="ts-field"><label>Customer *</label><input id="tsFCust" list="tsCustList" placeholder="Search account…" value="' + esc(a.custCode ? (a.custCode + ' — ' + (a.custName || '')) : '') + '" oninput="TS.recalc()"><datalist id="tsCustList">' + custOptions + '</datalist></div>' +
-      '<div class="ts-field"><label>Distributor</label><input id="tsFDist" value="' + esc(a.distributor || '') + '" placeholder="e.g. Relia"></div>' +
-      '<div class="ts-field"><label>Activity Type *</label><select id="tsFType" onchange="TS.onTypeChange()">' + typeOptions(a.actType) + '</select><input id="tsFTypeCustom" placeholder="Custom type…" style="display:none;margin-top:6px;" onchange="TS.recalc()"></div>' +
-      '<div class="ts-field"><label>Activity Date *</label><input type="date" id="tsFDate" value="' + esc(a.activityDate || todayStr()) + '" onchange="TS.recalc()"></div>' +
-      '<div class="ts-field"><label>Total Amount (SAR) *</label><input type="number" id="tsFAmount" min="0" step="0.01" value="' + (a.totalAmount != null ? a.totalAmount : '') + '" oninput="TS.onAmount()"></div>' +
-      '<div class="ts-field"><label>Cost Split — Relia <span id="tsFSplitL">' + pct + '%</span> / Roshen <span id="tsFSplitR">' + (100 - pct) + '%</span></label>' +
-      '<input type="range" id="tsFSplit" min="0" max="100" step="5" value="' + pct + '" oninput="TS.onSplit()">' +
-      '<div class="ts-split-note"><span id="tsFSplitLA">Relia —</span><span id="tsFSplitRA">Roshen —</span></div></div>' +
-      '<div class="ts-field"><label>Execution Status</label><select id="tsFExec">' +
-      ['Not Executed', 'Partially Executed', 'Fully Executed'].map(function (s) { return '<option' + (s === (a.execStatus || 'Not Executed') ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></div>' +
-      '<div class="ts-field"><label>Claim Received</label><div style="display:flex;gap:8px;align-items:center;">' +
-      '<select id="tsFClaim" style="max-width:110px;" onchange="TS.onClaim()">' + ['No', 'Yes'].map(function (s) { return '<option' + (s === getClaim(a) ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select>' +
-      '<input id="tsFClaimRef" placeholder="Claim reference…" value="' + esc(a.claimRef || '') + '" style="' + (getClaim(a) === 'Yes' ? '' : 'display:none;') + '"></div></div>' +
-      '<div class="ts-field"><label>Floor Displays #</label><input type="number" id="tsFNumFD" min="0" value="' + (a.numFloorDisplays != null ? a.numFloorDisplays : '') + '"></div>' +
-      '<div class="ts-field"><label>Meters</label><input type="number" id="tsFMeters" min="0" step="0.1" value="' + (a.metersValue != null ? a.metersValue : '') + '"></div>' +
-      '<div class="ts-field"><label>Branches #</label><input type="number" id="tsFNumBr" min="0" value="' + (a.numBranches != null ? a.numBranches : '') + '"></div>' +
-      '</div>' +
-      '<div class="ts-field" style="margin-top:14px;"><label>Categories *</label><div class="ts-chips">' + catChips + '</div></div>' +
-      '<div class="ts-field" style="margin-top:10px;"><label>SKUs (optional — narrows sales attribution)</label><div id="tsSkuBox" class="ts-chips"></div></div>' +
-      '<div class="ts-form-grid" style="margin-top:10px;">' +
-      '<div class="ts-field"><label>Execution Photos</label><input type="file" id="tsFPhotos" accept="image/*" multiple onchange="TS.onPhotos(this)"><div id="tsFPhotoList" class="ts-photo-grid"></div></div>' +
-      '<div class="ts-field"><label>Credit Note</label><input type="file" id="tsFCn" accept="image/*,.pdf" onchange="TS.onCreditNote(this)"><div id="tsFCnName" style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + esc(a.creditNoteFilename || '') + '</div></div>' +
-      '</div>' +
-      '<div class="ts-field" style="margin-top:10px;"><label>Notes</label><textarea id="tsFNotes" rows="3" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);padding:9px 12px;font:inherit;">' + esc(a.notes || '') + '</textarea></div>' +
-      '<div class="ts-perf-box" id="tsPerfBox">' +
-      '<div class="ts-perf-item"><div class="ts-view-k">Sales Before</div><div id="tsPerfPre" class="ts-perf-v">—</div></div>' +
-      '<div class="ts-perf-item"><div class="ts-view-k">Sales After</div><div id="tsPerfPost" class="ts-perf-v">—</div></div>' +
-      '<div class="ts-perf-item"><div class="ts-view-k">Uplift</div><div id="tsPerfUplift" class="ts-perf-v">—</div></div>' +
-      '<div class="ts-perf-item"><div class="ts-view-k">ROI</div><div id="tsPerfRoi" class="ts-perf-v">—</div></div>' +
-      '<div class="ts-perf-item"><div class="ts-view-k">Verdict</div><div id="tsPerfVerdict" class="ts-perf-v">—</div></div>' +
-      '<div class="ts-perf-item"><div class="ts-view-k">Post Window</div><div id="tsPerfWin" class="ts-perf-v" style="font-size:11px;">—</div></div>' +
-      '</div>' +
+
+      sec(1, 'Customer &amp; Scope',
+        '<div class="ts-form-grid">' +
+        '<div class="ts-field" id="tsWCust"><label>Customer <b>*</b></label><input id="tsFCust" list="tsCustList" placeholder="Search account or name…" value="' + esc(a.custCode ? (a.custCode + ' — ' + (a.custName || '')) : '') + '" oninput="TS.recalc()" autocomplete="off"><datalist id="tsCustList">' + custOptions + '</datalist><span id="tsFCustNote" class="ts-fnote"></span></div>' +
+        '<div class="ts-field"><label>Distributor</label><input id="tsFDist" value="' + esc(a.distributor || '') + '" placeholder="e.g. Relia"></div>' +
+        '</div>' +
+        '<div class="ts-field" id="tsWCats" style="margin-top:12px;"><label>Categories <b>*</b></label><div class="ts-chips" id="tsCatChips"></div><span id="tsFCatsErr"></span></div>' +
+        '<div class="ts-field" style="margin-top:12px;"><label>SKUs <span class="ts-lbl-soft">(optional — narrows sales attribution to the selected items)</span></label>' +
+        '<div class="ts-skupanel">' +
+        '<div class="ts-sku-head"><input class="ts-sku-search" id="tsSkuSearch" placeholder="🔎 Search SKUs…" oninput="TS.onSkuSearch(this.value)" autocomplete="off">' +
+        '<span class="ts-sku-count" id="tsSkuCount"></span><button type="button" class="ts-sku-clear" onclick="TS.clearSkus()">Clear all</button></div>' +
+        '<div class="ts-sku-sel" id="tsSkuSel"></div>' +
+        '<div class="ts-sku-list" id="tsSkuBox"></div>' +
+        '</div></div>') +
+
+      sec(2, 'Activity &amp; Investment',
+        '<div class="ts-form-grid">' +
+        '<div class="ts-field" id="tsWType"><label>Activity Type <b>*</b></label><select id="tsFType" onchange="TS.onTypeChange()">' + typeOptions(a.actType) + '</select><input id="tsFTypeCustom" placeholder="Custom type…" style="display:none;margin-top:6px;" onchange="TS.recalc()"></div>' +
+        '<div class="ts-field" id="tsWDate"><label>Activity Date <b>*</b></label><input type="date" id="tsFDate" value="' + esc(a.activityDate || todayStr()) + '" onchange="TS.recalc()"><span id="tsFDateNote" class="ts-fnote"></span></div>' +
+        '<div class="ts-field" id="tsWAmount"><label>Total Amount (SAR, excl. VAT) <b>*</b></label><input type="number" id="tsFAmount" min="0" step="0.01" value="' + (a.totalAmount != null ? a.totalAmount : '') + '" oninput="TS.onAmount()"></div>' +
+        '<div class="ts-field"><label>Cost Split — Relia <span id="tsFSplitL">' + pct + '%</span> / Roshen <span id="tsFSplitR">' + (100 - pct) + '%</span></label>' +
+        '<input type="range" id="tsFSplit" min="0" max="100" step="5" value="' + pct + '" oninput="TS.onSplit()">' +
+        '<div class="ts-split-note"><span id="tsFSplitLA">Relia —</span><span id="tsFSplitRA">Roshen —</span></div></div>' +
+        '<div class="ts-field"><label>Floor Displays #</label><input type="number" id="tsFNumFD" min="0" value="' + (a.numFloorDisplays != null ? a.numFloorDisplays : '') + '"></div>' +
+        '<div class="ts-field"><label>Meters</label><input type="number" id="tsFMeters" min="0" step="0.1" value="' + (a.metersValue != null ? a.metersValue : '') + '"></div>' +
+        '<div class="ts-field"><label>Branches #</label><input type="number" id="tsFNumBr" min="0" value="' + (a.numBranches != null ? a.numBranches : '') + '"></div>' +
+        '</div>') +
+
+      sec(3, 'Execution &amp; Claim',
+        '<div class="ts-form-grid">' +
+        '<div class="ts-field"><label>Execution Status</label><select id="tsFExec">' +
+        ['Not Executed', 'Partially Executed', 'Fully Executed'].map(function (s) { return '<option' + (s === (a.execStatus || 'Not Executed') ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></div>' +
+        '<div class="ts-field"><label>Claim Received</label><div style="display:flex;gap:8px;align-items:center;">' +
+        '<select id="tsFClaim" style="max-width:110px;" onchange="TS.onClaim()">' + ['No', 'Yes'].map(function (s) { return '<option' + (s === getClaim(a) ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select>' +
+        '<input id="tsFClaimRef" placeholder="Claim reference…" value="' + esc(a.claimRef || '') + '" style="' + (getClaim(a) === 'Yes' ? '' : 'display:none;') + '"></div></div>' +
+        '<div class="ts-field"><label>Execution Photos</label><input type="file" id="tsFPhotos" accept="image/*" multiple onchange="TS.onPhotos(this)"><div id="tsFPhotoList" class="ts-photo-grid"></div></div>' +
+        '<div class="ts-field"><label>Credit Note</label><input type="file" id="tsFCn" accept="image/*,.pdf" onchange="TS.onCreditNote(this)"><div id="tsFCnName" style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + esc(a.creditNoteFilename || '') + '</div></div>' +
+        '</div>' +
+        '<div class="ts-field" style="margin-top:10px;"><label>Notes</label><textarea id="tsFNotes" rows="3" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);padding:9px 12px;font:inherit;">' + esc(a.notes || '') + '</textarea></div>') +
+
+      sec(4, 'Performance Preview <span class="ts-live-dot" title="Recalculates live from the Dashboard sales data as you type"></span><span class="ts-lbl-soft" style="text-transform:none;letter-spacing:0;">auto-computed from live sales data</span>',
+        '<div class="ts-perf-box" id="tsPerfBox">' +
+        perfCell('Sales Before', 'tsPerfPre', 'tsPerfPreW') +
+        perfCell('Baseline', 'tsPerfBase', 'tsPerfBaseW') +
+        perfCell('Sales During', 'tsPerfPost', 'tsPerfPostW') +
+        perfCell('Sales After', 'tsPerfAfter', 'tsPerfAfterW') +
+        perfCell('Incremental', 'tsPerfInc') +
+        perfCell('Uplift', 'tsPerfUplift') +
+        perfCell('ROI (net)', 'tsPerfRoi') +
+        perfCell('ROTS', 'tsPerfRots') +
+        perfCell('Trade Spend %', 'tsPerfSpendPct') +
+        perfCell('Verdict', 'tsPerfVerdict') +
+        '<div class="ts-perf-note" id="tsPerfNote"></div>' +
+        '</div>') +
+
       '<div style="display:flex;gap:10px;margin-top:16px;">' +
       '<button class="btn btn-primary" onclick="TS.saveActivity()">💾 ' + (state.editingId ? 'Save Changes' : 'Save Activity') + '</button>' +
       '<button class="btn" onclick="TS.resetForm()">Reset</button>' +
       '</div></div>';
+    renderCatChips();
     renderSkuBox();
     renderFormPhotos();
     onAmount();
     recalc();
   }
 
+  function skusByCat() {
+    // [{cat, skus:[names]}] for the currently selected categories (or all).
+    if (!datasetReady()) return [];
+    var catSet = resolveCatIdxSet(state.formCats);
+    var groups = {};
+    SKUS.forEach(function (s) {
+      if (catSet && !catSet.has(s.c)) return;
+      var cat = DIMS.categories[s.c] || 'Other';
+      (groups[cat] = groups[cat] || []).push(s.d);
+    });
+    return Object.keys(groups).sort().map(function (cat) {
+      return { cat: cat, skus: groups[cat].sort() };
+    });
+  }
+
+  function renderCatChips() {
+    var el = byId('tsCatChips'); if (!el) return;
+    var cats = salesCategories();
+    var counts = {};
+    if (datasetReady()) SKUS.forEach(function (s) { var c = DIMS.categories[s.c]; counts[c] = (counts[c] || 0) + 1; });
+    el.innerHTML = ['<label class="ts-chip' + (isAllCats(state.formCats) ? ' on' : '') + '"><input type="checkbox" ' + (isAllCats(state.formCats) ? 'checked' : '') + ' onchange="TS.toggleAllCats(this.checked)">⭐ All Categories</label>']
+      .concat(cats.map(function (c) {
+        var on = !isAllCats(state.formCats) && state.formCats.indexOf(c) >= 0;
+        return '<label class="ts-chip' + (on ? ' on' : '') + '"><input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="TS.toggleCat(' + JSON.stringify(c).replace(/"/g, '&quot;') + ', this.checked)">' + esc(c) + ' <span class="ts-cat-count">' + (counts[c] || 0) + '</span></label>';
+      })).join('');
+  }
+
+  var SKU_BATCH = 120; // rows rendered per group before "Show more" (windowed rendering)
   function renderSkuBox() {
-    var box = byId('tsSkuBox'); if (!box) return;
-    var opts = skusForCats(state.formCats);
-    if (!opts.length) { box.innerHTML = '<span style="font-size:11px;color:var(--text-muted);">Select categories first (or ⭐ All).</span>'; return; }
-    box.innerHTML = opts.map(function (s) {
-      var on = state.formSkus.indexOf(s) >= 0;
-      return '<label class="ts-chip' + (on ? ' on' : '') + '"><input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="TS.toggleSku(' + JSON.stringify(s).replace(/"/g, '&quot;') + ', this.checked)">' + esc(s) + '</label>';
-    }).join('');
+    var box = byId('tsSkuBox'), selEl = byId('tsSkuSel'), cntEl = byId('tsSkuCount');
+    if (!box) return;
+    var q = (state.skuSearch || '').toLowerCase();
+    var groups = skusByCat();
+    if (!state.formCats.length) {
+      box.innerHTML = '<div class="ts-sku-empty">Select categories above first (or ⭐ All Categories) — the SKU list follows your category selection.</div>';
+      if (selEl) selEl.innerHTML = ''; if (cntEl) cntEl.textContent = '';
+      return;
+    }
+    var totalShown = 0, html = '';
+    groups.forEach(function (g) {
+      var matches = q ? g.skus.filter(function (s) { return s.toLowerCase().indexOf(q) >= 0; }) : g.skus;
+      if (!matches.length) return;
+      var selInGroup = matches.filter(function (s) { return state.formSkus.indexOf(s) >= 0; }).length;
+      var cap = state.skuShown[g.cat] || SKU_BATCH;
+      var shown = matches.slice(0, cap);
+      totalShown += matches.length;
+      html += '<div class="ts-sku-group"><div class="ts-sku-gh">' + esc(g.cat) +
+        ' <span class="ts-cat-count">' + selInGroup + '/' + matches.length + '</span>' +
+        '<span class="ga" data-gsel="' + esc(g.cat) + '">' + (selInGroup === matches.length ? 'Clear group' : 'Select all') + '</span></div>' +
+        shown.map(function (s) {
+          var on = state.formSkus.indexOf(s) >= 0;
+          return '<label class="ts-sku-row"><input type="checkbox" data-sku="' + esc(s) + '"' + (on ? ' checked' : '') + '> ' + esc(s) + '</label>';
+        }).join('') +
+        (matches.length > cap ? '<div class="ts-sku-more" data-more="' + esc(g.cat) + '">Show ' + (matches.length - cap) + ' more…</div>' : '') +
+        '</div>';
+    });
+    box.innerHTML = html || '<div class="ts-sku-empty">No SKUs match “' + esc(state.skuSearch) + '”.</div>';
+    if (cntEl) cntEl.textContent = state.formSkus.length ? state.formSkus.length + ' selected' : 'All SKUs in the selected categories';
+    if (selEl) selEl.innerHTML = state.formSkus.length
+      ? state.formSkus.map(function (s) { return '<span class="ts-sku-selchip">' + esc(s) + '<button type="button" data-unsku="' + esc(s) + '" title="Remove">✕</button></span>'; }).join('')
+      : '<span class="ts-sku-selnone">No specific SKUs selected — performance uses every SKU in the selected categories.</span>';
   }
 
   function renderFormPhotos() {
@@ -956,7 +1186,7 @@ window.TS = (function () {
   function toggleAllCats(on) {
     state.formCats = on ? [ALL_CATEGORIES] : [];
     state.formSkus = [];
-    renderForm();
+    renderCatChips(); renderSkuBox(); recalc();
   }
   function toggleCat(name, on) {
     if (isAllCats(state.formCats)) state.formCats = [];
@@ -964,13 +1194,43 @@ window.TS = (function () {
     if (on && i < 0) state.formCats.push(name);
     if (!on && i >= 0) state.formCats.splice(i, 1);
     state.formSkus = state.formSkus.filter(function (s) { return skusForCats(state.formCats).indexOf(s) >= 0; });
-    renderForm();
+    renderCatChips(); renderSkuBox(); recalc();
   }
   function toggleSku(name, on) {
     var i = state.formSkus.indexOf(name);
     if (on && i < 0) state.formSkus.push(name);
     if (!on && i >= 0) state.formSkus.splice(i, 1);
-    recalc();
+    renderSkuBox(); recalc();
+  }
+  var _skuSearchT = null;
+  function onSkuSearch(v) {
+    clearTimeout(_skuSearchT);
+    _skuSearchT = setTimeout(function () { state.skuSearch = v || ''; state.skuShown = {}; renderSkuBox(); }, 120);
+  }
+  function clearSkus() { state.formSkus = []; renderSkuBox(); recalc(); }
+  function skuGroupSelect(cat) {
+    var q = (state.skuSearch || '').toLowerCase();
+    var g = skusByCat().find(function (x) { return x.cat === cat; });
+    if (!g) return;
+    var matches = q ? g.skus.filter(function (s) { return s.toLowerCase().indexOf(q) >= 0; }) : g.skus;
+    var allOn = matches.every(function (s) { return state.formSkus.indexOf(s) >= 0; });
+    if (allOn) state.formSkus = state.formSkus.filter(function (s) { return matches.indexOf(s) < 0; });
+    else matches.forEach(function (s) { if (state.formSkus.indexOf(s) < 0) state.formSkus.push(s); });
+    renderSkuBox(); recalc();
+  }
+  // Delegated events for the (re-rendered) SKU panel — wired once in init().
+  function onFormClick(e) {
+    var t = e.target;
+    if (t.dataset && t.dataset.unsku != null) { toggleSku(t.dataset.unsku, false); return; }
+    if (t.dataset && t.dataset.gsel != null) { skuGroupSelect(t.dataset.gsel); return; }
+    if (t.dataset && t.dataset.more != null) {
+      state.skuShown[t.dataset.more] = (state.skuShown[t.dataset.more] || SKU_BATCH) + SKU_BATCH;
+      renderSkuBox(); return;
+    }
+  }
+  function onFormChange(e) {
+    var t = e.target;
+    if (t.dataset && t.dataset.sku != null) toggleSku(t.dataset.sku, t.checked);
   }
   function onTypeChange() {
     var sel = byId('tsFType');
@@ -1014,6 +1274,12 @@ window.TS = (function () {
     return sel.value;
   }
 
+  function custResolved(code) {
+    if (!code || !datasetReady()) return false;
+    var idx = salesIndex();
+    return !!(idx && (idx.idByAcct.get(code) || []).length);
+  }
+
   var _recalcT = null;
   function recalc() {
     clearTimeout(_recalcT);
@@ -1023,19 +1289,63 @@ window.TS = (function () {
       var actType = formActType();
       var dateStr = byId('tsFDate') && byId('tsFDate').value;
       var total = num(byId('tsFAmount') && byId('tsFAmount').value);
-      var set = function (id, v) { var el = byId(id); if (el) el.textContent = v; };
+      var set = function (id, v, cls) {
+        var el = byId(id); if (!el) return;
+        el.textContent = v;
+        if (cls !== undefined) el.className = el.className.split(' ').filter(function (c) { return c.indexOf('c-') !== 0; }).join(' ') + (cls ? ' ' + cls : '');
+      };
+      var note = function (id, text, warn) {
+        var el = byId(id); if (!el) return;
+        el.textContent = text || '';
+        el.style.color = warn ? 'var(--amber)' : 'var(--green)';
+      };
+      // Live customer resolution feedback
+      var typed = (byId('tsFCust') && byId('tsFCust').value.trim()) || '';
+      if (!typed) note('tsFCustNote', '');
+      else if (custResolved(custCode)) note('tsFCustNote', '✓ ' + (formCustName() || custCode) + ' — sales data found');
+      else note('tsFCustNote', '⚠ Account “' + custCode + '” not found in the sales data — pick an account from the list', true);
+      // Live date sanity feedback
+      var dateWarn = '';
+      if (dateStr) {
+        var today = todayStr();
+        var yearAhead = new Date(); yearAhead.setFullYear(yearAhead.getFullYear() + 1);
+        if (dateStr > yearAhead.toISOString().slice(0, 10)) dateWarn = '⚠ Date is more than a year ahead — check the year';
+        else if (typeof META !== 'undefined' && META && META.dateMax && dateStr > META.dateMax) dateWarn = 'ℹ Beyond the latest sales import (' + META.dateMax + ') — performance stays Pending until data arrives';
+        else if (dateStr > today) dateWarn = 'ℹ Future activity — performance will build up as sales data arrives';
+      }
+      note('tsFDateNote', dateWarn, dateWarn.indexOf('⚠') === 0);
+
+      var ids = ['tsPerfPre', 'tsPerfBase', 'tsPerfPost', 'tsPerfAfter', 'tsPerfInc', 'tsPerfUplift', 'tsPerfRoi', 'tsPerfRots', 'tsPerfSpendPct', 'tsPerfVerdict'];
+      var subs = ['tsPerfPreW', 'tsPerfBaseW', 'tsPerfPostW', 'tsPerfAfterW'];
       if (!custCode || !cats.length || !dateStr) {
-        ['tsPerfPre', 'tsPerfPost', 'tsPerfUplift', 'tsPerfRoi', 'tsPerfVerdict', 'tsPerfWin'].forEach(function (id) { set(id, '—'); });
+        ids.forEach(function (id) { set(id, '—'); });
+        subs.forEach(function (id) { set(id, ''); });
+        set('tsPerfNote', 'Select a customer, categories and a date — every figure below computes automatically from the Dashboard sales data.');
         return;
       }
-      if (!datasetReady()) { set('tsPerfWin', 'Sales dataset not loaded'); return; }
+      if (!datasetReady()) { set('tsPerfNote', 'Sales dataset not loaded yet.'); return; }
       var p = computePerf(custCode, cats, state.formSkus, actType, dateStr, state.editingId, total);
       set('tsPerfPre', fmtSAR(p.preAmount));
+      set('tsPerfPreW', p.periods.preStartDateStr + ' → ' + p.periods.preEndDateStr + ' · ' + p.preDaysCovered + 'd data');
+      set('tsPerfBase', fmtSAR(p.baselineAmount));
+      set('tsPerfBaseW', p.baselineAmount != null ? 'daily rate × during days' + (p.baselineFloored ? ' (floored)' : '') : '');
       set('tsPerfPost', fmtSAR(p.postAmount));
-      set('tsPerfUplift', p.upliftNew ? 'New' : fmtPct(p.uplift));
+      set('tsPerfPostW', p.periods.postStartDateStr + ' → ' + p.periods.postEndDateStr + ' · ' + p.postDaysCovered + '/' + p.periods.postDays + 'd data');
+      set('tsPerfAfter', p.afterDaysCovered > 0 ? fmtSAR(p.afterAmount) : '—');
+      set('tsPerfAfterW', p.afterDaysCovered > 0 ? (p.periods.afterStartDateStr + ' → ' + p.periods.afterEndDateStr + (p.retention != null ? ' · ' + fmtPct(p.retention) + ' retention' : '')) : (p.periods.afterBlocked ? 'blocked by next activity' : 'no data yet'));
+      set('tsPerfInc', fmtSAR(p.incremental));
+      set('tsPerfUplift', p.upliftNew ? 'New listing' : fmtPct(p.uplift));
       set('tsPerfRoi', fmtPct(p.roi));
+      set('tsPerfRots', p.rots != null ? p.rots.toFixed(2) + '×' : '—');
+      set('tsPerfSpendPct', fmtPct(p.spendPct));
       set('tsPerfVerdict', total > 0 ? p.verdict : 'Pending');
-      set('tsPerfWin', p.periods.postStartDateStr + ' → ' + p.periods.postEndDateStr + ' (' + p.periods.postDays + 'd)' + (p.periods.truncatedBy ? ' ✂ ' + p.periods.truncatedBy : ''));
+      var notes = [];
+      if (!(total > 0)) notes.push('Enter the spend amount to get ROI and a verdict.');
+      if (p.postDaysCovered === 0) notes.push('<span class="warn">Awaiting sales data for the activity period — verdict stays Pending.</span>');
+      if (p.periods.truncatedBy) notes.push('Measurement window ends the day before ' + esc(p.periods.truncatedBy) + ' (next activity for this customer/scope).');
+      if (p.overlaps && p.overlaps.length) notes.push('<span class="warn">⚠ Overlaps ' + esc(p.overlaps.join(', ')) + ' — incremental sales will be shared.</span>');
+      if (p.baselineFloored) notes.push('Before-period is returns-heavy; baseline floored at 0.');
+      var el = byId('tsPerfNote'); if (el) el.innerHTML = notes.join(' ');
     }, 150);
   }
 
@@ -1087,11 +1397,37 @@ window.TS = (function () {
     var actType = formActType();
     var dateStr = byId('tsFDate').value;
     var total = num(byId('tsFAmount').value);
-    if (!custCode) { toast('Customer is required.', true); return; }
-    if (!state.formCats.length) { toast('Select at least one category (or ⭐ All).', true); return; }
-    if (!actType) { toast('Activity type is required.', true); return; }
-    if (!dateStr) { toast('Activity date is required.', true); return; }
-    if (!(total > 0)) { toast('Total amount must be greater than zero.', true); return; }
+
+    // Field-level validation — errors shown inline at the field, not only a toast.
+    ['tsWCust', 'tsWCats', 'tsWType', 'tsWDate', 'tsWAmount'].forEach(function (id) {
+      var w = byId(id); if (!w) return;
+      w.classList.remove('err');
+      var e = w.querySelector('.ts-ferr'); if (e) e.remove();
+    });
+    var errors = [];
+    var fieldErr = function (wrapId, msg) {
+      errors.push(msg);
+      var w = byId(wrapId); if (!w) return;
+      w.classList.add('err');
+      var e = document.createElement('span'); e.className = 'ts-ferr'; e.textContent = msg;
+      w.appendChild(e);
+    };
+    if (!custCode) fieldErr('tsWCust', 'Customer is required.');
+    else if (datasetReady() && !custResolved(custCode)) fieldErr('tsWCust', 'Account “' + custCode + '” is not in the sales data — pick an account from the list so performance can be attributed.');
+    if (!state.formCats.length) fieldErr('tsWCats', 'Select at least one category (or ⭐ All Categories).');
+    if (!actType) fieldErr('tsWType', 'Activity type is required.');
+    if (!dateStr) fieldErr('tsWDate', 'Activity date is required.');
+    else {
+      var yearAhead = new Date(); yearAhead.setFullYear(yearAhead.getFullYear() + 1);
+      if (dateStr > yearAhead.toISOString().slice(0, 10)) fieldErr('tsWDate', 'Date is more than a year ahead — check the year.');
+    }
+    if (!(total > 0)) fieldErr('tsWAmount', 'Total amount must be greater than zero.');
+    if (errors.length) {
+      toast(errors[0], true);
+      var firstErr = document.querySelector('#tsFormHost .ts-field.err');
+      if (firstErr && firstErr.scrollIntoView) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
 
     var a = editing ? editing : {
       id: generateActivityId(),
@@ -1149,8 +1485,12 @@ window.TS = (function () {
       a.rentalMonths = perf.periods.rentalMonths;
       a.preAmount = perf.preAmount; a.preCases = perf.preCases;
       a.postAmount = perf.postAmount; a.postCases = perf.postCases;
+      a.baselineAmount = perf.baselineAmount;
+      a.preDaysCovered = perf.preDaysCovered; a.postDaysCovered = perf.postDaysCovered;
+      a.afterAmount = perf.afterAmount; a.afterDaysCovered = perf.afterDaysCovered;
       a.incremental = perf.incremental;
       a.uplift = perf.uplift; a.roi = perf.roi; a.verdict = perf.verdict;
+      a.rots = perf.rots; a.spendPct = perf.spendPct; a.retention = perf.retention;
       // provenance stamp for audit: when and by whom figures were (re)computed
       a.perfSource = 'dashboard-dataset';
       a.perfCalculatedAt = new Date().toISOString();
@@ -1169,6 +1509,7 @@ window.TS = (function () {
     _livePerfCache.clear(); // this activity may truncate neighbours' windows
     toast((editing ? 'Saved changes to ' : 'Created ') + a.id);
     state.editingId = null;
+    state.formSeededFor = null; // next form open starts fresh
     switchTab('log');
   }
 
@@ -1178,8 +1519,8 @@ window.TS = (function () {
     state.editingId = id;
     switchTab('new');
   }
-  function cancelEdit() { state.editingId = null; renderForm(); }
-  function resetForm() { if (!state.editingId) { state.formCats = []; state.formSkus = []; state.formPhotos = []; state.formCreditNote = { image: '', filename: '' }; } renderForm(); }
+  function cancelEdit() { state.editingId = null; state.formSeededFor = null; renderForm(); }
+  function resetForm() { state.formSeededFor = null; renderForm(); }
 
   // ───────────────────────────────────────────────────────────────────────────
   // UI — Analysis (Chart.js with the Dashboard chart registry/theme)
@@ -1194,19 +1535,25 @@ window.TS = (function () {
     }
     host.innerHTML =
       '<div class="chart-row cols-2-eq">' +
-      '<div class="card"><div class="card-header"><div class="card-title"><span class="icon-bullet"></span> Spend by Category</div></div><div class="chart-container"><canvas id="tsChartCat"></canvas></div></div>' +
+      '<div class="card"><div class="card-header"><div class="card-title"><span class="icon-bullet"></span> Spend vs Incremental by Category</div></div><div class="chart-container"><canvas id="tsChartCat"></canvas></div></div>' +
       '<div class="card"><div class="card-header"><div class="card-title"><span class="icon-bullet"></span> ROI by Activity Type</div></div><div class="chart-container"><canvas id="tsChartRoi"></canvas></div></div>' +
       '</div>' +
       '<div class="chart-row cols-2-eq">' +
       '<div class="card"><div class="card-header"><div class="card-title"><span class="icon-bullet"></span> Verdicts</div></div><div class="chart-container"><canvas id="tsChartVerdict"></canvas></div></div>' +
       '<div class="card"><div class="card-header"><div class="card-title"><span class="icon-bullet"></span> Relia / Roshen Split</div></div><div class="chart-container"><canvas id="tsChartSplit"></canvas></div></div>' +
+      '</div>' +
+      '<div class="chart-row cols-2-eq">' +
+      '<div class="card"><div class="card-header"><div class="card-title"><span class="icon-bullet"></span> Claims Recovery (spend)</div></div><div class="chart-container"><canvas id="tsChartClaims"></canvas></div></div>' +
+      '<div class="card"><div class="card-header"><div class="card-title"><span class="icon-bullet"></span> Execution Status</div></div><div class="chart-container"><canvas id="tsChartExec"></canvas></div></div>' +
       '</div>';
     if (typeof Chart === 'undefined') return;
-    var byCat = {}, roiByType = {}, verdicts = {}, splitTotals = { Relia: 0, Roshen: 0 };
+    var byCat = {}, incByCat = {}, roiByType = {}, verdicts = {}, splitTotals = { Relia: 0, Roshen: 0 };
+    var claims = { claimed: 0, unclaimed: 0 }, execCounts = {};
     acts.forEach(function (a) {
       var dp = displayPerf(a); // live figures from the current dataset
       var label = isAllCats(getCats(a)) ? 'All Categories' : getCats(a).join(', ');
       byCat[label] = (byCat[label] || 0) + num(a.totalAmount);
+      incByCat[label] = (incByCat[label] || 0) + (dp.inc != null && isFinite(dp.inc) ? dp.inc : 0);
       if (dp.roi != null && a.actType) {
         (roiByType[a.actType] = roiByType[a.actType] || []).push(dp.roi);
       }
@@ -1214,6 +1561,9 @@ window.TS = (function () {
       verdicts[v] = (verdicts[v] || 0) + 1;
       splitTotals.Relia += num(a.reliaAmount);
       splitTotals.Roshen += num(a.roshenAmount);
+      claims[getClaim(a) === 'Yes' ? 'claimed' : 'unclaimed'] += num(a.totalAmount);
+      var ex = a.execStatus || 'Not Executed';
+      execCounts[ex] = (execCounts[ex] || 0) + 1;
     });
     var mk = function (id, cfg) {
       var el = byId(id); if (!el) return;
@@ -1228,12 +1578,19 @@ window.TS = (function () {
     var amber = tokenColor('--amber', '#FFB020');
     var textCol = tokenColor('--text-secondary', '#8FA3BD');
     var noLegend = { plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: textCol } }, y: { ticks: { color: textCol } } } };
-    mk('tsChartCat', { type: 'bar', data: { labels: Object.keys(byCat), datasets: [{ data: Object.values(byCat), backgroundColor: accent, borderRadius: 6 }] }, options: noLegend });
+    var withLegend = { plugins: { legend: { position: 'bottom', labels: { color: textCol } } }, responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: textCol } }, y: { ticks: { color: textCol } } } };
+    var catLabels = Object.keys(byCat);
+    mk('tsChartCat', { type: 'bar', data: { labels: catLabels, datasets: [
+      { label: 'Spend', data: catLabels.map(function (c) { return Math.round(byCat[c]); }), backgroundColor: accent, borderRadius: 6 },
+      { label: 'Incremental', data: catLabels.map(function (c) { return Math.round(incByCat[c]); }), backgroundColor: blue, borderRadius: 6 }
+    ] }, options: withLegend });
     var roiLabels = Object.keys(roiByType);
     var roiVals = roiLabels.map(function (t) { var xs = roiByType[t]; return xs.reduce(function (s, x) { return s + x; }, 0) / xs.length * 100; });
     mk('tsChartRoi', { type: 'bar', data: { labels: roiLabels, datasets: [{ data: roiVals, backgroundColor: roiVals.map(function (v) { return v >= 20 ? green : (v >= 0 ? amber : red); }), borderRadius: 6 }] }, options: noLegend });
     mk('tsChartVerdict', { type: 'doughnut', data: { labels: Object.keys(verdicts), datasets: [{ data: Object.values(verdicts), backgroundColor: [green, amber, red, textCol] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textCol } } } } });
     mk('tsChartSplit', { type: 'doughnut', data: { labels: ['Relia', 'Roshen'], datasets: [{ data: [splitTotals.Relia, splitTotals.Roshen], backgroundColor: [blue, accent] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textCol } } } } });
+    mk('tsChartClaims', { type: 'doughnut', data: { labels: ['Claim received', 'Not yet claimed'], datasets: [{ data: [claims.claimed, claims.unclaimed], backgroundColor: [green, amber] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textCol } } } } });
+    mk('tsChartExec', { type: 'doughnut', data: { labels: Object.keys(execCounts), datasets: [{ data: Object.values(execCounts), backgroundColor: [textCol, amber, green] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textCol } } } } });
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1270,12 +1627,18 @@ window.TS = (function () {
         'Roshen %': a.roshenPct,
         'Roshen Amount (SAR)': a.roshenAmount,
         'Sales Before (SAR)': dp.pre,
-        'Sales After (SAR)': dp.post,
+        'Sales During (SAR)': dp.post,
+        'Sales After (SAR)': dp.afterCov ? dp.after : '',
         'Cases Before': dp.preCases,
-        'Cases After': dp.postCases,
+        'Cases During': dp.postCases,
+        'Baseline (SAR)': dp.baseline != null ? Math.round(dp.baseline) : '',
         'Incremental (SAR)': dp.inc,
         'Uplift %': dp.uplift != null ? (dp.uplift * 100).toFixed(2) + '%' : '',
         'ROI %': dp.roi != null ? (dp.roi * 100).toFixed(2) + '%' : '',
+        'ROTS (x)': dp.rots != null ? dp.rots.toFixed(2) : '',
+        'Trade Spend % of During Sales': dp.spendPct != null ? (dp.spendPct * 100).toFixed(2) + '%' : '',
+        'Discount % (During)': dp.postDiscountPct != null ? (dp.postDiscountPct * 100).toFixed(2) + '%' : '',
+        'Post-promo Retention %': dp.retention != null ? (dp.retention * 100).toFixed(2) + '%' : '',
         'Verdict': dp.verdict,
         'Execution Status': a.execStatus,
         'Credit Note': a.creditNoteFilename || '',
@@ -1290,7 +1653,10 @@ window.TS = (function () {
         'Final Approved At': a.finalApprovedAt || '',
         'Notes': a.notes,
         'Created': a.createdAt,
-        'Updated': a.updatedAt
+        'Updated': a.updatedAt,
+        'Pre Days Covered': dp.preCov != null ? dp.preCov : '',
+        'During Days Covered': dp.postCov != null ? dp.postCov : '',
+        'After Days Covered': dp.afterCov != null ? dp.afterCov : ''
       };
     });
     var ws = XLSX.utils.json_to_sheet(data);
@@ -1405,12 +1771,74 @@ window.TS = (function () {
         if (el) switchTab(el.getAttribute('data-ts-tab'));
       });
     }
+    // Delegated row-action handler — bound once on the static view container,
+    // survives table re-renders, reliable on touch browsers.
+    var view = byId('view-tradespend');
+    if (view && !view._tsActBound) {
+      view._tsActBound = true;
+      view.addEventListener('click', function (e) {
+        var btn = e.target && e.target.closest ? e.target.closest('.ts-act-btn[data-act]') : null;
+        if (!btn || btn.disabled) return;
+        e.preventDefault();
+        handleAction(btn.getAttribute('data-act'), btn.getAttribute('data-id'));
+      });
+    }
     var modal = byId('tsModal');
     if (modal && !modal._tsBound) {
       modal._tsBound = true;
       modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
       document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
     }
+    // Delegated SKU-panel events (the panel re-renders; the host doesn't).
+    var formHost = byId('tsFormHost');
+    if (formHost && !formHost._tsBound) {
+      formHost._tsBound = true;
+      formHost.addEventListener('click', onFormClick);
+      formHost.addEventListener('change', onFormChange);
+    }
+    injectStylesV2();
+  }
+
+  function injectStylesV2() {
+    if (byId('tsStylesV2')) return;
+    var css =
+      '#view-tradespend .ts-sec{margin-top:16px;padding:16px 18px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-elevated,transparent);}' +
+      '#view-tradespend .ts-sec-t{display:flex;align-items:center;gap:9px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:13px;}' +
+      '#view-tradespend .ts-sec-n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--gold);color:#fff;font-size:11px;font-weight:800;}' +
+      '#view-tradespend .ts-lbl-soft{font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;}' +
+      '#view-tradespend .ts-field label b{color:var(--gold);}' +
+      '#view-tradespend .ts-field.err input,#view-tradespend .ts-field.err select,#view-tradespend .ts-field.err .ts-skupanel,#view-tradespend .ts-field.err .ts-chips{border-color:var(--red)!important;box-shadow:0 0 0 1px var(--red);border-radius:var(--radius-sm);}' +
+      '#view-tradespend .ts-ferr{display:block;font-size:10.5px;color:var(--red);margin-top:5px;font-weight:700;}' +
+      '#view-tradespend .ts-fnote{display:block;font-size:10.5px;margin-top:5px;font-weight:600;min-height:14px;}' +
+      '#view-tradespend .ts-skupanel{border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input,var(--bg-card));overflow:hidden;}' +
+      '#view-tradespend .ts-sku-head{display:flex;gap:10px;align-items:center;padding:9px 11px;border-bottom:1px solid var(--border);flex-wrap:wrap;}' +
+      '#view-tradespend .ts-sku-search{flex:1;min-width:170px;background:var(--bg-deep,transparent);border:1px solid var(--border);border-radius:7px;color:var(--text-primary);padding:7px 11px;font-size:12px;outline:none;}' +
+      '#view-tradespend .ts-sku-search:focus{border-color:var(--gold);}' +
+      '#view-tradespend .ts-sku-count{font-size:10.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;}' +
+      '#view-tradespend .ts-sku-clear{background:none;border:1px solid var(--border);border-radius:7px;color:var(--text-secondary);font-size:10.5px;font-weight:700;padding:5px 10px;cursor:pointer;}' +
+      '#view-tradespend .ts-sku-clear:hover{border-color:var(--red);color:var(--red);}' +
+      '#view-tradespend .ts-sku-sel{display:flex;gap:6px;flex-wrap:wrap;padding:9px 11px;border-bottom:1px dashed var(--border);min-height:20px;}' +
+      '#view-tradespend .ts-sku-selchip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px 3px 11px;border-radius:100px;background:rgba(232,93,111,0.10);border:1px solid var(--gold);color:var(--gold);font-size:11px;font-weight:700;}' +
+      '#view-tradespend .ts-sku-selchip button{all:unset;cursor:pointer;font-weight:800;padding:0 3px;line-height:1;}' +
+      '#view-tradespend .ts-sku-selnone{font-size:11px;color:var(--text-muted);}' +
+      '#view-tradespend .ts-sku-list{max-height:270px;overflow-y:auto;padding:2px 0 6px;}' +
+      '#view-tradespend .ts-sku-gh{display:flex;align-items:center;gap:8px;padding:8px 12px 5px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);position:sticky;top:0;background:var(--bg-input,var(--bg-card));z-index:1;}' +
+      '#view-tradespend .ts-sku-gh .ga{margin-left:auto;font-size:10px;color:var(--gold);cursor:pointer;font-weight:800;user-select:none;}' +
+      '#view-tradespend .ts-sku-row{display:flex;align-items:center;gap:9px;padding:6px 14px;font-size:12px;color:var(--text-secondary);cursor:pointer;}' +
+      '#view-tradespend .ts-sku-row:hover{background:rgba(255,255,255,0.045);color:var(--text-primary);}' +
+      '#view-tradespend .ts-sku-row input{accent-color:var(--gold);}' +
+      '#view-tradespend .ts-sku-more{margin:5px 14px;font-size:11px;color:var(--gold);cursor:pointer;font-weight:700;user-select:none;}' +
+      '#view-tradespend .ts-sku-empty{padding:14px;font-size:11.5px;color:var(--text-muted);}' +
+      '#view-tradespend .ts-cat-count{opacity:.6;font-weight:600;font-size:10px;}' +
+      '#view-tradespend .ts-perf-sub{font-size:9.5px;color:var(--text-muted);margin-top:3px;line-height:1.35;}' +
+      '#view-tradespend .ts-perf-note{grid-column:1/-1;font-size:11px;color:var(--text-muted);line-height:1.5;}' +
+      '#view-tradespend .ts-perf-note .warn{color:var(--amber);font-weight:600;}' +
+      '#view-tradespend .ts-live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;box-shadow:0 0 0 3px rgba(43,182,115,0.2);}' +
+      '@media (max-width:768px){#view-tradespend .ts-sec{padding:12px;}#view-tradespend .ts-sku-list{max-height:220px;}}';
+    var el = document.createElement('style');
+    el.id = 'tsStylesV2';
+    el.textContent = css;
+    document.head.appendChild(el);
   }
 
   if (document.readyState === 'loading') {
@@ -1442,6 +1870,8 @@ window.TS = (function () {
     toggleAllCats: toggleAllCats,
     toggleCat: toggleCat,
     toggleSku: toggleSku,
+    onSkuSearch: onSkuSearch,
+    clearSkus: clearSkus,
     onTypeChange: onTypeChange,
     onClaim: onClaim,
     onSplit: onSplit,
@@ -1452,7 +1882,8 @@ window.TS = (function () {
     recalc: recalc,
     exportExcel: exportExcel,
     exportPdf: exportPdf,
-    // exposed for validation tooling (M6 parity checks)
+    // exposed for validation tooling (M6 parity checks + business audit)
+    _setActivitiesForTest: function (list) { state.activities = list || []; _livePerfCache.clear(); },
     _internals: { computeOverall: computeOverall, computePerf: computePerf, calcSalesForRange: calcSalesForRange, getPeriodForActivity: getPeriodForActivity, activityToRow: activityToRow, rowToActivity: rowToActivity, displayPerf: displayPerf, livePerf: livePerf, can: can, auth: auth }
   };
 })();
