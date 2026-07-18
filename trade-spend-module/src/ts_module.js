@@ -847,15 +847,22 @@ window.TS = (function () {
   }
 
   function handleAction(act, id) {
-    if (act === 'view') openView(id);
-    else if (act === 'edit') editActivity(id);
-    else if (act === 'delete') deleteActivity(id);
-    else if (act === 'roshen-ok') roshenDecision(id, 'Approved');
-    else if (act === 'roshen-no') roshenDecision(id, 'Rejected');
-    else if (act === 'relia-ok') reliaDecision(id, 'Approved');
-    else if (act === 'relia-no') reliaDecision(id, 'Rejected');
-    else if (act === 'final-ok') finalApprove(id);
-    else if (act === 'final-no') finalReject(id);
+    // A row action must never fail silently: any error surfaces as a toast
+    // (with the record id) and a full console stack for diagnosis.
+    try {
+      if (act === 'view') openView(id);
+      else if (act === 'edit') editActivity(id);
+      else if (act === 'delete') deleteActivity(id);
+      else if (act === 'roshen-ok') roshenDecision(id, 'Approved');
+      else if (act === 'roshen-no') roshenDecision(id, 'Rejected');
+      else if (act === 'relia-ok') reliaDecision(id, 'Approved');
+      else if (act === 'relia-no') reliaDecision(id, 'Rejected');
+      else if (act === 'final-ok') finalApprove(id);
+      else if (act === 'final-no') finalReject(id);
+    } catch (e) {
+      console.error('[Trade Spend] ' + act + ' failed for ' + id, e);
+      toast('Could not ' + act + ' ' + id + ': ' + ((e && e.message) || e), true);
+    }
   }
 
   function filteredActivities() {
@@ -970,7 +977,8 @@ window.TS = (function () {
       '<tr><td>ROTS</td><td>' + (dp.rots != null ? dp.rots.toFixed(2) + '×' : '—') + '</td>' + muted('incremental per SAR of spend') + '</tr>' +
       '<tr><td>Trade Spend %</td><td>' + fmtPct(dp.spendPct) + '</td>' + muted('spend ÷ during net sales') + '</tr>' +
       covNote + overlapNote;
-    var photos = (a.execPhotos || []).map(function (p, i) {
+    var photoList = Array.isArray(a.execPhotos) ? a.execPhotos : []; // defensive: legacy rows may carry odd shapes
+    var photos = photoList.map(function (p, i) {
       return '<img src="' + photoSrc(p) + '" alt="Execution photo ' + (i + 1) + '" class="ts-photo" onclick="TS.zoomPhoto(' + i + ')">';
     }).join('');
     var tl = [
@@ -1004,7 +1012,7 @@ window.TS = (function () {
       '<table class="data-table" style="width:100%;"><tbody>' + perfRows + '</tbody></table>' +
       (fs === 'Rejected' && a.finalRejectReason ? '<div class="ts-reject-box">Final rejection reason: ' + esc(a.finalRejectReason) + '</div>' : '') +
       '<div class="ts-view-k" style="margin-top:14px;">Timeline</div>' + tl +
-      (photos ? '<div class="ts-view-k" style="margin-top:14px;">Execution Photos (' + a.execPhotos.length + ')</div><div class="ts-photo-grid">' + photos + '</div>' : '') +
+      (photos ? '<div class="ts-view-k" style="margin-top:14px;">Execution Photos (' + photoList.length + ')</div><div class="ts-photo-grid">' + photos + '</div>' : '') +
       (a.notes ? '<div class="ts-view-k" style="margin-top:14px;">Notes</div><div style="font-size:12px;white-space:pre-wrap;">' + esc(a.notes) + '</div>' : '') +
       finalBtns;
     byId('tsModalTitle').textContent = a.id + ' — ' + (a.custName || '');
