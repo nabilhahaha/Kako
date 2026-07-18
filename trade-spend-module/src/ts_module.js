@@ -810,43 +810,45 @@ window.TS = (function () {
     var tip = who ? (label + ': ' + status + ' — ' + who) : (label + ': ' + (status || 'Pending'));
     return '<span title="' + esc(tip) + '" style="display:inline-flex;align-items:center;gap:3px;font-weight:700;color:' + color + ';"><span style="color:var(--text-muted);font-weight:600;">' + label + '</span>' + icon + '</span>';
   }
+  // Approvals column: status pills + inline decision buttons for entitled
+  // users (moved here from the Actions column so Actions stays 3 compact
+  // buttons). Same delegated data-act wiring, same business logic.
+  function apprDecide(a, okAct, noAct, disabled, tip) {
+    return '<span class="ts-appr-decide">' +
+      '<button type="button" class="ts-act-mini ok"' + (disabled ? ' disabled' : '') + (tip ? ' title="' + esc(tip) + '"' : ' title="Approve"') + ' data-act="' + okAct + '" data-id="' + esc(a.id) + '">✓</button>' +
+      '<button type="button" class="ts-act-mini bad"' + (disabled ? ' disabled' : '') + (tip ? ' title="' + esc(tip) + '"' : ' title="Reject"') + ' data-act="' + noAct + '" data-id="' + esc(a.id) + '">✗</button></span>';
+  }
   function approvalsCell(a) {
     var fs = finalState(a);
     var fstat = fs === 'Yes' ? 'Approved' : (fs === 'Rejected' ? 'Rejected' : 'Pending Approval');
     var fwho = fs === 'Yes' ? a.finalApprovedBy : (fs === 'Rejected' ? a.finalRejectedBy : '');
-    return '<div style="display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:11px;">' +
-      apprPill('R', a.roshenStatus, a.roshenApprovedBy || a.roshenRejectedBy) +
-      apprPill('Rl', a.reliaStatus, a.reliaApprovedBy || a.reliaRejectedBy) +
-      apprPill('F', fstat, fwho) + '</div>';
+    var out = '<div style="display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:11px;">' +
+      apprPill('R', a.roshenStatus, a.roshenApprovedBy || a.roshenRejectedBy);
+    if (can('ts.approve.roshen') && a.roshenStatus === 'Pending Approval') out += apprDecide(a, 'roshen-ok', 'roshen-no');
+    out += apprPill('Rl', a.reliaStatus, a.reliaApprovedBy || a.reliaRejectedBy);
+    if (can('ts.approve.relia') && a.reliaStatus === 'Pending Approval') out += apprDecide(a, 'relia-ok', 'relia-no');
+    out += apprPill('F', fstat, fwho);
+    if (canFinalApprove() && fs === 'No') {
+      var prereq = a.roshenStatus === 'Approved' && a.reliaStatus === 'Approved';
+      out += apprDecide(a, 'final-ok', 'final-no', !prereq, prereq ? '' : 'Requires Roshen + Relia approved');
+    }
+    return out + '</div>';
   }
 
-  // Row actions use data attributes + ONE delegated listener (bound in init)
-  // instead of inline onclick — the reliable pattern for touch browsers
-  // (iOS Safari can swallow inline-handler clicks inside horizontal scrollers).
+  // Actions column: exactly three compact, icon-first actions. Same delegated
+  // data-act listener — the reliable pattern for touch browsers.
   function actionButtons(a) {
-    var out = [];
-    var b = function (act, label, cls, disabled, title) {
-      out.push('<button type="button" class="ts-act-btn ' + (cls || '') + '"' + (disabled ? ' disabled' : '') +
-        (title ? ' title="' + esc(title) + '"' : '') +
-        ' data-act="' + act + '" data-id="' + esc(a.id) + '">' + label + '</button>');
+    var b = function (act, ico, label, variant, allowed, title) {
+      if (!allowed) return '';
+      return '<button type="button" class="ts-act-btn v-' + variant + '" title="' + esc(title || label) + '"' +
+        ' data-act="' + act + '" data-id="' + esc(a.id) + '">' +
+        '<span class="ico">' + ico + '</span><span class="ts-act-label">' + label + '</span></button>';
     };
-    b('report', '📄 Report', '');
-    if (canEditRow(a)) b('edit', '✏️ Edit', '');
-    if (can('ts.approve.roshen') && a.roshenStatus === 'Pending Approval') {
-      b('roshen-ok', '✓ Roshen', 'ok');
-      b('roshen-no', '✗ Roshen', 'bad');
-    }
-    if (can('ts.approve.relia') && a.reliaStatus === 'Pending Approval') {
-      b('relia-ok', '✓ Relia', 'ok');
-      b('relia-no', '✗ Relia', 'bad');
-    }
-    if (canFinalApprove() && finalState(a) === 'No') {
-      var prereq = a.roshenStatus === 'Approved' && a.reliaStatus === 'Approved';
-      b('final-ok', '✓ Final', 'ok', !prereq, prereq ? '' : 'Requires Roshen + Relia approved');
-      b('final-no', '✗ Final', 'bad', !prereq, prereq ? '' : 'Requires Roshen + Relia approved');
-    }
-    if (canDeleteRow(a)) b('delete', '🗑', 'bad', false, 'Delete');
-    return '<div class="ts-actions">' + out.join('') + '</div>';
+    return '<div class="ts-actions">' +
+      b('report', '📄', 'Report', 'report', true, 'Open the printable Trade Spend Report') +
+      b('edit', '✏️', 'Edit', 'edit', canEditRow(a), 'Edit this activity') +
+      b('delete', '🗑', 'Delete', 'delete', canDeleteRow(a), 'Delete this activity') +
+      '</div>';
   }
 
   function handleAction(act, id) {
@@ -929,6 +931,7 @@ window.TS = (function () {
       var period = (a.activityDate || '—') + ' → ' + (dp.postEnd || '—');
       var lock = finalState(a) === 'Yes' ? ' 🔒' : '';
       return '<tr>' +
+        '<td class="ts-act-td">' + actionButtons(a) + '</td>' +
         '<td style="font-weight:700;white-space:nowrap;">' + esc(a.id) + lock + '</td>' +
         '<td><div style="font-weight:600;">' + esc(a.custName || '—') + '</div><div style="font-size:10px;color:var(--text-muted);">' + esc(a.custCode || '') + '</div></td>' +
         '<td>' + esc(catLabel(a)) + '</td>' +
@@ -942,13 +945,12 @@ window.TS = (function () {
         '<td>' + esc(getClaim(a)) + '</td>' +
         '<td>' + approvalsCell(a) + '</td>' +
         '<td>' + statusBadge(st) + '</td>' +
-        '<td>' + actionButtons(a) + '</td>' +
         '</tr>';
     }).join('');
     host.innerHTML =
-      '<div style="overflow-x:auto;">' +
+      '<div class="ts-log-scroll">' +
       '<table class="data-table ts-log-table" style="width:100%;">' +
-      '<thead><tr><th>Code</th><th>Customer</th><th>Category</th><th>Type</th><th>Period</th><th>Spend (SAR)</th><th>Incremental</th><th>Uplift</th><th>ROTS</th><th>Verdict</th><th>Claim</th><th>Approvals</th><th>Status</th><th>Actions</th></tr></thead>' +
+      '<thead><tr><th class="ts-act-th">Actions</th><th>Code</th><th>Customer</th><th>Category</th><th>Type</th><th>Period</th><th>Spend (SAR)</th><th>Incremental</th><th>Uplift</th><th>ROTS</th><th>Verdict</th><th>Claim</th><th>Approvals</th><th>Status</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div>';
   }
 
@@ -2013,6 +2015,53 @@ card('Final Approval', 'Management sign-off', fs === 'Yes' ? 'Approved' : (fs ==
       '#view-tradespend .ts-live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;box-shadow:0 0 0 3px rgba(43,182,115,0.2);}' +
       '#view-tradespend .ts-build-badge{display:inline-block;margin-left:8px;padding:2px 9px;border-radius:100px;border:1px solid var(--green);color:var(--green);font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle;}' +
       '@media (max-width:768px){#view-tradespend .ts-sec{padding:12px;}#view-tradespend .ts-sku-list{max-height:220px;}}' +
+
+      /* ── Activity Log: sticky Actions-first column + compact action buttons ── */
+      '#view-tradespend .ts-log-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}' +
+      '#view-tradespend .ts-log-table{width:100%;min-width:1080px;border-collapse:separate;border-spacing:0;}' +
+      '#view-tradespend .ts-log-table th,#view-tradespend .ts-log-table td{padding:6px 10px!important;}' +
+      // the shell forces .data-table th sticky-top with z-index:2!important and
+      // background:var(--bg-subtle)!important — the Actions header must out-rank
+      // its siblings or they paint over it during horizontal scroll
+      '#view-tradespend .ts-act-th{position:sticky!important;left:0!important;top:0!important;z-index:6!important;background:var(--bg-subtle,var(--bg-card,#111A2E))!important;box-shadow:inset 0 -1px 0 var(--border),1px 0 0 var(--border)!important;}' +
+      '#view-tradespend .ts-act-td{position:sticky;left:0;z-index:5;background:var(--bg-card,#111A2E);box-shadow:1px 0 0 var(--border);}' +
+      '#view-tradespend .ts-log-table tbody tr:nth-child(even) .ts-act-td{background:linear-gradient(var(--table-stripe,transparent),var(--table-stripe,transparent)),var(--bg-card,#111A2E);}' +
+      '#view-tradespend .ts-log-table tbody tr:hover{background:rgba(232,93,111,0.06);}' +
+      '#view-tradespend .ts-log-table tbody tr:hover .ts-act-td{background:linear-gradient(rgba(232,93,111,0.08),rgba(232,93,111,0.08)),var(--bg-card,#111A2E);}' +
+      '#view-tradespend .ts-actions{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;}' +
+      '#view-tradespend .ts-act-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-elevated,rgba(255,255,255,0.03));color:var(--text-secondary);font-size:11px;font-weight:700;line-height:1;cursor:pointer;white-space:nowrap;touch-action:manipulation;transition:transform .12s ease,background .12s ease,border-color .12s ease,color .12s ease,box-shadow .12s ease;}' +
+      '#view-tradespend .ts-act-btn .ico{font-size:12px;line-height:1;}' +
+      '#view-tradespend .ts-act-btn:hover{transform:translateY(-1px);}' +
+      '#view-tradespend .ts-act-btn:active{transform:translateY(0) scale(.97);}' +
+      // Roshen primary is hard-coded: in the blue UI skins var(--gold) is blue,
+      // which would collide with the Edit hover and break the brand rule.
+      '#view-tradespend .ts-act-btn.v-report:hover{background:#C2263B;border-color:#C2263B;color:#fff;box-shadow:0 4px 12px rgba(194,38,59,0.35);}' +
+      '#view-tradespend .ts-act-btn.v-edit:hover{background:#2E6BD6;border-color:#2E6BD6;color:#fff;box-shadow:0 4px 12px rgba(46,107,214,0.35);}' +
+      '#view-tradespend .ts-act-btn.v-delete:hover{background:var(--red,#D64545);border-color:var(--red,#D64545);color:#fff;box-shadow:0 4px 12px rgba(214,69,69,0.35);}' +
+      '#view-tradespend .ts-appr-decide{display:inline-flex;gap:3px;margin:0 2px;}' +
+      '#view-tradespend .ts-act-mini{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:11px;font-weight:800;line-height:1;cursor:pointer;padding:0;touch-action:manipulation;transition:background .12s ease,border-color .12s ease,color .12s ease;}' +
+      '#view-tradespend .ts-act-mini.ok:hover:not(:disabled){background:var(--green,#2BB673);border-color:var(--green,#2BB673);color:#fff;}' +
+      '#view-tradespend .ts-act-mini.bad:hover:not(:disabled){background:var(--red,#D64545);border-color:var(--red,#D64545);color:#fff;}' +
+      '#view-tradespend .ts-act-mini:disabled{opacity:.35;cursor:not-allowed;}' +
+      '@media (max-width:1120px){#view-tradespend .ts-act-btn{padding:5px 8px;font-size:10.5px;}}' +
+      // ≤768px: icon-only actions, and EXEMPT the log from the mobile skin's
+      // card-ified tables (MOBILE_DS_CSS turns .data-table rows into stacked
+      // cards, which kills the sticky-Actions + horizontal-scroll layout the
+      // log requires on phones). Higher specificity + !important restores
+      // real table layout for this one table only.
+      '@media (max-width:768px){' +
+      '#view-tradespend .ts-act-btn .ts-act-label{display:none;}' +
+      '#view-tradespend .ts-act-btn{padding:6px 9px;min-height:34px!important;}' +
+      '#view-tradespend .ts-act-btn .ico{font-size:14px;}' +
+      '#view-tradespend .ts-act-mini{min-height:24px!important;width:24px;height:24px;}' +
+      '#view-tradespend .ts-log-table{display:table!important;width:100%!important;min-width:1080px!important;}' +
+      '#view-tradespend .ts-log-table thead{display:table-header-group!important;position:static!important;width:auto!important;height:auto!important;overflow:visible!important;clip:auto!important;}' +
+      '#view-tradespend .ts-log-table tbody{display:table-row-group!important;}' +
+      '#view-tradespend .ts-log-table tbody tr{display:table-row!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;margin:0!important;}' +
+      '#view-tradespend .ts-log-table th{position:sticky!important;top:0!important;}' +
+      '#view-tradespend .ts-log-table td{display:table-cell!important;padding:6px 8px!important;border:0!important;border-bottom:1px solid var(--border-light)!important;font-size:12px!important;text-align:left!important;min-height:0!important;}' +
+      '#view-tradespend .ts-log-table td::before{content:none!important;}' +
+      '}' +
 
       '';
     var el = document.createElement('style');
