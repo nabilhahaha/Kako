@@ -8,10 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit",
-    "promotions:extract": "node scripts/extract-frozen-promotions.mjs",
-    "promotions:verify": "node scripts/extract-frozen-promotions.mjs --check && node scripts/verify-frozen-parity.mjs",
-    "data:verify": "node scripts/verify-data-layer.mjs"
+    "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

@@ -5,7 +5,6 @@ import {
   PlusCircle,
   ClipboardCheck,
   BarChart3,
-  Megaphone,
   Settings,
   LogOut,
 } from 'lucide-react';
@@ -49,12 +48,6 @@ const MOBILE_NAV: MobileNavItem[] = [
     to: '/trade-spend/customers',
     labelKey: 'nav.customerSummary',
     icon: BarChart3,
-    roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer'],
-  },
-  {
-    to: '/trade-spend/promotions',
-    labelKey: 'nav.promotions',
-    icon: Megaphone,
     roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer'],
   },
 ];
