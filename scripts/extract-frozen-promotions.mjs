@@ -148,6 +148,15 @@ const BLOCKS = [
     imports: { './pb-model.js': ['PBModel'], './store.js': ['Store'] },
     exports: ['SEED_PROMOS', 'Seeds'],
   },
+  {
+    // Upload header normalization (additive layer in the reference, applied
+    // BEFORE the frozen RawParser; English/Arabic column-name variants and
+    // title-row skipping). Self-contained — no DOM access.
+    file: 'header-repair.js',
+    lines: [5168, 5243],
+    imports: {},
+    exports: ['repairHeaders', 'HEADER_ALIASES', 'REQUIRED_LABELS'],
+  },
 ];
 
 function sha256(text) {

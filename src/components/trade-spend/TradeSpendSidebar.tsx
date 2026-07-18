@@ -9,6 +9,7 @@ import {
   BarChart3,
   ClipboardCheck,
   Megaphone,
+  Database,
   Settings,
   LogOut,
   Building2,
@@ -36,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
 const ADMIN_NAV_ITEMS: NavItem[] = [
   { to: '/trade-spend/users', labelKey: 'nav.users', icon: UsersIcon, roles: ['admin'] },
   { to: '/trade-spend/upload', labelKey: 'nav.dataUpload', icon: Upload, roles: ['admin'] },
+  { to: '/trade-spend/commercial-data', labelKey: 'nav.commercialData', icon: Database, roles: ['admin'] },
   { to: '/trade-spend/settings', labelKey: 'Settings', icon: Settings, roles: ['admin'] },
 ];
 

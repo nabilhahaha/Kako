@@ -19,6 +19,7 @@ import { ChangePasswordPage } from '@/pages/trade-spend/ChangePasswordPage';
 // Lazy: the Promotions module carries the frozen engines + audited data
 // bundles (~1 MB) in their own chunk, loaded only when the module is opened.
 const PromotionsPage = lazy(() => import('@/pages/trade-spend/PromotionsPage'));
+const CommercialDataPage = lazy(() => import('@/pages/trade-spend/CommercialDataPage'));
 
 function App() {
   return (
@@ -33,6 +34,16 @@ function App() {
           <Route path="approvals" element={<ApprovalsPage />} />
           <Route path="customers" element={<CustomerSummaryPage />} />
           <Route path="customers/:account" element={<CustomerDetailPage />} />
+          <Route
+            path="commercial-data"
+            element={
+              <ErrorBoundary>
+                <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}>
+                  <CommercialDataPage />
+                </Suspense>
+              </ErrorBoundary>
+            }
+          />
           <Route
             path="promotions"
             element={
