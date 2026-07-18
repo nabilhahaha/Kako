@@ -16,7 +16,7 @@ window.TS = (function () {
   'use strict';
 
   // Visible build stamp — lets anyone confirm which build a browser is running.
-  var TS_BUILD = 'Engine V2.2 · 2026-07-18';
+  var TS_BUILD = 'Engine V2.3 · 2026-07-18';
   try { console.info('[Roshen Trade Spend] ' + TS_BUILD); } catch (e) {}
 
   var TABS = ['log', 'new', 'analysis'];
@@ -127,18 +127,55 @@ window.TS = (function () {
     supervisor: ['ts.view']
   };
   // Person-specific rights (e.g. who approves the Roshen / Relia / Final
-  // stages) are NOT hardcoded here: they live in dash_users.overrides.ts,
-  // managed by the Dashboard RBAC (seeded by migration 002).
+  // stages) are NOT hardcoded here. Two override dialects exist in production:
+  //   - namespaced  dash_users.overrides.ts.{grant,revoke}  (migration 002)
+  //   - flat        dash_users.overrides.{grant,revoke}     (what the
+  //     Dashboard's own permission engine dash_effective_perms() reads, and
+  //     what the User-Management screen writes)
+  // The module honors BOTH, with the server-computed effective permission
+  // list from dash_boot (CLOUD.permissions) as the base when available.
   var auth = {
     email: '',
     role: '',
     caps: {},          // { 'ts.view': true, ... }
+    sources: null,     // per-layer breakdown for TS.authz() diagnostics
     resolved: false,
     resolving: null
   };
 
   function applyCapList(list, on) {
     (list || []).forEach(function (c) { if (on) auth.caps[c] = true; else delete auth.caps[c]; });
+  }
+
+  // Pure ts.* capability computation — unit-tested in isolation.
+  // bootPerms: server-computed effective permissions (dash_boot), any keys.
+  // roleFallback: client role mirror used ONLY when bootPerms has no ts.* keys.
+  // overrides: raw dash_users.overrides jsonb (either or both dialects).
+  // Revokes are applied last (most restrictive wins across dialects).
+  function computeTsCaps(bootPerms, roleFallback, overrides) {
+    var tsOnly = function (list) {
+      return (list || []).filter(function (k) { return String(k).indexOf('ts.') === 0; });
+    };
+    var caps = {};
+    var add = function (list) { list.forEach(function (k) { caps[k] = true; }); };
+    var cut = function (list) { list.forEach(function (k) { delete caps[k]; }); };
+    var o = overrides || {};
+    var ns = o.ts || null;
+    var src = {
+      boot: tsOnly(bootPerms),
+      role: [],
+      flatGrant: tsOnly(o.grant),
+      flatRevoke: tsOnly(o.revoke),
+      nsGrant: ns ? tsOnly(ns.grant) : [],
+      nsRevoke: ns ? tsOnly(ns.revoke) : []
+    };
+    if (src.boot.length) add(src.boot);
+    else { src.role = (roleFallback || []).slice(); add(src.role); }
+    add(src.flatGrant);
+    add(src.nsGrant);
+    cut(src.flatRevoke);
+    cut(src.nsRevoke);
+    return { caps: caps, sources: src };
   }
 
   function resolveAuth() {
@@ -151,19 +188,21 @@ window.TS = (function () {
           var user = sess && sess.data && sess.data.session ? sess.data.session.user : null;
           auth.email = ((user && user.email) || '').toLowerCase();
           auth.role = (CLOUD.role || '').toLowerCase();
-          applyCapList(ROLE_CAPS[auth.role] || [], true);
-          // DB-backed per-user overrides (namespaced): dash_users.overrides.ts
-          // — the single authorization source for person-specific rights.
+          var overrides = null;
           try {
             var r = await CLOUD.sb.from('dash_users').select('overrides').eq('email', auth.email).maybeSingle();
-            var ov = r && r.data && r.data.overrides && r.data.overrides.ts;
-            if (ov) {
-              applyCapList(ov.grant, true);
-              applyCapList(ov.revoke, false);
-            }
+            overrides = (r && r.data && r.data.overrides) || null;
           } catch (e) {
-            console.warn('TS overrides unavailable — using role defaults only', e);
+            console.warn('TS overrides unavailable — role/boot permissions only', e);
           }
+          var out = computeTsCaps(
+            (typeof CLOUD.permissions !== 'undefined' && CLOUD.permissions) || [],
+            ROLE_CAPS[auth.role] || [],
+            overrides
+          );
+          auth.caps = out.caps;
+          auth.sources = out.sources;
+          trace('authz', auth.email + ' [' + auth.role + '] caps=' + Object.keys(auth.caps).join(','));
         } else if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) {
           // Legacy (file://) Dashboard session: local admin can look around,
           // but activities live in the cloud — data stays read-only offline.
@@ -1943,6 +1982,31 @@ card('Final Approval', 'Management sign-off', fs === 'Yes' ? 'Approved' : (fs ==
     };
   }
 
+  // Runtime authorization introspection: the full permission-evaluation chain
+  // for the signed-in user, layer by layer. TS.authz() in the console shows
+  // exactly which source granted (or failed to grant) each ts.* capability.
+  function authz() {
+    return {
+      build: TS_BUILD,
+      email: auth.email,
+      role: auth.role,
+      resolved: auth.resolved,
+      sources: auth.sources,   // boot (dash_boot ts.*), role fallback, flat/namespaced override grants+revokes
+      caps: Object.keys(auth.caps),
+      checks: {
+        'ts.view': can('ts.view'),
+        'ts.create': can('ts.create'),
+        'ts.edit': can('ts.edit'),
+        'ts.delete': can('ts.delete'),
+        'ts.export': can('ts.export'),
+        'ts.approve.roshen': can('ts.approve.roshen'),
+        'ts.approve.relia': can('ts.approve.relia'),
+        'ts.approve.final → canFinalApprove()': canFinalApprove(),
+        'ts.admin': can('ts.admin')
+      }
+    };
+  }
+
   // ── Stale-tab detection ────────────────────────────────────────────────────
   // A dashboard tab left open across a deployment keeps running the OLD code
   // until reloaded — users then report "the new version isn't live". Compare
@@ -2082,6 +2146,7 @@ card('Final Approval', 'Management sign-off', fs === 'Yes' ? 'Approved' : (fs ==
     trace: function () { return TRACE.slice(); },
     debug: setDebug,
     whichReport: whichReport,
+    authz: authz,
     render: render,
     switchTab: switchTab,
     activeTab: activeTab,
@@ -2115,6 +2180,6 @@ card('Final Approval', 'Management sign-off', fs === 'Yes' ? 'Approved' : (fs ==
     exportPdf: exportPdf,
     // exposed for validation tooling (M6 parity checks + business audit)
     _setActivitiesForTest: function (list) { state.activities = list || []; _livePerfCache.clear(); },
-    _internals: { computeOverall: computeOverall, computePerf: computePerf, calcSalesForRange: calcSalesForRange, getPeriodForActivity: getPeriodForActivity, activityToRow: activityToRow, rowToActivity: rowToActivity, displayPerf: displayPerf, livePerf: livePerf, can: can, auth: auth }
+    _internals: { computeOverall: computeOverall, computePerf: computePerf, calcSalesForRange: calcSalesForRange, getPeriodForActivity: getPeriodForActivity, activityToRow: activityToRow, rowToActivity: rowToActivity, displayPerf: displayPerf, livePerf: livePerf, can: can, auth: auth, computeTsCaps: computeTsCaps }
   };
 })();

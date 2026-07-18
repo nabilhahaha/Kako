@@ -255,5 +255,41 @@ if (T.displayPerf) {
   global.CUSTOMERS[0].id = 1; global.CUSTOMERS[1].id = 2; global.D.cu = oldCu;
 }
 
+// 8) AUTHORIZATION — computeTsCaps must honor BOTH override dialects
+// (found in production: the User-Management screen writes the FLAT shape that
+// dash_effective_perms() reads, while migration 002 seeded the NAMESPACED
+// overrides.ts shape — the Final Approver's flat grant was invisible)
+{
+  const C = T.computeTsCaps;
+  // 8a. Dmytro's exact production row: flat grant + server boot list, no ns
+  const dmytro = C(
+    ['ts.approve.final', 'ts.export', 'ts.view'],                       // dash_boot effective
+    ['ts.view', 'ts.export'],                                            // regional_admin mirror
+    { grant: ['ts.approve.final', 'ts.export'], revoke: ['data.manage', 'reports.export'] }
+  );
+  eq('authz: flat-dialect final approver resolves ts.approve.final',
+    [!!dmytro.caps['ts.approve.final'], !!dmytro.caps['ts.view'], !!dmytro.caps['ts.edit']],
+    [true, true, false]);
+  // 8b. namespaced dialect (Ahmed/Muhammad shape) still honored
+  const ns = C(
+    ['ts.view', 'ts.create', 'ts.edit', 'ts.export'],                    // admin boot (ns invisible to server engine)
+    ['ts.view', 'ts.create', 'ts.edit', 'ts.export'],
+    { ts: { grant: ['ts.approve.relia'], revoke: [] } }
+  );
+  eq('authz: namespaced-dialect approver still resolves', !!ns.caps['ts.approve.relia'], true);
+  // 8c. no boot list → client role mirror fallback
+  const fb = C([], ['ts.view', 'ts.export'], null);
+  eq('authz: role fallback when boot list empty', [!!fb.caps['ts.view'], !!fb.caps['ts.create']], [true, false]);
+  // 8d. revoke wins over grant, across dialects, and non-ts keys are ignored
+  const rv = C(
+    ['ts.view', 'ts.edit', 'data.manage'],
+    [],
+    { grant: ['ts.delete', 'reports.export'], ts: { grant: ['ts.create'], revoke: ['ts.edit', 'ts.delete'] } }
+  );
+  eq('authz: revokes win across dialects; non-ts keys filtered',
+    [!!rv.caps['ts.view'], !!rv.caps['ts.create'], !!rv.caps['ts.edit'], !!rv.caps['ts.delete'], !!rv.caps['data.manage'], !!rv.caps['reports.export']],
+    [true, true, false, false, false, false]);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
