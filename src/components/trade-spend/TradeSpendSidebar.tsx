@@ -8,6 +8,7 @@ import {
   Upload,
   BarChart3,
   ClipboardCheck,
+  Megaphone,
   Settings,
   LogOut,
   Building2,
@@ -28,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/trade-spend/requests', labelKey: 'nav.myRequests', icon: FileText, roles: ['dept_manager', 'distributor_trade_mktg'] },
   { to: '/trade-spend/approvals', labelKey: 'nav.approvals', icon: ClipboardCheck, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver'] },
   { to: '/trade-spend/customers', labelKey: 'nav.customerSummary', icon: BarChart3, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer'] },
+  { to: '/trade-spend/promotions', labelKey: 'nav.promotions', icon: Megaphone, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer'] },
 ];
 
 // Admin-mode nav: Settings only (Users, Upload, Settings per distributor)
@@ -40,6 +42,7 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
 // Unified dashboard nav: minimal
 const DASHBOARD_NAV_ITEMS: NavItem[] = [
   { to: '/trade-spend', labelKey: 'nav.dashboard', icon: LayoutDashboard, roles: ['admin', 'roshen_approver'] },
+  { to: '/trade-spend/promotions', labelKey: 'nav.promotions', icon: Megaphone, roles: ['admin', 'roshen_approver'] },
 ];
 
 export function TradeSpendSidebar() {

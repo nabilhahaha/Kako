@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { NotFoundPage } from '@/pages/NotFoundPage';
@@ -15,6 +16,10 @@ import { ErrorBoundary } from '@/components/trade-spend/ErrorBoundary';
 import { SettingsPage } from '@/pages/trade-spend/SettingsPage';
 import { ChangePasswordPage } from '@/pages/trade-spend/ChangePasswordPage';
 
+// Lazy: the Promotions module carries the frozen engines + audited data
+// bundles (~1 MB) in their own chunk, loaded only when the module is opened.
+const PromotionsPage = lazy(() => import('@/pages/trade-spend/PromotionsPage'));
+
 function App() {
   return (
     <>
@@ -28,6 +33,16 @@ function App() {
           <Route path="approvals" element={<ApprovalsPage />} />
           <Route path="customers" element={<CustomerSummaryPage />} />
           <Route path="customers/:account" element={<CustomerDetailPage />} />
+          <Route
+            path="promotions"
+            element={
+              <ErrorBoundary>
+                <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}>
+                  <PromotionsPage />
+                </Suspense>
+              </ErrorBoundary>
+            }
+          />
           <Route path="upload" element={<ErrorBoundary><DataUploadPage /></ErrorBoundary>} />
           <Route path="users" element={<TradeSpendUsersPage />} />
           <Route path="settings" element={<SettingsPage />} />
