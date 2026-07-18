@@ -65,7 +65,6 @@ window.TS = (function () {
     search: '',
     statusFilter: '',
     editingId: null,      // activity id when editing, null when creating
-    viewId: null,         // activity id open in the view modal
     formPhotos: [],       // execPhotos being edited (base64 list)
     formCreditNote: { image: '', filename: '' },
     formCats: [],         // selected category names, or ['ALL']
@@ -785,7 +784,6 @@ window.TS = (function () {
       var res = await sb.from('activities').update({ final_approved: 'Yes', final_approved_by: a.finalApprovedBy, final_approved_at: a.finalApprovedAt, data: stripPhotos(a), updated_by: a.updatedBy, updated_at: a.updatedAt }).eq('activity_code', id);
       if (res.error) { toast('Cloud save failed: ' + res.error.message, true); return; }
     }
-    if (state.viewId === id) openView(id);
     toast('Final Approval recorded — ' + id);
   }
 
@@ -806,7 +804,6 @@ window.TS = (function () {
       var res = await sb.from('activities').update({ final_approved: 'Rejected', final_rejected_by: a.finalRejectedBy, final_rejected_at: a.finalRejectedAt, final_reject_reason: reason, data: stripPhotos(a), updated_by: a.updatedBy, updated_at: a.updatedAt }).eq('activity_code', id);
       if (res.error) { toast('Cloud save failed: ' + res.error.message, true); return; }
     }
-    if (state.viewId === id) openView(id);
     toast('Activity rejected and returned to the creator — ' + id);
   }
 
@@ -861,7 +858,7 @@ window.TS = (function () {
         (title ? ' title="' + esc(title) + '"' : '') +
         ' data-act="' + act + '" data-id="' + esc(a.id) + '">' + label + '</button>');
     };
-    b('view', '👁 View', '');
+    b('report', '📄 Report', '');
     if (canEditRow(a)) b('edit', '✏️ Edit', '');
     if (can('ts.approve.roshen') && a.roshenStatus === 'Pending Approval') {
       b('roshen-ok', '✓ Roshen', 'ok');
@@ -885,7 +882,7 @@ window.TS = (function () {
     // (with the record id) and a full console stack for diagnosis.
     trace('handleAction', act + ' → ' + id);
     try {
-      if (act === 'view') openView(id);
+      if (act === 'report') openReport(id);
       else if (act === 'edit') editActivity(id);
       else if (act === 'delete') deleteActivity(id);
       else if (act === 'roshen-ok') roshenDecision(id, 'Approved');
@@ -984,227 +981,183 @@ window.TS = (function () {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // UI — Trade Spend Report (official printable document; replaces View modal)
-  // ROI is intentionally ABSENT everywhere — ROTS is the profitability KPI.
+  // 📄 TRADE SPEND REPORT — brand-new standalone implementation.
+  // Opens an independent printable A4 document in a NEW BROWSER TAB.
+  // No modal, no shared View code. Light theme only. ROTS only (never ROI).
   // ───────────────────────────────────────────────────────────────────────────
   function fmtRots(v) { return (v == null || !isFinite(v)) ? '—' : v.toFixed(2) + '×'; }
-  function rpStatusChip(status) {
-    var cls = status === 'Approved' ? 'ok' : (status === 'Rejected' ? 'bad' : 'pend');
-    return '<span class="ts-rp-chip ' + cls + '">' + esc(status) + '</span>';
-  }
-  // One approval card — every field straight from the stored record.
-  function approvalCard(title, sub, status, who, when, comment) {
-    var cls = status === 'Approved' ? 'ok' : (status === 'Rejected' ? 'bad' : 'pend');
-    return '<div class="ts-rp-appr ' + cls + '">' +
-      '<div class="ts-rp-appr-h"><span class="ts-rp-appr-t">' + esc(title) + '</span>' + rpStatusChip(status) + '</div>' +
-      '<div class="ts-rp-appr-sub">' + esc(sub) + '</div>' +
-      '<div class="ts-rp-appr-row"><span>Approver</span><b>' + esc(who || '—') + '</b></div>' +
-      '<div class="ts-rp-appr-row"><span>Date / Time</span><b>' + esc(when ? fmtDT(when) : '—') + '</b></div>' +
-      '<div class="ts-rp-appr-row"><span>Comments</span><b>' + esc(comment || '—') + '</b></div>' +
-      '</div>';
-  }
-  function rpSection(title, inner) {
-    return '<div class="ts-rp-sec"><div class="ts-rp-sec-t">' + title + '</div>' + inner + '</div>';
-  }
-  function rpKv(pairs) {
-    return '<div class="ts-rp-grid">' + pairs.map(function (p) {
-      return '<div class="ts-rp-kv"><div class="ts-rp-k">' + p[0] + '</div><div class="ts-rp-v">' + p[1] + '</div></div>';
-    }).join('') + '</div>';
-  }
 
-  function openView(id) {
-    trace('openView entry', id + ' (Trade Spend Report renderer, build ' + TS_BUILD + ')');
-    var a = findAct(id);
-    if (!a) { trace('openView EARLY RETURN', 'record ' + id + ' not found in loaded activities (' + state.activities.length + ' loaded)'); return; }
-    trace('record loaded', id + ' · fields: rots=' + (a.rots != null) + ' baseline=' + (a.baselineAmount != null) +
-      ' roshen[' + (a.roshenStatus || '—') + '/' + (a.roshenApprovedBy || a.roshenRejectedBy || 'no-name') + ']' +
-      ' relia[' + (a.reliaStatus || '—') + '/' + (a.reliaApprovedBy || a.reliaRejectedBy || 'no-name') + ']' +
-      ' final[' + finalState(a) + ']' +
-      ' photos=' + (Array.isArray(a.execPhotos) ? a.execPhotos.length : typeof a.execPhotos));
-    state.viewId = id;
+  function buildReportHtml(a, dp) {
+    var E = esc; // escape every stored value into the document
+    var gen = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
     var fs = finalState(a);
-    var dp = displayPerf(a); // live figures from the current dataset
-    trace('performance computed', 'live=' + dp.live + ' rots=' + (dp.rots != null ? dp.rots.toFixed(2) + 'x' : 'null') + ' verdict=' + dp.verdict);
-    var now = new Date();
-    var genStamp = now.toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
-    var m = function (t) { return '<span class="ts-rp-muted">' + t + '</span>'; };
-
-    // ── Financial summary ──
-    var fin = rpKv([
-      ['Total Investment (excl. VAT)', '<b class="ts-rp-money">' + fmtSAR(a.totalAmount) + '</b>'],
-      ['Relia Share', fmtSAR(a.reliaAmount) + ' ' + m('(' + (a.reliaPct != null ? a.reliaPct : 50) + '%)')],
-      ['Roshen Share', fmtSAR(a.roshenAmount) + ' ' + m('(' + (a.roshenPct != null ? a.roshenPct : 50) + '%)')],
-      ['Claim Status', esc(getClaim(a)) + (a.claimRef ? ' ' + m('· Ref ' + esc(a.claimRef)) : '')],
-      ['Credit Note', a.creditNoteFilename ? esc(a.creditNoteFilename) : '—'],
-      ['Execution Status', esc(a.execStatus || 'Not Executed')]
-    ]);
-
-    // ── KPI tiles — ROTS is the headline profitability figure ──
-    var kpis =
-      '<div class="ts-rp-kpis">' +
-      '<div class="ts-rp-kpi main"><div class="k">ROTS — Return on Trade Spend</div><div class="v">' + fmtRots(dp.rots) + '</div><div class="s">incremental sales per SAR invested</div></div>' +
-      '<div class="ts-rp-kpi"><div class="k">Incremental Sales</div><div class="v">' + fmtSAR(dp.inc) + '</div><div class="s">during − baseline</div></div>' +
-      '<div class="ts-rp-kpi"><div class="k">Trade Spend %</div><div class="v">' + fmtPct(dp.spendPct) + '</div><div class="s">spend ÷ during net sales</div></div>' +
-      '<div class="ts-rp-kpi"><div class="k">Verdict</div><div class="v">' + verdictBadge(dp.verdict) + '</div><div class="s">≥1.20× Successful · ≥1.00× Break-even</div></div>' +
-      '</div>';
-
-    // ── Before / During / After analysis ──
-    var perf =
-      '<table class="ts-rp-table"><thead><tr><th>Measure</th><th>Value</th><th>Detail</th></tr></thead><tbody>' +
-      '<tr><td>Sales Before</td><td>' + fmtSAR(dp.pre) + '</td><td>' + ((dp.preCases != null ? Math.round(dp.preCases).toLocaleString() + ' cases' : '') + (dp.preDiscountPct != null ? ' · ' + fmtPct(dp.preDiscountPct) + ' discount' : '') || '—') + '</td></tr>' +
-      '<tr><td>Baseline (pro-rated)</td><td>' + fmtSAR(dp.baseline) + '</td><td>before-period daily rate × during days' + (dp.baselineFloored ? ' · floored at 0' : '') + '</td></tr>' +
-      '<tr><td>Sales During</td><td>' + fmtSAR(dp.post) + '</td><td>' + ((dp.postCases != null ? Math.round(dp.postCases).toLocaleString() + ' cases' : '') + (dp.postDiscountPct != null ? ' · ' + fmtPct(dp.postDiscountPct) + ' discount' : '') || '—') + '</td></tr>' +
-      '<tr><td>Sales After</td><td>' + (dp.afterCov ? fmtSAR(dp.after) : '—') + '</td><td>' + (dp.afterCov ? (esc(dp.afterStart) + ' → ' + esc(dp.afterEnd) + (dp.retention != null ? ' · ' + fmtPct(dp.retention) + ' retention vs baseline' : '')) : 'no measurable post-promotion window yet') + '</td></tr>' +
-      '<tr><td>Incremental Sales</td><td>' + fmtSAR(dp.inc) + '</td><td>during − baseline</td></tr>' +
-      '<tr><td>Uplift</td><td>' + fmtPct(dp.uplift) + '</td><td>daily-rate change vs before-period</td></tr>' +
-      '<tr><td>ROTS</td><td>' + fmtRots(dp.rots) + '</td><td>incremental per SAR of trade spend</td></tr>' +
-      '<tr><td>Trade Spend %</td><td>' + fmtPct(dp.spendPct) + '</td><td>spend as a share of during-period net sales</td></tr>' +
-      '</tbody></table>' +
-      ((dp.preCov != null && dp.postCov != null)
-        ? '<div class="ts-rp-note">Data coverage: ' + dp.preCov + ' before-days · ' + dp.postCov + ' during-days' + (dp.afterCov ? ' · ' + dp.afterCov + ' after-days' : '') + ' with sales data' + (dp.postCov === 0 ? ' — performance stays Pending until sales for the activity period are imported' : '') + '.' + (dp.trunc ? ' Measurement window ends the day before ' + esc(dp.trunc) + '.' : '') + '</div>' : '') +
-      ((dp.overlaps && dp.overlaps.length)
-        ? '<div class="ts-rp-note warn">⚠ Runs simultaneously with ' + esc(dp.overlaps.join(', ')) + ' for the same customer/categories — incremental sales are shared.</div>' : '');
-
-    // ── Approval workflow — three cards, all fields from the database record ──
-    var finalStatus = fs === 'Yes' ? 'Approved' : (fs === 'Rejected' ? 'Rejected' : 'Pending');
-    var approvals =
-      '<div class="ts-rp-apprs">' +
-      approvalCard('Roshen Approval', 'Brand principal', a.roshenStatus === 'Approved' ? 'Approved' : (a.roshenStatus === 'Rejected' ? 'Rejected' : 'Pending'),
-        a.roshenApprovedBy || a.roshenRejectedBy, a.roshenApprovedAt || a.roshenRejectedAt, null) +
-      approvalCard('Relia Approval', 'Distributor', a.reliaStatus === 'Approved' ? 'Approved' : (a.reliaStatus === 'Rejected' ? 'Rejected' : 'Pending'),
-        a.reliaApprovedBy || a.reliaRejectedBy, a.reliaApprovedAt || a.reliaRejectedAt, null) +
-      approvalCard('Final Approval', 'Management sign-off', finalStatus,
-        fs === 'Yes' ? a.finalApprovedBy : a.finalRejectedBy, fs === 'Yes' ? a.finalApprovedAt : a.finalRejectedAt,
-        fs === 'Rejected' ? a.finalRejectReason : null) +
-      '</div>';
-    var finalBtns = '';
-    if (canFinalApprove() && fs === 'No') {
-      var prereq = a.roshenStatus === 'Approved' && a.reliaStatus === 'Approved';
-      finalBtns = '<div class="ts-rp-actionsrow ts-rp-noprint">' +
-        '<button class="btn btn-primary" ' + (prereq ? '' : 'disabled title="Requires Roshen + Relia approved"') + ' onclick="TS.finalApprove(\'' + a.id + '\')">✓ Final Approve</button>' +
-        '<button class="btn" ' + (prereq ? '' : 'disabled') + ' onclick="TS.finalReject(\'' + a.id + '\')">✗ Final Reject</button></div>';
-    }
-
-    // ── Attachments & supporting documents ──
-    var photoList = Array.isArray(a.execPhotos) ? a.execPhotos : []; // defensive: legacy rows may carry odd shapes
+    var money = function (v) { return (v == null || !isFinite(v)) ? '—' : Math.round(v).toLocaleString('en-US') + ' SAR'; };
+    var pct = function (v) { return (v == null || !isFinite(v)) ? '—' : (v * 100).toFixed(1) + '%'; };
+    var dt = function (v) { if (!v) return '—'; try { return new Date(v).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'; } catch (e) { return String(v); } };
+    var kv = function (k, v) { return '<div class="kv"><div class="k">' + k + '</div><div class="v">' + v + '</div></div>'; };
+    var chip = function (st) {
+      var c = st === 'Approved' ? 'ok' : (st === 'Rejected' ? 'bad' : 'pend');
+      return '<span class="chip ' + c + '">' + E(st) + '</span>';
+    };
+    var card = function (title, sub, st, who, when, comment) {
+      var c = st === 'Approved' ? 'ok' : (st === 'Rejected' ? 'bad' : 'pend');
+      return '<div class="appr ' + c + '"><div class="ah"><b>' + title + '</b>' + chip(st) + '</div><i>' + sub + '</i>' +
+        '<div class="ar"><span>Approver</span><b>' + E(who || '—') + '</b></div>' +
+        '<div class="ar"><span>Date / Time</span><b>' + (when ? dt(when) : '—') + '</b></div>' +
+        '<div class="ar"><span>Comments</span><b>' + E(comment || '—') + '</b></div></div>';
+    };
+    var photoList = Array.isArray(a.execPhotos) ? a.execPhotos : [];
     var photos = photoList.map(function (p, i) {
-      return '<figure class="ts-rp-photo"><img src="' + photoSrc(p) + '" alt="Execution photo ' + (i + 1) + '" onclick="TS.zoomPhoto(' + i + ')"><figcaption>Execution photo ' + (i + 1) + (p && p.name ? ' · ' + esc(p.name) : '') + '</figcaption></figure>';
+      return '<figure><img src="' + photoSrc(p) + '" alt="Execution photo ' + (i + 1) + '"><figcaption>Execution photo ' + (i + 1) + (p && p.name ? ' · ' + E(p.name) : '') + '</figcaption></figure>';
     }).join('');
-    var creditNote = a.creditNoteImage
-      ? '<figure class="ts-rp-photo"><img src="' + esc(a.creditNoteImage) + '" alt="Credit note"><figcaption>Credit note' + (a.creditNoteFilename ? ' · ' + esc(a.creditNoteFilename) : '') + '</figcaption></figure>'
-      : '';
-    var attachments = (photos || creditNote)
-      ? rpSection('Attachments &amp; Supporting Documents', '<div class="ts-rp-photos">' + photos + creditNote + '</div>')
-      : rpSection('Attachments &amp; Supporting Documents', '<div class="ts-rp-note">No attachments on file for this activity.</div>');
+    var cn = a.creditNoteImage ? '<figure><img src="' + E(a.creditNoteImage) + '" alt="Credit note"><figcaption>Credit note' + (a.creditNoteFilename ? ' · ' + E(a.creditNoteFilename) : '') + '</figcaption></figure>' : '';
+    var placement = [a.numFloorDisplays ? a.numFloorDisplays + ' floor display(s)' : '', a.metersValue ? a.metersValue + ' m' : '', a.numBranches ? a.numBranches + ' branch(es)' : ''].filter(Boolean).join(' · ') || '—';
 
-    // ── Document ──
-    var doc =
-      '<div class="ts-rp" id="tsReportDoc">' +
-      '<div class="ts-rp-head">' +
-      '<div class="ts-rp-brand"><span class="ts-rp-logo">R</span><span><b>ROSHEN · KSA</b><i>Trade Spend Activity Report</i></span></div>' +
-      '<div class="ts-rp-brand2"><b>In partnership with RELIA</b><i>Distribution &amp; Trade Execution</i></div>' +
-      '</div>' +
-      '<div class="ts-rp-titlebar">' +
-      '<div><div class="ts-rp-code">' + esc(a.id) + '</div><div class="ts-rp-cust">' + esc(a.custName || '—') + ' <span>' + esc(a.custCode || '') + '</span></div></div>' +
-      '<div class="ts-rp-title-right">' + statusBadge(a.overallStatus || computeOverall(a)) + '<div class="ts-rp-gen">Generated ' + genStamp + '</div></div>' +
-      '</div>' +
-      kpis +
-      rpSection('Activity Information', rpKv([
-        ['Activity Code', esc(a.id)],
-        ['Activity Type', esc(a.actType || '—')],
-        ['Category', esc(catLabel(a))],
-        ['SKU Scope', (a.skus || []).length ? esc((a.skus || []).join('; ')) : 'All SKUs in the selected categories'],
-        ['Activity Date', esc(a.activityDate || '—')],
-        ['Measurement Period', esc((dp.postStart || '—') + ' → ' + (dp.postEnd || '—')) + (dp.days ? ' ' + m('(' + dp.days + ' days)') : '')],
-        ['Created By', esc(a.createdBy || '—') + ' ' + m(a.createdAt ? fmtDT(a.createdAt) : '')],
-        ['Last Updated', esc(a.updatedBy || '—') + ' ' + m(a.updatedAt ? fmtDT(a.updatedAt) : '')]
-      ])) +
-      rpSection('Customer &amp; Distributor', rpKv([
-        ['Customer', esc(a.custName || '—')],
-        ['Account Code', esc(a.custCode || '—')],
-        ['Distributor', esc(a.distributor || 'Relia')],
-        ['Placement Details', [a.numFloorDisplays ? a.numFloorDisplays + ' floor display(s)' : '', a.metersValue ? a.metersValue + ' m' : '', a.numBranches ? a.numBranches + ' branch(es)' : ''].filter(Boolean).join(' · ') || '—']
-      ])) +
-      rpSection('Financial Summary', fin) +
-      rpSection('Performance Analysis <span class="ts-rp-live">' + (dp.live ? 'live from current sales data' : 'stored snapshot') + '</span>', perf) +
-      rpSection('Approval Workflow', approvals + finalBtns) +
-      attachments +
-      (a.notes ? rpSection('Notes', '<div class="ts-rp-notes">' + esc(a.notes) + '</div>') : '') +
-      '<div class="ts-rp-foot">Roshen KSA Sales Dashboard — official Trade Spend record · ' + esc(a.id) + ' · generated ' + genStamp + ' · figures computed from the live sales dataset at generation time</div>' +
-      '</div>';
-
-    var actions =
-      '<div class="ts-rp-actions ts-rp-noprint">' +
-      '<button class="btn btn-primary" onclick="TS.printReport()">🖨 Print</button>' +
-      '<button class="btn" onclick="TS.printReport()">Save as PDF</button>' +
-      '<button class="btn" onclick="TS.downloadReportPdf()">⬇ Download PDF</button>' +
-      '<button class="btn" onclick="TS.shareReport()">↗ Share</button>' +
-      '</div>';
-
-    byId('tsModalTitle').textContent = 'Trade Spend Report — ' + a.id;
-    byId('tsModalBody').innerHTML = actions + doc;
-    byId('tsModal').classList.add('open', 'ts-report-mode');
-    trace('render complete', 'Trade Spend Report opened in #tsModal (ts-report-mode) · sections=' +
-      document.querySelectorAll('#tsReportDoc .ts-rp-sec').length + ' approvalCards=' +
-      document.querySelectorAll('#tsReportDoc .ts-rp-appr').length + ' — NOT the legacy modal');
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+'<meta name="viewport" content="width=device-width,initial-scale=1">' +
+'<title>Trade Spend Report — ' + E(a.id) + '</title>' +
+'<style>' +
+'@page{size:A4;margin:12mm;}' +
+'*{box-sizing:border-box;margin:0;padding:0;}' +
+'body{font:12px/1.55 "Segoe UI",Calibri,Arial,sans-serif;color:#1A2942;background:#EDF0F5;}' +
+'.bar{position:sticky;top:0;z-index:9;display:flex;gap:10px;justify-content:center;padding:10px;background:#1A2942;}' +
+'.bar button{font:700 12.5px "Segoe UI",Calibri,sans-serif;color:#fff;background:#C2263B;border:none;border-radius:8px;padding:9px 20px;cursor:pointer;}' +
+'.bar button.alt{background:transparent;border:1.5px solid rgba(255,255,255,.5);}' +
+'.page{max-width:800px;margin:16px auto 48px;background:#fff;padding:34px 38px;box-shadow:0 8px 40px rgba(10,20,40,.18);border-radius:6px;}' +
+'.head{display:flex;justify-content:space-between;gap:14px;border-bottom:3px solid #C2263B;padding-bottom:14px;}' +
+'.logo{display:inline-grid;place-items:center;width:44px;height:44px;border-radius:10px;background:#C2263B;color:#fff;font-weight:900;font-size:23px;}' +
+'.brand{display:flex;align-items:center;gap:11px;}.brand b{display:block;font-size:16px;}.brand i,.brand2 i{display:block;font-style:normal;font-size:9.5px;color:#5A6B82;text-transform:uppercase;letter-spacing:.09em;}' +
+'.logo2{display:inline-grid;place-items:center;height:30px;padding:0 12px;border-radius:8px;background:#2A4A8B;color:#fff;font-weight:900;font-size:14px;letter-spacing:.06em;}' +
+'.brand2{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}' +
+'.titlebar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:16px 0 4px;flex-wrap:wrap;}' +
+'.code{font-size:22px;font-weight:900;}.cust{font-size:13px;font-weight:700;}.cust span{color:#5A6B82;font-size:11px;}' +
+'.gen{font-size:9.5px;color:#5A6B82;text-align:right;}' +
+'.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0 4px;}' +
+'.kpi{border:1px solid #DCE2EC;border-radius:9px;padding:11px 13px;background:#F7F9FC;}' +
+'.kpi.main{background:#C2263B;color:#fff;}.kpi.main *{color:#fff;}' +
+'.kpi .k{font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#5A6B82;}' +
+'.kpi .v{font-size:20px;font-weight:900;margin-top:3px;}.kpi .s{font-size:8.5px;color:#5A6B82;margin-top:2px;}' +
+'.sec{margin-top:18px;break-inside:avoid;}' +
+'.sec>h2{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#C2263B;border-bottom:1.5px solid #E4B7BE;padding-bottom:5px;margin-bottom:10px;}' +
+'.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:9px 18px;}' +
+'.kv .k{font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#5A6B82;}' +
+'.kv .v{font-size:12px;font-weight:600;margin-top:1px;}' +
+'table{width:100%;border-collapse:collapse;}' +
+'th{background:#1A2942;color:#fff;font-size:9px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 10px;}' +
+'td{border-bottom:1px solid #E6EAF1;padding:6px 10px;font-size:11.5px;}' +
+'td:first-child{font-weight:700;}td:nth-child(2){font-weight:700;white-space:nowrap;}td:nth-child(3){color:#5A6B82;font-size:10.5px;}' +
+'.note{margin-top:8px;font-size:10px;color:#5A6B82;}.note.warn{color:#B46A00;font-weight:600;}' +
+'.apprs{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;}' +
+'.appr{border:1px solid #DCE2EC;border-left:4px solid #B4830A;border-radius:9px;padding:11px 13px;background:#FBFCFE;break-inside:avoid;}' +
+'.appr.ok{border-left-color:#1B7F4B;}.appr.bad{border-left-color:#C2263B;}' +
+'.ah{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;}' +
+'.appr>i{display:block;font-style:normal;font-size:8.5px;color:#5A6B82;text-transform:uppercase;letter-spacing:.06em;margin:1px 0 8px;}' +
+'.ar{display:flex;justify-content:space-between;gap:10px;font-size:10.5px;padding:2.5px 0;border-bottom:1px dashed #EDF0F5;}' +
+'.ar span{color:#5A6B82;}.ar b{text-align:right;word-break:break-word;}' +
+'.chip{font-size:8.5px;font-weight:900;text-transform:uppercase;padding:3px 9px;border-radius:100px;}' +
+'.chip.ok{background:#E2F4E9;color:#1B7F4B;}.chip.bad{background:#FBE4E7;color:#C2263B;}.chip.pend{background:#FBF0DA;color:#8A6206;}' +
+'.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;}' +
+'figure{break-inside:avoid;}figure img{width:100%;height:150px;object-fit:cover;border-radius:8px;border:1px solid #DCE2EC;}' +
+'figcaption{font-size:8.5px;color:#5A6B82;margin-top:4px;}' +
+'.notes{white-space:pre-wrap;font-size:11.5px;background:#F7F9FC;border:1px solid #DCE2EC;border-radius:8px;padding:10px 12px;}' +
+'.foot{margin-top:22px;border-top:1px solid #E6EAF1;padding-top:9px;font-size:8.5px;color:#5A6B82;text-align:center;}' +
+'@media print{body{background:#fff;}.bar{display:none!important;}.page{box-shadow:none;margin:0;max-width:none;border-radius:0;padding:0;}figure img{height:auto;max-height:220px;}}' +
+'@media (max-width:640px){.page{padding:20px 14px;margin:0;}.head{flex-direction:column;}.brand2{align-items:flex-start;text-align:left;}}' +
+'</style></head><body>' +
+'<div class="bar"><button onclick="window.print()">🖨 Print</button><button class="alt" onclick="tsDownloadPdf()">⬇ Download PDF</button></div>' +
+'<div class="page" id="reportPage">' +
+'<div class="head">' +
+'<div class="brand"><span class="logo">R</span><span><b>ROSHEN · KSA</b><i>Trade Spend Activity Report</i></span></div>' +
+'<div class="brand2"><span class="logo2">RELIA</span><i>Distribution &amp; Trade Execution</i></div>' +
+'</div>' +
+'<div class="titlebar"><div><div class="code">' + E(a.id) + '</div><div class="cust">' + E(a.custName || '—') + ' <span>' + E(a.custCode || '') + '</span></div></div>' +
+'<div class="gen">Status: <b>' + E(a.overallStatus || computeOverall(a)) + '</b><br>Generated ' + gen + '</div></div>' +
+'<div class="kpis">' +
+'<div class="kpi main"><div class="k">ROTS — Return on Trade Spend</div><div class="v">' + fmtRots(dp.rots) + '</div><div class="s">incremental sales per SAR invested</div></div>' +
+'<div class="kpi"><div class="k">Incremental Sales</div><div class="v">' + money(dp.inc) + '</div><div class="s">during − baseline</div></div>' +
+'<div class="kpi"><div class="k">Trade Spend %</div><div class="v">' + pct(dp.spendPct) + '</div><div class="s">spend ÷ during net sales</div></div>' +
+'<div class="kpi"><div class="k">Verdict</div><div class="v">' + E(dp.verdict) + '</div><div class="s">≥1.20× Successful · ≥1.00× Break-even</div></div>' +
+'</div>' +
+'<div class="sec"><h2>Activity Information</h2><div class="grid">' +
+kv('Activity Code', E(a.id)) + kv('Activity Type', E(a.actType || '—')) +
+kv('Category', E(catLabel(a))) +
+kv('SKU Scope', (a.skus || []).length ? E((a.skus || []).join('; ')) : 'All SKUs in the selected categories') +
+kv('Activity Date', E(a.activityDate || '—')) +
+kv('Measurement Period', E((dp.postStart || '—') + ' → ' + (dp.postEnd || '—')) + (dp.days ? ' (' + dp.days + ' days)' : '')) +
+kv('Created By', E(a.createdBy || '—')) + kv('Last Updated', E(a.updatedBy || '—')) +
+'</div></div>' +
+'<div class="sec"><h2>Customer &amp; Distributor</h2><div class="grid">' +
+kv('Customer', E(a.custName || '—')) + kv('Account Code', E(a.custCode || '—')) +
+kv('Distributor', E(a.distributor || 'Relia')) + kv('Placement', E(placement)) +
+'</div></div>' +
+'<div class="sec"><h2>Financial Summary</h2><div class="grid">' +
+kv('Total Investment (excl. VAT)', '<b>' + money(a.totalAmount) + '</b>') +
+kv('Relia Share', money(a.reliaAmount) + ' (' + (a.reliaPct != null ? a.reliaPct : 50) + '%)') +
+kv('Roshen Share', money(a.roshenAmount) + ' (' + (a.roshenPct != null ? a.roshenPct : 50) + '%)') +
+kv('Claim Status', E(getClaim(a)) + (a.claimRef ? ' · Ref ' + E(a.claimRef) : '')) +
+kv('Credit Note', a.creditNoteFilename ? E(a.creditNoteFilename) : '—') +
+kv('Execution Status', E(a.execStatus || 'Not Executed')) +
+'</div></div>' +
+'<div class="sec"><h2>Performance Analysis — Before / During / After</h2>' +
+'<table><thead><tr><th>Measure</th><th>Value</th><th>Detail</th></tr></thead><tbody>' +
+'<tr><td>Sales Before</td><td>' + money(dp.pre) + '</td><td>' + ((dp.preCases != null ? Math.round(dp.preCases).toLocaleString() + ' cases' : '') + (dp.preDiscountPct != null ? ' · ' + pct(dp.preDiscountPct) + ' discount' : '') || '—') + '</td></tr>' +
+'<tr><td>Baseline (pro-rated)</td><td>' + money(dp.baseline) + '</td><td>before-period daily rate × during days' + (dp.baselineFloored ? ' · floored at 0' : '') + '</td></tr>' +
+'<tr><td>Sales During</td><td>' + money(dp.post) + '</td><td>' + ((dp.postCases != null ? Math.round(dp.postCases).toLocaleString() + ' cases' : '') + (dp.postDiscountPct != null ? ' · ' + pct(dp.postDiscountPct) + ' discount' : '') || '—') + '</td></tr>' +
+'<tr><td>Sales After</td><td>' + (dp.afterCov ? money(dp.after) : '—') + '</td><td>' + (dp.afterCov ? (E(dp.afterStart) + ' → ' + E(dp.afterEnd) + (dp.retention != null ? ' · ' + pct(dp.retention) + ' retention vs baseline' : '')) : 'no measurable post-promotion window yet') + '</td></tr>' +
+'<tr><td>Incremental Sales</td><td>' + money(dp.inc) + '</td><td>during − baseline</td></tr>' +
+'<tr><td>Uplift</td><td>' + pct(dp.uplift) + '</td><td>daily-rate change vs before-period</td></tr>' +
+'<tr><td>ROTS</td><td>' + fmtRots(dp.rots) + '</td><td>incremental per SAR of trade spend</td></tr>' +
+'<tr><td>Trade Spend %</td><td>' + pct(dp.spendPct) + '</td><td>spend as a share of during-period net sales</td></tr>' +
+'</tbody></table>' +
+((dp.preCov != null && dp.postCov != null) ? '<div class="note">Data coverage: ' + dp.preCov + ' before-days · ' + dp.postCov + ' during-days' + (dp.afterCov ? ' · ' + dp.afterCov + ' after-days' : '') + ' with sales data' + (dp.postCov === 0 ? ' — performance stays Pending until sales for the activity period are imported' : '') + '.' + (dp.trunc ? ' Measurement window ends the day before ' + E(dp.trunc) + '.' : '') + '</div>' : '') +
+((dp.overlaps && dp.overlaps.length) ? '<div class="note warn">⚠ Runs simultaneously with ' + E(dp.overlaps.join(', ')) + ' for the same customer/categories — incremental sales are shared.</div>' : '') +
+'</div>' +
+'<div class="sec"><h2>Approval Workflow</h2><div class="apprs">' +
+card('Roshen Approval', 'Brand principal', a.roshenStatus === 'Approved' ? 'Approved' : (a.roshenStatus === 'Rejected' ? 'Rejected' : 'Pending'), a.roshenApprovedBy || a.roshenRejectedBy, a.roshenApprovedAt || a.roshenRejectedAt, null) +
+card('Relia Approval', 'Distributor', a.reliaStatus === 'Approved' ? 'Approved' : (a.reliaStatus === 'Rejected' ? 'Rejected' : 'Pending'), a.reliaApprovedBy || a.reliaRejectedBy, a.reliaApprovedAt || a.reliaRejectedAt, null) +
+card('Final Approval', 'Management sign-off', fs === 'Yes' ? 'Approved' : (fs === 'Rejected' ? 'Rejected' : 'Pending'), fs === 'Yes' ? a.finalApprovedBy : a.finalRejectedBy, fs === 'Yes' ? a.finalApprovedAt : a.finalRejectedAt, fs === 'Rejected' ? a.finalRejectReason : null) +
+'</div></div>' +
+'<div class="sec"><h2>Attachments &amp; Execution Photos</h2>' +
+((photos || cn) ? '<div class="photos">' + photos + cn + '</div>' : '<div class="note">No attachments on file for this activity.</div>') +
+'</div>' +
+(a.notes ? '<div class="sec"><h2>Notes</h2><div class="notes">' + E(a.notes) + '</div></div>' : '') +
+'<div class="foot">Roshen KSA Sales Dashboard — official Trade Spend record · ' + E(a.id) + ' · generated ' + gen + ' · figures computed from the live sales dataset at generation time · ' + E(TS_BUILD) + '</div>' +
+'</div>' +
+'<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>' +
+'<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>' +
+'<script>' +
+'function tsDownloadPdf(){' +
+'if(!window.html2canvas||!window.jspdf){window.print();return;}' +
+'var n=document.getElementById("reportPage");' +
+'html2canvas(n,{scale:2,useCORS:true,backgroundColor:"#FFFFFF"}).then(function(canvas){' +
+'var pdf=new jspdf.jsPDF("p","mm","a4");' +
+'var pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight();' +
+'var iw=pw-20,ih=canvas.height*iw/canvas.width,y=0,pg=0;' +
+'while(y<ih&&pg<30){if(pg>0)pdf.addPage();pdf.addImage(canvas.toDataURL("image/jpeg",0.93),"JPEG",10,10-y,iw,ih);y+=ph-20;pg++;}' +
+'pdf.save("TradeSpend_Report_' + E(a.id) + '.pdf");' +
+'}).catch(function(){window.print();});}' +
+'<\/script></body></html>';
   }
-  function closeModal() { state.viewId = null; var el = byId('tsModal'); el.classList.remove('open'); el.classList.remove('ts-report-mode'); }
 
-  // ── Report actions ──────────────────────────────────────────────────────────
-  function printReport() {
-    // Print isolation: @media print CSS shows ONLY the report (A4, light theme).
-    document.body.classList.add('ts-print-report');
-    var done = function () { document.body.classList.remove('ts-print-report'); window.removeEventListener('afterprint', done); };
-    window.addEventListener('afterprint', done);
-    setTimeout(function () { try { window.print(); } catch (e) { done(); toast('Print failed: ' + e.message, true); } }, 60);
-    setTimeout(done, 60000); // safety: never leave print mode stuck
-  }
-  async function downloadReportPdf() {
-    var node = byId('tsReportDoc');
-    var id = state.viewId || 'report';
-    if (!node) { toast('Open a report first.', true); return; }
-    toast('Preparing PDF…');
-    try {
-      await ensurePdfLibs();
-      var canvas = await window.html2canvas(node, { scale: 2, useCORS: true, backgroundColor: '#FFFFFF' });
-      var jsPDF = window.jspdf.jsPDF;
-      var pdf = new jsPDF('p', 'mm', 'a4');
-      var pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
-      var iw = pw - 20, ih = canvas.height * iw / canvas.width;
-      var y = 0, page = 0;
-      while (y < ih && page < 30) {
-        if (page > 0) pdf.addPage();
-        pdf.addImage(canvas.toDataURL('image/jpeg', 0.93), 'JPEG', 10, 10 - y, iw, ih);
-        y += ph - 20;
-        page++;
-      }
-      pdf.save('TradeSpend_Report_' + id + '_' + todayStr() + '.pdf');
-    } catch (e) {
-      console.error(e);
-      toast('PDF failed: ' + ((e && e.message) || e), true);
-    }
-  }
-  function shareReport() {
-    var a = findAct(state.viewId); if (!a) return;
+  function openReport(id) {
+    trace('openReport entry', id + ' (standalone report tab, build ' + TS_BUILD + ')');
+    var a = findAct(id);
+    if (!a) { trace('openReport EARLY RETURN', 'record ' + id + ' not found (' + state.activities.length + ' loaded)'); return; }
+    trace('record loaded', id + ' · roshen[' + (a.roshenStatus || '—') + '] relia[' + (a.reliaStatus || '—') + '] final[' + finalState(a) + '] photos=' + (Array.isArray(a.execPhotos) ? a.execPhotos.length : 0));
+    var w = window.open('', '_blank'); // must be synchronous inside the click for popup allowance
+    if (!w) { trace('popup blocked', id); toast('Your browser blocked the report tab — allow pop-ups for this site.', true); return; }
     var dp = displayPerf(a);
-    var summary = 'Trade Spend Report ' + a.id + ' — ' + (a.custName || '') +
-      '\nActivity: ' + (a.actType || '—') + ' · ' + catLabel(a) +
-      '\nInvestment: ' + fmtSAR(a.totalAmount) +
-      '\nIncremental: ' + fmtSAR(dp.inc) + ' · ROTS ' + fmtRots(dp.rots) + ' · ' + dp.verdict +
-      '\n' + location.origin + location.pathname;
-    if (navigator.share) {
-      navigator.share({ title: 'Trade Spend Report ' + a.id, text: summary }).catch(function () {});
-    } else if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(summary).then(function () { toast('Report summary copied to clipboard.'); },
-        function () { toast('Could not copy to clipboard.', true); });
-    } else {
-      toast('Sharing is not supported in this browser.', true);
+    trace('performance computed', 'live=' + dp.live + ' rots=' + (dp.rots != null ? dp.rots.toFixed(2) + 'x' : 'null') + ' verdict=' + dp.verdict);
+    try {
+      // Blob-URL navigation: the tab loads the report as a normal document
+      // (clean history entry, fonts/print behave like any page).
+      var blob = new Blob([buildReportHtml(a, dp)], { type: 'text/html' });
+      w.location = URL.createObjectURL(blob);
+      trace('report tab rendered', id + ' — standalone A4 document (new tab), NOT a modal');
+    } catch (e) {
+      trace('EXCEPTION rendering report', String((e && e.message) || e).slice(0, 140));
+      toast('Could not build the report: ' + ((e && e.message) || e), true);
     }
-  }
-  function zoomPhoto(i) {
-    var a = findAct(state.viewId); if (!a || !a.execPhotos || !a.execPhotos[i]) return;
-    var w = window.open('', '_blank');
-    if (w) { w.document.write('<title>Photo</title><body style="margin:0;background:#111;display:grid;place-items:center;min-height:100vh;"><img src="' + photoSrc(a.execPhotos[i]) + '" style="max-width:100%;max-height:100vh;">'); }
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1993,12 +1946,6 @@ window.TS = (function () {
         handleAction(btn.getAttribute('data-act'), btn.getAttribute('data-id'));
       });
     }
-    var modal = byId('tsModal');
-    if (modal && !modal._tsBound) {
-      modal._tsBound = true;
-      modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
-      document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
-    }
     // Delegated SKU-panel events (the panel re-renders; the host doesn't).
     var formHost = byId('tsFormHost');
     if (formHost && !formHost._tsBound) {
@@ -2012,17 +1959,16 @@ window.TS = (function () {
     try { if (/[?&]tsdebug=1/.test(location.search)) setDebug(true); } catch (e) {}
   }
 
-  // Runtime introspection: proves which View implementation is bound & rendered.
-  function whichView() {
+  // Runtime introspection: proves the ONLY row action for records is 📄 Report.
+  function whichReport() {
     var view = byId('view-tradespend');
-    var body = byId('tsModalBody');
     return {
       build: TS_BUILD,
-      boundListener: view ? (view._tsActBound ? ('delegated handleAction from build ' + (view._tsActBuild || 'pre-trace build')) : 'NOT BOUND') : 'container missing',
-      viewButtons: document.querySelectorAll('#tsLogHost .ts-act-btn[data-act="view"]').length,
-      inlineOnclickViewButtons: document.querySelectorAll('#tsLogHost [onclick*="view" i]').length, // legacy pattern — must be 0
-      openViewRenders: 'Trade Spend Report (single implementation — legacy modal renderer no longer exists in this build)',
-      lastRender: body && body.querySelector('#tsReportDoc') ? 'ts-report' : (body && body.querySelector('.ts-view-grid') ? 'LEGACY-MODAL' : 'none-open')
+      boundListener: view ? (view._tsActBound ? ('delegated handleAction from build ' + (view._tsActBuild || '?')) : 'NOT BOUND') : 'container missing',
+      reportButtons: document.querySelectorAll('#tsLogHost .ts-act-btn[data-act="report"]').length,
+      viewButtons: document.querySelectorAll('#tsLogHost .ts-act-btn[data-act="view"]').length,             // must be 0
+      inlineOnclickButtons: document.querySelectorAll('#tsLogHost [onclick]').length,                        // must be 0
+      renderTarget: 'standalone A4 document in a NEW TAB (no modal; legacy View removed entirely)'
     };
   }
 
@@ -2099,71 +2045,7 @@ window.TS = (function () {
       '#view-tradespend .ts-build-badge{display:inline-block;margin-left:8px;padding:2px 9px;border-radius:100px;border:1px solid var(--green);color:var(--green);font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle;}' +
       '@media (max-width:768px){#view-tradespend .ts-sec{padding:12px;}#view-tradespend .ts-sku-list{max-height:220px;}}' +
 
-      /* ── Trade Spend Report — official document (always light, print-first) ── */
-      '.ts-modal.ts-report-mode{padding:0;}' +
-      '.ts-modal.ts-report-mode .ts-modal-card{width:100vw;height:100vh;max-height:100vh;border-radius:0;border:none;}' +
-      '.ts-modal.ts-report-mode .ts-modal-body{padding:0;background:#E6EAF1;}' +
-      '.ts-rp-actions{position:sticky;top:0;z-index:5;display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;background:var(--bg-card);border-bottom:1px solid var(--border);}' +
-      '.ts-rp{max-width:820px;margin:18px auto 40px;background:#FFFFFF;color:#1A2942;border-radius:6px;box-shadow:0 8px 40px rgba(10,20,40,0.25);padding:34px 38px;font-size:12px;line-height:1.5;}' +
-      '.ts-rp *{color:inherit;}' +
-      '.ts-rp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;border-bottom:3px solid #C2263B;padding-bottom:14px;}' +
-      '.ts-rp-brand{display:flex;align-items:center;gap:11px;}' +
-      '.ts-rp-logo{display:inline-grid;place-items:center;width:42px;height:42px;border-radius:10px;background:#C2263B;color:#fff!important;font-weight:900;font-size:22px;}' +
-      '.ts-rp-brand b{display:block;font-size:16px;letter-spacing:.02em;}' +
-      '.ts-rp-brand i,.ts-rp-brand2 i{display:block;font-style:normal;font-size:10px;color:#5A6B82;text-transform:uppercase;letter-spacing:.09em;}' +
-      '.ts-rp-brand2{text-align:right;}.ts-rp-brand2 b{display:block;font-size:12px;color:#2A4A8B;}' +
-      '.ts-rp-titlebar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:16px 0 6px;flex-wrap:wrap;}' +
-      '.ts-rp-code{font-size:22px;font-weight:900;letter-spacing:.02em;}' +
-      '.ts-rp-cust{font-size:13px;font-weight:700;margin-top:2px;}.ts-rp-cust span{color:#5A6B82;font-weight:600;font-size:11px;}' +
-      '.ts-rp-title-right{text-align:right;}.ts-rp-gen{font-size:9.5px;color:#5A6B82;margin-top:4px;}' +
-      '.ts-rp-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0 4px;}' +
-      '.ts-rp-kpi{border:1px solid #DCE2EC;border-radius:9px;padding:11px 13px;background:#F7F9FC;}' +
-      '.ts-rp-kpi.main{background:#C2263B;border-color:#C2263B;}.ts-rp-kpi.main .k,.ts-rp-kpi.main .v,.ts-rp-kpi.main .s{color:#fff!important;}' +
-      '.ts-rp-kpi .k{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#5A6B82;}' +
-      '.ts-rp-kpi .v{font-size:20px;font-weight:900;margin-top:3px;}.ts-rp-kpi .s{font-size:9px;color:#5A6B82;margin-top:2px;}' +
-      '.ts-rp-sec{margin-top:18px;break-inside:avoid;}' +
-      '.ts-rp-sec-t{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#C2263B;border-bottom:1.5px solid #E4B7BE;padding-bottom:5px;margin-bottom:10px;}' +
-      '.ts-rp-sec-t .ts-rp-live{float:right;font-size:9px;color:#1B7F4B;text-transform:none;letter-spacing:0;font-weight:700;}' +
-      '.ts-rp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:9px 18px;}' +
-      '.ts-rp-k{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#5A6B82;}' +
-      '.ts-rp-v{font-size:12px;font-weight:600;margin-top:1px;}.ts-rp-money{font-size:14px;}' +
-      '.ts-rp-muted{color:#5A6B82;font-weight:500;font-size:10.5px;}' +
-      '.ts-rp-table{width:100%;border-collapse:collapse;}' +
-      '.ts-rp-table th{background:#1A2942;color:#fff!important;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 10px;}' +
-      '.ts-rp-table td{border-bottom:1px solid #E6EAF1;padding:6px 10px;font-size:11.5px;}' +
-      '.ts-rp-table td:first-child{font-weight:700;}.ts-rp-table td:nth-child(2){font-weight:700;white-space:nowrap;}' +
-      '.ts-rp-table td:nth-child(3){color:#5A6B82;font-size:10.5px;}' +
-      '.ts-rp-note{margin-top:8px;font-size:10px;color:#5A6B82;}.ts-rp-note.warn{color:#B46A00;font-weight:600;}' +
-      '.ts-rp-apprs{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;}' +
-      '.ts-rp-appr{border:1px solid #DCE2EC;border-left:4px solid #B4A85A;border-radius:9px;padding:11px 13px;background:#FBFCFE;break-inside:avoid;}' +
-      '.ts-rp-appr.ok{border-left-color:#1B7F4B;}.ts-rp-appr.bad{border-left-color:#C2263B;}.ts-rp-appr.pend{border-left-color:#B4830A;}' +
-      '.ts-rp-appr-h{display:flex;justify-content:space-between;align-items:center;gap:8px;}' +
-      '.ts-rp-appr-t{font-size:11.5px;font-weight:900;}' +
-      '.ts-rp-appr-sub{font-size:9px;color:#5A6B82;text-transform:uppercase;letter-spacing:.06em;margin:1px 0 8px;}' +
-      '.ts-rp-appr-row{display:flex;justify-content:space-between;gap:10px;font-size:10.5px;padding:2.5px 0;border-bottom:1px dashed #EDF0F5;}' +
-      '.ts-rp-appr-row span{color:#5A6B82;}.ts-rp-appr-row b{font-weight:700;text-align:right;word-break:break-word;}' +
-      '.ts-rp-chip{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:100px;}' +
-      '.ts-rp-chip.ok{background:#E2F4E9;color:#1B7F4B!important;}.ts-rp-chip.bad{background:#FBE4E7;color:#C2263B!important;}.ts-rp-chip.pend{background:#FBF0DA;color:#8A6206!important;}' +
-      '.ts-rp-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;}' +
-      '.ts-rp-photo{margin:0;break-inside:avoid;}' +
-      '.ts-rp-photo img{width:100%;height:150px;object-fit:cover;border-radius:8px;border:1px solid #DCE2EC;cursor:zoom-in;}' +
-      '.ts-rp-photo figcaption{font-size:9px;color:#5A6B82;margin-top:4px;}' +
-      '.ts-rp-notes{white-space:pre-wrap;font-size:11.5px;background:#F7F9FC;border:1px solid #DCE2EC;border-radius:8px;padding:10px 12px;}' +
-      '.ts-rp-foot{margin-top:22px;border-top:1px solid #E6EAF1;padding-top:9px;font-size:9px;color:#5A6B82;text-align:center;}' +
-      '.ts-rp-actionsrow{display:flex;gap:10px;margin-top:12px;}' +
-      '@media (max-width:768px){.ts-rp{margin:0;border-radius:0;padding:20px 16px;}.ts-rp-head{flex-direction:column;}.ts-rp-brand2{text-align:left;}}' +
-      /* Print: A4, show ONLY the report */
-      '@page{size:A4;margin:12mm;}' +
-      '@media print{' +
-      'body.ts-print-report *{visibility:hidden!important;}' +
-      'body.ts-print-report #tsModal,body.ts-print-report #tsModal *{visibility:visible!important;}' +
-      'body.ts-print-report .ts-rp-noprint,body.ts-print-report .ts-modal-head{display:none!important;}' +
-      'body.ts-print-report #tsModal{position:absolute!important;inset:0!important;padding:0!important;background:#fff!important;display:block!important;overflow:visible!important;}' +
-      'body.ts-print-report .ts-modal-card{width:100%!important;max-height:none!important;height:auto!important;border:none!important;box-shadow:none!important;background:#fff!important;display:block!important;overflow:visible!important;}' +
-      'body.ts-print-report .ts-modal-body{overflow:visible!important;padding:0!important;background:#fff!important;}' +
-      'body.ts-print-report .ts-rp{box-shadow:none!important;margin:0!important;max-width:none!important;border-radius:0!important;padding:0!important;}' +
-      'body.ts-print-report .ts-rp-photo img{height:auto;max-height:220px;}' +
-      '}';
+      '';
     var el = document.createElement('style');
     el.id = 'tsStylesV2';
     el.textContent = css;
@@ -2181,19 +2063,14 @@ window.TS = (function () {
     build: TS_BUILD,
     trace: function () { return TRACE.slice(); },
     debug: setDebug,
-    whichView: whichView,
+    whichReport: whichReport,
     render: render,
     switchTab: switchTab,
     activeTab: activeTab,
     reload: reload,
     onSearch: onSearch,
     onStatusFilter: onStatusFilter,
-    openView: openView,
-    closeModal: closeModal,
-    zoomPhoto: zoomPhoto,
-    printReport: printReport,
-    downloadReportPdf: downloadReportPdf,
-    shareReport: shareReport,
+    openReport: openReport,
     editActivity: editActivity,
     cancelEdit: cancelEdit,
     resetForm: resetForm,
