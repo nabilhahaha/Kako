@@ -94,18 +94,15 @@ const perf3 = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '
 approx('perf3 roi small positive', perf3.roi, 0.054347826086956465, 1e-6);
 eq('perf3 verdict Break-even', perf3.verdict, 'Break-even');
 
-// 5b) EQUAL DAILY RATE across unequal windows -> incremental ~ 0 (the core fix).
-// Simulate truncation via the test hook: next activity 28 days after this one.
+// 5b) INDEPENDENCE RULE — another activity must NEVER truncate this one's window.
 TS._setActivitiesForTest([
-  { id: 'TRUNC-NEXT', custCode: '10-001495', categories: ['Bonny Fruit'], activityDate: '2026-03-01' }
+  { id: 'LATER-B', custCode: '10-001495', categories: ['Bonny Fruit'], actType: 'Floor Display', activityDate: '2026-03-01' }
 ]);
 const perfT = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '2026-02-01', 'CUR', 500);
-eq('truncated post window (28d)', [perfT.periods.truncatedBy, perfT.postDaysCovered], ['TRUNC-NEXT', 28]);
-// post window Feb1–Feb28 contains the 2026-02-15 (day 411? no: dataset rows) — post rows: 2026-02-15 (1600) only
-// preRate=1000/92 -> baseline=10.8696*28=304.348; incremental=1600-304.348=1295.652 -> strong positive, NOT a fake loss
-approx('truncated baseline', perfT.baselineAmount, 1000/92*28, 1e-6);
-approx('truncated incremental', perfT.incremental, 1600 - 1000/92*28, 1e-6);
-eq('truncated verdict not fake-Loss', perfT.verdict, 'Successful');
+eq('independence: full own window despite later activity', [perfT.periods.postEndDateStr, perfT.postDaysCovered], ['2026-04-30', 89]);
+approx('independence: baseline over full own window', perfT.baselineAmount, 1000/92*89, 1e-6);
+approx('independence: incremental unchanged by neighbour', perfT.incremental, 1600 - 1000/92*89, 1e-6);
+eq('independence: verdict from own window only', perfT.verdict, 'Successful');
 TS._setActivitiesForTest([]);
 
 // 5c) ZERO post-window coverage -> Pending, null metrics (no fake -100% Loss)
@@ -172,11 +169,11 @@ if (T.displayPerf) {
   approx('v2 retention 0 when after empty', v.retention, 0, 1e-9);
   global.META = M0;
 }
-// after window blocked by an immediately-following activity
+// after window is NEVER blocked by another activity (independence rule)
 {
-  TS._setActivitiesForTest([{ id: 'NEXT-IMMEDIATE', custCode: '10-001495', categories: ['Bonny Fruit'], activityDate: '2026-03-01' }]);
+  TS._setActivitiesForTest([{ id: 'NEXT-IMMEDIATE', custCode: '10-001495', categories: ['Bonny Fruit'], actType: 'Floor Display', activityDate: '2026-03-01' }]);
   const v = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '2026-02-01', 'CUR', 500);
-  eq('v2 after blocked by next activity', [v.periods.afterBlocked, v.periods.afterStartDateStr, v.afterDaysCovered], [true, null, 0]);
+  eq('after window uses own dates despite later activity', [v.periods.afterStartDateStr, v.periods.afterEndDateStr], ['2026-05-01', '2026-07-28']);
   TS._setActivitiesForTest([]);
 }
 // overlap detection: same-day activity for same customer + overlapping cats
@@ -186,11 +183,35 @@ if (T.displayPerf) {
   eq('v2 same-day overlap detected', v.overlaps, ['SAME-DAY']);
   TS._setActivitiesForTest([]);
 }
-// consecutive (not simultaneous) activities are NOT flagged as overlap (truncation handles them)
+// overlap note is symmetric and informational (windows genuinely intersect)
 {
   TS._setActivitiesForTest([{ id: 'LATER', custCode: '10-001495', categories: ['Bonny Fruit'], actType: 'Floor Display', activityDate: '2026-03-01' }]);
   const v = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '2026-02-01', 'CUR', 500);
-  eq('v2 consecutive not flagged as overlap', v.overlaps, []);
+  eq('overlapping later activity is noted (numbers unaffected)', v.overlaps, ['LATER']);
+  TS._setActivitiesForTest([]);
+}
+
+// 8) REQUIRED REGRESSION — Activity A (01 Feb → 30 Apr) and Activity B
+// (starts 15 Mar): windows are fully independent, neither truncates the other,
+// and each reads sales only from its own configured period.
+{
+  const A = { id: 'ACT-A', custCode: '10-001495', categories: ['Bonny Fruit'], actType: 'Floor Display', activityDate: '2026-02-01' };
+  const B = { id: 'ACT-B', custCode: '10-001495', categories: ['Bonny Fruit'], actType: 'Floor Display', activityDate: '2026-03-15' };
+  // baseline figures with NO other activity present
+  TS._setActivitiesForTest([A]);
+  const aAlone = T.computePerf(A.custCode, A.categories, [], A.actType, A.activityDate, A.id, 500);
+  TS._setActivitiesForTest([B]);
+  const bAlone = T.computePerf(B.custCode, B.categories, [], B.actType, B.activityDate, B.id, 500);
+  // now BOTH exist
+  TS._setActivitiesForTest([A, B]);
+  const a2 = T.computePerf(A.custCode, A.categories, [], A.actType, A.activityDate, A.id, 500);
+  const b2 = T.computePerf(B.custCode, B.categories, [], B.actType, B.activityDate, B.id, 500);
+  eq('A window: 01 Feb → 30 Apr, unchanged by B', [a2.periods.postStartDateStr, a2.periods.postEndDateStr], ['2026-02-01', '2026-04-30']);
+  eq('B window: own period from 15 Mar, unchanged by A', [b2.periods.postStartDateStr, b2.periods.postEndDateStr], ['2026-03-15', '2026-06-14']);
+  eq('A sales identical with and without B', [a2.preAmount, a2.postAmount, a2.postDaysCovered], [aAlone.preAmount, aAlone.postAmount, aAlone.postDaysCovered]);
+  eq('B sales identical with and without A', [b2.preAmount, b2.postAmount, b2.postDaysCovered], [bAlone.preAmount, bAlone.postAmount, bAlone.postDaysCovered]);
+  eq('A still reads sales until 30 Apr (full 89 days)', a2.postDaysCovered, 89);
+  eq('overlap is allowed and merely noted on both sides', [a2.overlaps, b2.overlaps], [['ACT-B'], ['ACT-A']]);
   TS._setActivitiesForTest([]);
 }
 // discount accounting: gross = net + discount, discountPct = discount/gross

@@ -435,6 +435,11 @@ window.TS = (function () {
     return null;
   }
 
+  // BUSINESS RULE: every activity is completely INDEPENDENT. Its Before /
+  // During / After windows come ONLY from its own activity date and configured
+  // duration. Another activity never truncates, stops, shortens or replaces
+  // this activity's measurement windows — overlapping activities are allowed,
+  // and sales may legitimately belong to several activities at once.
   function getPeriodForActivity(actType, activityDateStr, currentId, custCode, cats) {
     var months = getRentalDurationMonths(actType);
     var activityDate = new Date(activityDateStr);
@@ -445,70 +450,37 @@ window.TS = (function () {
     var preStartDate = new Date(activityDate);
     preStartDate.setMonth(preStartDate.getMonth() - (months || 3));
 
-    var maxPostEndDate = new Date(activityDate);
-    maxPostEndDate.setMonth(maxPostEndDate.getMonth() + (months || 3));
-    maxPostEndDate.setDate(maxPostEndDate.getDate() - 1);
-
-    var truncatedBy = null;
-    var actualPostEndDate = maxPostEndDate;
-
-    var futureActivities = state.activities
-      .filter(function (a) {
-        return a.id !== currentId &&
-          a.custCode === custCode &&
-          catsOverlap(getCats(a), cats) &&
-          a.activityDate &&
-          new Date(a.activityDate) > activityDate;
-      })
-      .sort(function (a, b) { return new Date(a.activityDate) - new Date(b.activityDate); });
-
-    if (futureActivities.length > 0) {
-      var next = futureActivities[0];
-      var nextDate = new Date(next.activityDate);
-      if (nextDate < maxPostEndDate) {
-        actualPostEndDate = new Date(nextDate);
-        actualPostEndDate.setDate(actualPostEndDate.getDate() - 1);
-        truncatedBy = next.id;
-      }
-    }
+    var postEndDate = new Date(activityDate);
+    postEndDate.setMonth(postEndDate.getMonth() + (months || 3));
+    postEndDate.setDate(postEndDate.getDate() - 1);
 
     var fmt = function (d) { return d.toISOString().slice(0, 10); };
     var dayDiff = function (a, b) { return Math.round((a - b) / (1000 * 60 * 60 * 24)) + 1; };
-    var duringDays = dayDiff(actualPostEndDate, activityDate);
+    var duringDays = dayDiff(postEndDate, activityDate);
 
-    // AFTER window — the post-promotion period, same length as the actual
-    // during window, starting the day after it ends. Unmeasurable (0 days)
-    // when the next same-customer overlapping activity starts immediately:
-    // its promotion effect would contaminate the dip measurement.
-    var afterStartDate = new Date(actualPostEndDate);
+    // AFTER window — post-promotion period of equal length, immediately after
+    // the during window. Its own dates only; never blocked by other activities.
+    var afterStartDate = new Date(postEndDate);
     afterStartDate.setDate(afterStartDate.getDate() + 1);
     var afterEndDate = new Date(afterStartDate);
     afterEndDate.setDate(afterEndDate.getDate() + duringDays - 1);
-    var afterBlocked = false;
-    if (futureActivities.length > 0) {
-      var blockDate = new Date(futureActivities[0].activityDate);
-      if (blockDate <= afterStartDate) afterBlocked = true;
-      else if (blockDate <= afterEndDate) { afterEndDate = new Date(blockDate); afterEndDate.setDate(afterEndDate.getDate() - 1); }
-    }
 
     return {
       preStartDateStr: fmt(preStartDate),
       preEndDateStr: fmt(preEndDate),
       postStartDateStr: activityDateStr,
-      postEndDateStr: fmt(actualPostEndDate),
+      postEndDateStr: fmt(postEndDate),
       postDays: duringDays,
-      afterStartDateStr: afterBlocked ? null : fmt(afterStartDate),
-      afterEndDateStr: afterBlocked ? null : fmt(afterEndDate),
-      afterBlocked: afterBlocked,
-      truncatedBy: truncatedBy,
+      afterStartDateStr: fmt(afterStartDate),
+      afterEndDateStr: fmt(afterEndDate),
       rentalMonths: months
     };
   }
 
-  // Other activities for the same customer with overlapping categories whose
-  // DURING window intersects this activity's during window (same-day starts,
-  // simultaneous promotions). Consecutive activities are handled by window
-  // truncation; simultaneous ones share incremental sales, so the UI warns.
+  // Informational only (never changes any figure): other activities for the
+  // same customer with overlapping categories whose during window intersects
+  // this one's — in either direction. Shown as a note so readers know the
+  // same sales appear under several activities.
   function overlappingActivities(custCode, cats, activityDateStr, postEndDateStr, currentId) {
     var s1 = dateToInt(activityDateStr), e1 = dateToInt(postEndDateStr);
     return state.activities.filter(function (x) {
@@ -516,7 +488,7 @@ window.TS = (function () {
       if (!catsOverlap(getCats(x), cats)) return false;
       var p = getPeriodForActivity(x.actType, x.activityDate, x.id, x.custCode, getCats(x));
       var s2 = dateToInt(p.postStartDateStr), e2 = dateToInt(p.postEndDateStr);
-      return s2 <= e1 && e2 >= s1 && !(s2 > s1); // starts on/before ours and overlaps
+      return s2 <= e1 && e2 >= s1; // any intersection, either direction
     }).map(function (x) { return x.id; });
   }
 
@@ -537,7 +509,7 @@ window.TS = (function () {
   //
   // BUSINESS-CORRECT (day-normalized, coverage-aware) methodology:
   // pre and post windows can legitimately differ in length (calendar months,
-  // truncation by the next activity, or partial data coverage), so raw sums
+  // or partial data coverage), so raw sums
   // are never compared directly. Both windows are converted to AVERAGE DAILY
   // sales over their COVERED days; the baseline is the pre-period daily rate
   // pro-rated over the covered post days.
@@ -628,7 +600,7 @@ window.TS = (function () {
                preCov: a.preDaysCovered, postCov: a.postDaysCovered,
                inc: a.incremental, uplift: a.uplift, roi: a.roi, verdict: a.verdict || 'Pending',
                postStart: a.postStartDate, postEnd: a.postEndDate, days: a.duration,
-               trunc: a.truncatedBy, live: false };
+               live: false };
     }
     return { pre: p.preAmount, post: p.postAmount, preCases: p.preCases, postCases: p.postCases,
              baseline: p.baselineAmount, baselineFloored: p.baselineFloored,
@@ -641,7 +613,7 @@ window.TS = (function () {
              overlaps: p.overlaps,
              verdict: (num(a.totalAmount) > 0 ? p.verdict : 'Pending'),
              postStart: p.periods.postStartDateStr, postEnd: p.periods.postEndDateStr,
-             days: p.periods.postDays, trunc: p.periods.truncatedBy, live: true };
+             days: p.periods.postDays, live: true };
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -659,7 +631,7 @@ window.TS = (function () {
       var res = await sb.from('activities').select('*').order('created_at', { ascending: true });
       if (res.error) throw res.error;
       state.activities = (res.data || []).map(rowToActivity);
-      _livePerfCache.clear(); // activity set changed → truncation windows may shift
+      _livePerfCache.clear(); // activity set changed → overlap notes may change
       // custom activity types persisted on activities themselves
       var known = {};
       state.activities.forEach(function (a) { if (a.actType) known[a.actType] = true; });
@@ -1109,7 +1081,7 @@ kv('Execution Status', E(a.execStatus || 'Not Executed')) +
 '<tr><td>ROTS</td><td>' + fmtRots(dp.rots) + '</td><td>incremental per SAR of trade spend</td></tr>' +
 '<tr><td>Trade Spend %</td><td>' + pct(dp.spendPct) + '</td><td>spend as a share of during-period net sales</td></tr>' +
 '</tbody></table>' +
-((dp.preCov != null && dp.postCov != null) ? '<div class="note">Data coverage: ' + dp.preCov + ' before-days · ' + dp.postCov + ' during-days' + (dp.afterCov ? ' · ' + dp.afterCov + ' after-days' : '') + ' with sales data' + (dp.postCov === 0 ? ' — performance stays Pending until sales for the activity period are imported' : '') + '.' + (dp.trunc ? ' Measurement window ends the day before ' + E(dp.trunc) + '.' : '') + '</div>' : '') +
+((dp.preCov != null && dp.postCov != null) ? '<div class="note">Data coverage: ' + dp.preCov + ' before-days · ' + dp.postCov + ' during-days' + (dp.afterCov ? ' · ' + dp.afterCov + ' after-days' : '') + ' with sales data' + (dp.postCov === 0 ? ' — performance stays Pending until sales for the activity period are imported' : '') + '.</div>' : '') +
 ((dp.overlaps && dp.overlaps.length) ? '<div class="note warn">⚠ Runs simultaneously with ' + E(dp.overlaps.join(', ')) + ' for the same customer/categories — incremental sales are shared.</div>' : '') +
 '</div>' +
 '<div class="sec"><h2>Approval Workflow</h2><div class="apprs">' +
@@ -1495,7 +1467,7 @@ card('Final Approval', 'Management sign-off', fs === 'Yes' ? 'Approved' : (fs ==
       set('tsPerfPost', fmtSAR(p.postAmount));
       set('tsPerfPostW', p.periods.postStartDateStr + ' → ' + p.periods.postEndDateStr + ' · ' + p.postDaysCovered + '/' + p.periods.postDays + 'd data');
       set('tsPerfAfter', p.afterDaysCovered > 0 ? fmtSAR(p.afterAmount) : '—');
-      set('tsPerfAfterW', p.afterDaysCovered > 0 ? (p.periods.afterStartDateStr + ' → ' + p.periods.afterEndDateStr + (p.retention != null ? ' · ' + fmtPct(p.retention) + ' retention' : '')) : (p.periods.afterBlocked ? 'blocked by next activity' : 'no data yet'));
+      set('tsPerfAfterW', p.afterDaysCovered > 0 ? (p.periods.afterStartDateStr + ' → ' + p.periods.afterEndDateStr + (p.retention != null ? ' · ' + fmtPct(p.retention) + ' retention' : '')) : 'no data yet');
       set('tsPerfInc', fmtSAR(p.incremental));
       set('tsPerfUplift', p.upliftNew ? 'New listing' : fmtPct(p.uplift));
       set('tsPerfRots', p.rots != null ? p.rots.toFixed(2) + '×' : '—');
@@ -1504,7 +1476,6 @@ card('Final Approval', 'Management sign-off', fs === 'Yes' ? 'Approved' : (fs ==
       var notes = [];
       if (!(total > 0)) notes.push('Enter the spend amount to get ROTS and a verdict.');
       if (p.postDaysCovered === 0) notes.push('<span class="warn">Awaiting sales data for the activity period — verdict stays Pending.</span>');
-      if (p.periods.truncatedBy) notes.push('Measurement window ends the day before ' + esc(p.periods.truncatedBy) + ' (next activity for this customer/scope).');
       if (p.overlaps && p.overlaps.length) notes.push('<span class="warn">⚠ Overlaps ' + esc(p.overlaps.join(', ')) + ' — incremental sales will be shared.</span>');
       if (p.baselineFloored) notes.push('Before-period is returns-heavy; baseline floored at 0.');
       var el = byId('tsPerfNote'); if (el) el.innerHTML = notes.join(' ');
@@ -1643,7 +1614,6 @@ card('Final Approval', 'Management sign-off', fs === 'Yes' ? 'Approved' : (fs ==
       a.postStartDate = perf.periods.postStartDateStr; a.postEndDate = perf.periods.postEndDateStr;
       a.endDate = perf.periods.postEndDateStr;
       a.duration = perf.periods.postDays;
-      a.truncatedBy = perf.periods.truncatedBy;
       a.rentalMonths = perf.periods.rentalMonths;
       a.preAmount = perf.preAmount; a.preCases = perf.preCases;
       a.postAmount = perf.postAmount; a.postCases = perf.postCases;
@@ -1668,7 +1638,7 @@ card('Final Approval', 'Management sign-off', fs === 'Yes' ? 'Approved' : (fs ==
     var ok = await persistActivity(a);
     if (!ok) return;
     if (!editing) state.activities.push(a);
-    _livePerfCache.clear(); // this activity may truncate neighbours' windows
+    _livePerfCache.clear(); // overlap notes on neighbours may change
     toast((editing ? 'Saved changes to ' : 'Created ') + a.id);
     state.editingId = null;
     state.formSeededFor = null; // next form open starts fresh
@@ -1782,7 +1752,6 @@ card('Final Approval', 'Management sign-off', fs === 'Yes' ? 'Approved' : (fs ==
         'Post Period Start': dp.postStart || a.startDate,
         'Post Period End': dp.postEnd || a.endDate,
         'Post Duration (days)': dp.days,
-        'Truncated By Next Activity': dp.trunc || '',
         'Total Amount (SAR)': a.totalAmount,
         'Relia %': a.reliaPct,
         'Relia Amount (SAR)': a.reliaAmount,
