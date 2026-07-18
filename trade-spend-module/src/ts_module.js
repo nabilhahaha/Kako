@@ -16,11 +16,45 @@ window.TS = (function () {
   'use strict';
 
   // Visible build stamp — lets anyone confirm which build a browser is running.
-  var TS_BUILD = 'Engine V2 · 2026-07-17';
+  var TS_BUILD = 'Engine V2.2 · 2026-07-18';
   try { console.info('[Roshen Trade Spend] ' + TS_BUILD); } catch (e) {}
 
   var TABS = ['log', 'new', 'analysis'];
   var ALL_CATEGORIES = 'ALL';
+
+  // ── Runtime click tracer ────────────────────────────────────────────────────
+  // Follows a row action from the DOM event to the final render. Every step is
+  // recorded (ring buffer, TS.trace()) and — with ?tsdebug=1 in the URL or
+  // TS.debug(true) — shown live in an on-screen panel, so any device can prove
+  // which handler ran, which function executed, what rendered, and any error.
+  var TRACE = [];
+  function trace(step, detail) {
+    var e = { t: new Date().toISOString().slice(11, 23), step: step, detail: detail || '' };
+    TRACE.push(e); if (TRACE.length > 200) TRACE.shift();
+    try { console.debug('[TS-TRACE]', e.t, step, detail || ''); } catch (x) {}
+    if (state.debugOn) renderTracePanel();
+  }
+  function renderTracePanel() {
+    var el = byId('tsTracePanel');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'tsTracePanel';
+      el.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:100500;width:min(420px,92vw);max-height:42vh;overflow-y:auto;' +
+        'background:#0D1524;color:#B9E3C6;border:1px solid #2BB673;border-radius:10px;padding:9px 12px;' +
+        'font:600 10px/1.6 ui-monospace,Menlo,monospace;box-shadow:0 10px 40px rgba(0,0,0,.5);';
+      document.body.appendChild(el);
+    }
+    el.innerHTML = '<div style="color:#fff;font-size:10.5px;">TS runtime trace · build ' + esc(TS_BUILD) + '</div>' +
+      TRACE.slice(-16).map(function (e) {
+        var bad = /error|exception|MISSING|not found/i.test(e.step + e.detail);
+        return '<div style="' + (bad ? 'color:#FF8A8A;' : '') + '">' + e.t + ' · <b>' + esc(e.step) + '</b>' + (e.detail ? ' — ' + esc(String(e.detail)) : '') + '</div>';
+      }).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+  function setDebug(on) {
+    state.debugOn = on !== false;
+    if (state.debugOn) { trace('debug-overlay', 'enabled'); renderTracePanel(); }
+    else { var el = byId('tsTracePanel'); if (el) el.remove(); }
+  }
 
   var state = {
     tab: 'log',
@@ -849,6 +883,7 @@ window.TS = (function () {
   function handleAction(act, id) {
     // A row action must never fail silently: any error surfaces as a toast
     // (with the record id) and a full console stack for diagnosis.
+    trace('handleAction', act + ' → ' + id);
     try {
       if (act === 'view') openView(id);
       else if (act === 'edit') editActivity(id);
@@ -860,6 +895,7 @@ window.TS = (function () {
       else if (act === 'final-ok') finalApprove(id);
       else if (act === 'final-no') finalReject(id);
     } catch (e) {
+      trace('EXCEPTION in ' + act, String((e && e.message) || e).slice(0, 140));
       console.error('[Trade Spend] ' + act + ' failed for ' + id, e);
       toast('Could not ' + act + ' ' + id + ': ' + ((e && e.message) || e), true);
     }
@@ -977,10 +1013,18 @@ window.TS = (function () {
   }
 
   function openView(id) {
-    var a = findAct(id); if (!a) return;
+    trace('openView entry', id + ' (Trade Spend Report renderer, build ' + TS_BUILD + ')');
+    var a = findAct(id);
+    if (!a) { trace('openView EARLY RETURN', 'record ' + id + ' not found in loaded activities (' + state.activities.length + ' loaded)'); return; }
+    trace('record loaded', id + ' · fields: rots=' + (a.rots != null) + ' baseline=' + (a.baselineAmount != null) +
+      ' roshen[' + (a.roshenStatus || '—') + '/' + (a.roshenApprovedBy || a.roshenRejectedBy || 'no-name') + ']' +
+      ' relia[' + (a.reliaStatus || '—') + '/' + (a.reliaApprovedBy || a.reliaRejectedBy || 'no-name') + ']' +
+      ' final[' + finalState(a) + ']' +
+      ' photos=' + (Array.isArray(a.execPhotos) ? a.execPhotos.length : typeof a.execPhotos));
     state.viewId = id;
     var fs = finalState(a);
     var dp = displayPerf(a); // live figures from the current dataset
+    trace('performance computed', 'live=' + dp.live + ' rots=' + (dp.rots != null ? dp.rots.toFixed(2) + 'x' : 'null') + ' verdict=' + dp.verdict);
     var now = new Date();
     var genStamp = now.toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
     var m = function (t) { return '<span class="ts-rp-muted">' + t + '</span>'; };
@@ -1100,6 +1144,9 @@ window.TS = (function () {
     byId('tsModalTitle').textContent = 'Trade Spend Report — ' + a.id;
     byId('tsModalBody').innerHTML = actions + doc;
     byId('tsModal').classList.add('open', 'ts-report-mode');
+    trace('render complete', 'Trade Spend Report opened in #tsModal (ts-report-mode) · sections=' +
+      document.querySelectorAll('#tsReportDoc .ts-rp-sec').length + ' approvalCards=' +
+      document.querySelectorAll('#tsReportDoc .ts-rp-appr').length + ' — NOT the legacy modal');
   }
   function closeModal() { state.viewId = null; var el = byId('tsModal'); el.classList.remove('open'); el.classList.remove('ts-report-mode'); }
 
@@ -1937,10 +1984,12 @@ window.TS = (function () {
     var view = byId('view-tradespend');
     if (view && !view._tsActBound) {
       view._tsActBound = true;
+      view._tsActBuild = TS_BUILD; // runtime-inspectable: which build bound this listener
       view.addEventListener('click', function (e) {
         var btn = e.target && e.target.closest ? e.target.closest('.ts-act-btn[data-act]') : null;
         if (!btn || btn.disabled) return;
         e.preventDefault();
+        trace('DOM click', 'delegated listener (build ' + TS_BUILD + ') · data-act=' + btn.getAttribute('data-act') + ' data-id=' + btn.getAttribute('data-id'));
         handleAction(btn.getAttribute('data-act'), btn.getAttribute('data-id'));
       });
     }
@@ -1959,6 +2008,22 @@ window.TS = (function () {
     }
     injectStylesV2();
     startFreshnessWatch();
+    // On-screen trace panel for field debugging: append ?tsdebug=1 to the URL.
+    try { if (/[?&]tsdebug=1/.test(location.search)) setDebug(true); } catch (e) {}
+  }
+
+  // Runtime introspection: proves which View implementation is bound & rendered.
+  function whichView() {
+    var view = byId('view-tradespend');
+    var body = byId('tsModalBody');
+    return {
+      build: TS_BUILD,
+      boundListener: view ? (view._tsActBound ? ('delegated handleAction from build ' + (view._tsActBuild || 'pre-trace build')) : 'NOT BOUND') : 'container missing',
+      viewButtons: document.querySelectorAll('#tsLogHost .ts-act-btn[data-act="view"]').length,
+      inlineOnclickViewButtons: document.querySelectorAll('#tsLogHost [onclick*="view" i]').length, // legacy pattern — must be 0
+      openViewRenders: 'Trade Spend Report (single implementation — legacy modal renderer no longer exists in this build)',
+      lastRender: body && body.querySelector('#tsReportDoc') ? 'ts-report' : (body && body.querySelector('.ts-view-grid') ? 'LEGACY-MODAL' : 'none-open')
+    };
   }
 
   // ── Stale-tab detection ────────────────────────────────────────────────────
@@ -2114,6 +2179,9 @@ window.TS = (function () {
   // Public surface (used by inline handlers + shell integration)
   return {
     build: TS_BUILD,
+    trace: function () { return TRACE.slice(); },
+    debug: setDebug,
+    whichView: whichView,
     render: render,
     switchTab: switchTab,
     activeTab: activeTab,
