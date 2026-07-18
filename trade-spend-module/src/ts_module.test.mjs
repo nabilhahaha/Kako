@@ -94,18 +94,15 @@ const perf3 = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '
 approx('perf3 roi small positive', perf3.roi, 0.054347826086956465, 1e-6);
 eq('perf3 verdict Break-even', perf3.verdict, 'Break-even');
 
-// 5b) EQUAL DAILY RATE across unequal windows -> incremental ~ 0 (the core fix).
-// Simulate truncation via the test hook: next activity 28 days after this one.
+// 5b) INDEPENDENCE RULE — another activity must NEVER truncate this one's window.
 TS._setActivitiesForTest([
-  { id: 'TRUNC-NEXT', custCode: '10-001495', categories: ['Bonny Fruit'], activityDate: '2026-03-01' }
+  { id: 'LATER-B', custCode: '10-001495', categories: ['Bonny Fruit'], actType: 'Floor Display', activityDate: '2026-03-01' }
 ]);
 const perfT = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '2026-02-01', 'CUR', 500);
-eq('truncated post window (28d)', [perfT.periods.truncatedBy, perfT.postDaysCovered], ['TRUNC-NEXT', 28]);
-// post window Feb1–Feb28 contains the 2026-02-15 (day 411? no: dataset rows) — post rows: 2026-02-15 (1600) only
-// preRate=1000/92 -> baseline=10.8696*28=304.348; incremental=1600-304.348=1295.652 -> strong positive, NOT a fake loss
-approx('truncated baseline', perfT.baselineAmount, 1000/92*28, 1e-6);
-approx('truncated incremental', perfT.incremental, 1600 - 1000/92*28, 1e-6);
-eq('truncated verdict not fake-Loss', perfT.verdict, 'Successful');
+eq('independence: full own window despite later activity', [perfT.periods.postEndDateStr, perfT.postDaysCovered], ['2026-04-30', 89]);
+approx('independence: baseline over full own window', perfT.baselineAmount, 1000/92*89, 1e-6);
+approx('independence: incremental unchanged by neighbour', perfT.incremental, 1600 - 1000/92*89, 1e-6);
+eq('independence: verdict from own window only', perfT.verdict, 'Successful');
 TS._setActivitiesForTest([]);
 
 // 5c) ZERO post-window coverage -> Pending, null metrics (no fake -100% Loss)
@@ -172,11 +169,11 @@ if (T.displayPerf) {
   approx('v2 retention 0 when after empty', v.retention, 0, 1e-9);
   global.META = M0;
 }
-// after window blocked by an immediately-following activity
+// after window is NEVER blocked by another activity (independence rule)
 {
-  TS._setActivitiesForTest([{ id: 'NEXT-IMMEDIATE', custCode: '10-001495', categories: ['Bonny Fruit'], activityDate: '2026-03-01' }]);
+  TS._setActivitiesForTest([{ id: 'NEXT-IMMEDIATE', custCode: '10-001495', categories: ['Bonny Fruit'], actType: 'Floor Display', activityDate: '2026-03-01' }]);
   const v = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '2026-02-01', 'CUR', 500);
-  eq('v2 after blocked by next activity', [v.periods.afterBlocked, v.periods.afterStartDateStr, v.afterDaysCovered], [true, null, 0]);
+  eq('after window uses own dates despite later activity', [v.periods.afterStartDateStr, v.periods.afterEndDateStr], ['2026-05-01', '2026-07-28']);
   TS._setActivitiesForTest([]);
 }
 // overlap detection: same-day activity for same customer + overlapping cats
@@ -186,11 +183,35 @@ if (T.displayPerf) {
   eq('v2 same-day overlap detected', v.overlaps, ['SAME-DAY']);
   TS._setActivitiesForTest([]);
 }
-// consecutive (not simultaneous) activities are NOT flagged as overlap (truncation handles them)
+// overlap note is symmetric and informational (windows genuinely intersect)
 {
   TS._setActivitiesForTest([{ id: 'LATER', custCode: '10-001495', categories: ['Bonny Fruit'], actType: 'Floor Display', activityDate: '2026-03-01' }]);
   const v = T.computePerf('10-001495', ['Bonny Fruit'], [], 'Floor Display', '2026-02-01', 'CUR', 500);
-  eq('v2 consecutive not flagged as overlap', v.overlaps, []);
+  eq('overlapping later activity is noted (numbers unaffected)', v.overlaps, ['LATER']);
+  TS._setActivitiesForTest([]);
+}
+
+// 8) REQUIRED REGRESSION — Activity A (01 Feb → 30 Apr) and Activity B
+// (starts 15 Mar): windows are fully independent, neither truncates the other,
+// and each reads sales only from its own configured period.
+{
+  const A = { id: 'ACT-A', custCode: '10-001495', categories: ['Bonny Fruit'], actType: 'Floor Display', activityDate: '2026-02-01' };
+  const B = { id: 'ACT-B', custCode: '10-001495', categories: ['Bonny Fruit'], actType: 'Floor Display', activityDate: '2026-03-15' };
+  // baseline figures with NO other activity present
+  TS._setActivitiesForTest([A]);
+  const aAlone = T.computePerf(A.custCode, A.categories, [], A.actType, A.activityDate, A.id, 500);
+  TS._setActivitiesForTest([B]);
+  const bAlone = T.computePerf(B.custCode, B.categories, [], B.actType, B.activityDate, B.id, 500);
+  // now BOTH exist
+  TS._setActivitiesForTest([A, B]);
+  const a2 = T.computePerf(A.custCode, A.categories, [], A.actType, A.activityDate, A.id, 500);
+  const b2 = T.computePerf(B.custCode, B.categories, [], B.actType, B.activityDate, B.id, 500);
+  eq('A window: 01 Feb → 30 Apr, unchanged by B', [a2.periods.postStartDateStr, a2.periods.postEndDateStr], ['2026-02-01', '2026-04-30']);
+  eq('B window: own period from 15 Mar, unchanged by A', [b2.periods.postStartDateStr, b2.periods.postEndDateStr], ['2026-03-15', '2026-06-14']);
+  eq('A sales identical with and without B', [a2.preAmount, a2.postAmount, a2.postDaysCovered], [aAlone.preAmount, aAlone.postAmount, aAlone.postDaysCovered]);
+  eq('B sales identical with and without A', [b2.preAmount, b2.postAmount, b2.postDaysCovered], [bAlone.preAmount, bAlone.postAmount, bAlone.postDaysCovered]);
+  eq('A still reads sales until 30 Apr (full 89 days)', a2.postDaysCovered, 89);
+  eq('overlap is allowed and merely noted on both sides', [a2.overlaps, b2.overlaps], [['ACT-B'], ['ACT-A']]);
   TS._setActivitiesForTest([]);
 }
 // discount accounting: gross = net + discount, discountPct = discount/gross
@@ -202,6 +223,7 @@ if (T.displayPerf) {
 {
   const M0 = global.META, D0 = global.D;
   // craft a tiny dataset: one big return before, one sale during
+  const QC0 = global.QC;
   global.D = { cu: [1, 1], sk: [11, 11], d: [global.dateToInt('2026-01-10'), global.dateToInt('2026-02-10')], s: [-500, 300], qx: [100, 100], di: [0, 0] };
   global.QC = (i) => global.D.qx[i] / 100;
   global.META = { dateMin: '2025-01-01', dateMax: '2026-12-31' };
@@ -210,8 +232,63 @@ if (T.displayPerf) {
   const v = T.computePerf('10-001495', ['ALL'], [], 'Floor Display', '2026-02-01', null, 100);
   eq('v2 baseline floored at 0', [v.baselineAmount, v.baselineFloored], [0, true]);
   approx('v2 incremental = during when floored', v.incremental, 300, 1e-9);
-  global.D = D0; global.META = M0;
+  global.D = D0; global.META = M0; global.QC = QC0;
   TS._resetSalesIndexForTest && TS._resetSalesIndexForTest();
+}
+
+// 7) PRODUCTION-BUG REGRESSIONS (found in authenticated live session)
+// 7a. legacy photo objects {name,data} must render (src = .data)
+{
+  const row = T.activityToRow({ id: 'TS-P1', custCode: 'x', custName: 'x', categories: ['ALL'], skus: [], actType: 'T', activityDate: '2026-01-01', totalAmount: 1, execPhotos: [{ name: 'a.jpg', data: 'data:image/jpeg;base64,AAA' }], creditNoteImage: '', creditNoteFilename: '', roshenStatus: 'Pending Approval', reliaStatus: 'Pending Approval', finalApproved: 'No', createdBy: 'a@b.c', createdAt: 'z' });
+  const back = T.rowToActivity(row);
+  eq('photo object survives roundtrip', back.execPhotos[0].data, 'data:image/jpeg;base64,AAA');
+}
+// 7b. dataset swap with SAME lengths but different ids must invalidate the sales index
+{
+  const before = T.calcSalesForRange('10-001495', ['ALL'], [], '2026-01-01', '2026-03-01');
+  // swap: remap in place — same array lengths, different customer ids
+  const oldCu = global.D.cu.slice();
+  global.CUSTOMERS[0].id = 91; global.CUSTOMERS[1].id = 92; // acct 10-001495 now ids 91/92
+  global.D.cu = global.D.cu.map(v => (v === 1 ? 91 : v === 2 ? 92 : v));
+  const after = T.calcSalesForRange('10-001495', ['ALL'], [], '2026-01-01', '2026-03-01');
+  eq('stale-index guard: same-size swap recomputes correctly', Math.round(after.amount), Math.round(before.amount));
+  global.CUSTOMERS[0].id = 1; global.CUSTOMERS[1].id = 2; global.D.cu = oldCu;
+}
+
+// 8) AUTHORIZATION — computeTsCaps must honor BOTH override dialects
+// (found in production: the User-Management screen writes the FLAT shape that
+// dash_effective_perms() reads, while migration 002 seeded the NAMESPACED
+// overrides.ts shape — the Final Approver's flat grant was invisible)
+{
+  const C = T.computeTsCaps;
+  // 8a. Dmytro's exact production row: flat grant + server boot list, no ns
+  const dmytro = C(
+    ['ts.approve.final', 'ts.export', 'ts.view'],                       // dash_boot effective
+    ['ts.view', 'ts.export'],                                            // regional_admin mirror
+    { grant: ['ts.approve.final', 'ts.export'], revoke: ['data.manage', 'reports.export'] }
+  );
+  eq('authz: flat-dialect final approver resolves ts.approve.final',
+    [!!dmytro.caps['ts.approve.final'], !!dmytro.caps['ts.view'], !!dmytro.caps['ts.edit']],
+    [true, true, false]);
+  // 8b. namespaced dialect (Ahmed/Muhammad shape) still honored
+  const ns = C(
+    ['ts.view', 'ts.create', 'ts.edit', 'ts.export'],                    // admin boot (ns invisible to server engine)
+    ['ts.view', 'ts.create', 'ts.edit', 'ts.export'],
+    { ts: { grant: ['ts.approve.relia'], revoke: [] } }
+  );
+  eq('authz: namespaced-dialect approver still resolves', !!ns.caps['ts.approve.relia'], true);
+  // 8c. no boot list → client role mirror fallback
+  const fb = C([], ['ts.view', 'ts.export'], null);
+  eq('authz: role fallback when boot list empty', [!!fb.caps['ts.view'], !!fb.caps['ts.create']], [true, false]);
+  // 8d. revoke wins over grant, across dialects, and non-ts keys are ignored
+  const rv = C(
+    ['ts.view', 'ts.edit', 'data.manage'],
+    [],
+    { grant: ['ts.delete', 'reports.export'], ts: { grant: ['ts.create'], revoke: ['ts.edit', 'ts.delete'] } }
+  );
+  eq('authz: revokes win across dialects; non-ts keys filtered',
+    [!!rv.caps['ts.view'], !!rv.caps['ts.create'], !!rv.caps['ts.edit'], !!rv.caps['ts.delete'], !!rv.caps['data.manage'], !!rv.caps['reports.export']],
+    [true, true, false, false, false, false]);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
